@@ -1,0 +1,37 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode user and shared workspace data
+xcuserdata/
+xcshareddata/
+*.xcuserstate
+*.xcuserdatad/
+
+# Xcode derived data and build artifacts
+DerivedData/
+build/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# CocoaPods (not used, but exclude if added later)
+Pods/
+Podfile.lock
+
+# Fastlane (not used, but exclude if added later)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output/
+
+# Certificates and provisioning (never commit these)
+*.p12
+*.mobileprovision
+*.cer
