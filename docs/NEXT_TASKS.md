@@ -12,24 +12,24 @@
 - ~~Step 3-B: EmptyFeedCard を Map-first な空状態に改善~~ → `8ea9e0e` 完了
 - ~~Step 3-G: UI 表示名を「ピクトリ」に変更~~ → `ce2df41` 完了
 - ~~Step 1-B-5: HomeView.swift 分割（Home + JQAccount 系）~~ → `74c68f6` 完了
+- ~~Step 3-H: Home Hero カードの Map 導線改善~~ → `43e9fca` 完了
 
 ---
 
 ## 推奨作業順序の概要
 
 ```
+Phase 1: コード整理（継続）
+  Step 1-B-4  MapView.swift 分割（★次の推奨、Map改善の前提）
+  Step 1-B-3  CameraView.swift 分割（後回し）
+  Step 1-B-6  SharedComponents.swift 分割（後回し）
+  Step 1-B-7  旧モデル・旧サンプルデータ 削除（後回し）
+
 Phase 3: 体験品質の改善（継続中）
-  Step 3-H    Home Hero カードの Map 導線改善（★次の推奨、HomeView分割済みのため今すぐ可）
   Step 3-C    Home セクション名の改善（いつでも可）
   Step 3-D    Map 中心 UX 改善（1-B-4 後に安全）
   Step 3-E    コアフロー動作確認と修正（1-B-4 後に推奨）
   Step 3-F    Camera 保存フィードバック UI（後回し）
-
-Phase 1: コード整理（継続）
-  Step 1-B-4  MapView.swift 分割（Map改善の前提）
-  Step 1-B-3  CameraView.swift 分割（後回し）
-  Step 1-B-6  SharedComponents.swift 分割（後回し）
-  Step 1-B-7  旧モデル・旧サンプルデータ 削除（後回し）
 
 Phase 2: App Store 必須修正
   Step 2-A    developerUnlockMode をデフォルト false に変更
@@ -57,28 +57,6 @@ Phase 2: App Store 必須修正
 **コミットメッセージ案:**
 ```
 Update home section labels to reflect journey context
-```
-
----
-
-### Step 3-H: Home Hero カードの Map 導線改善（新規）
-
-**目的:** Home の Hero カードから Map タブへの導線をより直感的にする
-
-**候補（作業前に詳細調査が必要）:**
-- Hero カードの「地図を開く」ボタンの視認性・文言改善
-- Map タブへのタブ切り替えが正しく動作しているかの確認
-- Hero カード全体をタップで Map に遷移するなどの UX 強化
-
-**前提条件:** Step 1-B-5（HomeView.swift 分割）が完了していると安全に作業できる
-
-**リスク:** 低〜中
-
-**Definition of Done:** 作業前に詳細計画を立てること
-
-**コミットメッセージ案:**
-```
-Improve map navigation from home hero card
 ```
 
 ---
@@ -315,18 +293,15 @@ Add save feedback and camera permission error handling
 ## タスク間の依存関係
 
 ```
-3-H (Home Hero Map導線) ★次の推奨
-  ← 1-B-5 完了済みのため今すぐ可能
+1-B-4 (Map分割) ★次の推奨
+  └→ 2-A (developerUnlockMode)
+  └→ 3-D (Map UX改善)
 
 3-C (Homeセクション名)
   ← いつでも実施可能（独立）
 
-1-B-4 (Map分割)
-  └→ 2-A (developerUnlockMode)
-  └→ 3-D (Map UX改善)
-
 3-D (Map UX改善)
-  ← 1-B-4 (MapView分割) が完了していると安全
+  ← 1-B-4 完了後が安全
 
 1-B-3 (Camera分割) ← 後回し
   └→ 2-A (developerUnlockMode)

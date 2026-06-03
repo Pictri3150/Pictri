@@ -13,8 +13,8 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | `4eac84a` — Update project state after HomeView extraction |
-| 最新Swiftコード変更 | `74c68f6` — Extract Home views from ContentView |
+| 最新コミット | `43e9fca` — Improve map navigation from home hero card |
+| 最新Swiftコード変更 | `43e9fca` — Improve map navigation from home hero card |
 | ワーキングツリー | クリーン |
 
 ---
@@ -22,13 +22,13 @@
 ## コミット履歴（直近）
 
 ```
+43e9fca  Improve map navigation from home hero card
+1f35a15  Fix project state commit references
 4eac84a  Update project state after HomeView extraction
 74c68f6  Extract Home views from ContentView
 8d104d6  Update project state after Pictri rename
 ce2df41  Rename app display name to Pictri in home top bar
 08600ac  Update home section labels for journey context
-b089eeb  Document Pictri product naming direction
-967a358  Update project state after home improvements
 ```
 
 ---
@@ -80,6 +80,12 @@ b089eeb  Document Pictri product naming direction
 - pbxproj 変更不要（PBXFileSystemSynchronizedRootGroup 使用）
 - コミット: `"Extract Home views from ContentView"`
 
+### Step 3-H: Home Hero カード Map 導線改善（完了）
+- Hero カード主文言: `"次の場所を見つける"` → `"次のスポットを地図で探す"`
+- Map ボタン文言: `"Mapを開く"` → `"地図でスポットを探す"`
+- 変更は `HomeView.swift` 2行のみ、レイアウト・遷移処理は変更なし
+- コミット: `"Improve map navigation from home hero card"`
+
 ---
 
 ## 現在のファイル構成
@@ -126,7 +132,7 @@ b089eeb  Document Pictri product naming direction
 
 ### Home（実装済み・動作確認未実施）
 - トップバー: **「ピクトリ」表示済み**（Step 3-G 完了）
-- Hero カード: Map を開く / 撮るボタン / **スポット進捗を実データ反映済み**（0件時・達成時で文言切替）
+- Hero カード: **「地図でスポットを探す」Map導線強化済み**（Step 3-H）/ 撮るボタン / **スポット進捗を実データ反映済み**（0件時・達成時で文言切替）
 - 最近のシェア: フィードポスト一覧（モックデータ）/ **空状態は Map-first 文言・アイコンに更新済み**
 - 最近埋まった場所: メモリーグリッド（実データ反映済み）
 - アカウントシート: Home 右上から `JQAccountSheetView` をシートで表示
