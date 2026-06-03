@@ -13,7 +13,8 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | `74c68f6` — Extract Home views from ContentView |
+| 最新コミット | `4eac84a` — Update project state after HomeView extraction |
+| 最新Swiftコード変更 | `74c68f6` — Extract Home views from ContentView |
 | ワーキングツリー | クリーン |
 
 ---
@@ -21,13 +22,13 @@
 ## コミット履歴（直近）
 
 ```
+4eac84a  Update project state after HomeView extraction
 74c68f6  Extract Home views from ContentView
 8d104d6  Update project state after Pictri rename
 ce2df41  Rename app display name to Pictri in home top bar
 08600ac  Update home section labels for journey context
 b089eeb  Document Pictri product naming direction
 967a358  Update project state after home improvements
-8ea9e0e  Update empty home state for map-first journey
 ```
 
 ---
