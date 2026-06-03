@@ -484,14 +484,14 @@ struct HomeMemoryTile: View {
 struct EmptyFeedCard: View {
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: "camera.circle")
+            Image(systemName: "mappin.and.ellipse")
                 .font(.system(size: 44, weight: .regular))
                 .foregroundStyle(.white.opacity(0.42))
 
-            Text("まだ7日以内のシェアがありません")
+            Text("まだフレンドの記録がありません")
                 .font(.system(size: 17, weight: .bold))
 
-            Text("現地で撮影された写真だけが、ここに表示されます。")
+            Text("地図でスポットを見つけて、現地で写真を残すとここに表示されます。")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.white.opacity(0.45))
                 .multilineTextAlignment(.center)
