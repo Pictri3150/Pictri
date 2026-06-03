@@ -230,7 +230,7 @@ struct HomeView: View {
     private var topBar: some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("JapanQuest")
+                Text("ピクトリ")
                     .font(.system(size: 30, weight: .bold))
 
                 Text("場所で見つけて、現地で残す")
