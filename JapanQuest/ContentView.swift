@@ -353,7 +353,7 @@ struct HomeView: View {
     private var recentShareSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("最近のシェア")
+                Text("フレンドの旅の記録")
                     .font(.system(size: 20, weight: .bold))
 
                 Spacer()
@@ -384,7 +384,7 @@ struct HomeView: View {
     private var recentMemorySection: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("最近埋まった場所")
+                Text("保存した場所")
                     .font(.system(size: 20, weight: .bold))
 
                 Spacer()
