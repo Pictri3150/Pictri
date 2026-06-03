@@ -1,0 +1,157 @@
+# PROJECT_STATE.md — JapanQuest 現在の実装状況
+
+最終更新: 2026-06-03
+
+---
+
+## ビルド状態
+
+| 項目 | 状態 |
+|-----|------|
+| Xcode Build | **Succeeded** |
+| ブランチ | `main` |
+| 最新コミット | `66bd4b5` — Remove unused legacy account views |
+| ワーキングツリー | クリーン（Xcode ユーザーデータのみ未追跡） |
+
+---
+
+## コミット履歴（直近）
+
+```
+66bd4b5  Remove unused legacy account views
+d14dfe2  Extract Memories views from ContentView
+7c2639c  Fix build error and complete Step 1-A cleanup
+c831f0f  Backup current Japan Quest state before Claude refactor
+d53f900  Initial Commit
+```
+
+---
+
+## 完了済みステップ
+
+### Step 1-A: レガシーファイル削除（完了）
+- 削除ファイル: `Spot.swift` / `PhotoStore.swift` / `LocationManager.swift` / `StampRenderer.swift` / `CameraPicker.swift`
+- `JapanQuestApp.swift` から `PhotoStore` 関連2行を削除
+- `ContentView.swift` の重複 `captureControls` と死にコードを削除（101行削減）
+- コミット: `"Fix build error and complete Step 1-A cleanup"`
+
+### Step 1-B-1: MemoriesView.swift 分割（完了）
+- `MemoriesView.swift` を新規作成（452行）
+- ContentView.swift: 3457行 → 3005行
+- 移動した型: `MemoriesView` / `PrefectureMemorySummaryCard` / `PrefecturePreviewTile` / `PrefectureMemoryDetailView` / `FixedMemorySpotCell` / `FixedEmptySpotCell` / `MemoryVisualStyle`
+- コミット: `"Extract Memories views from ContentView"`
+
+### Step 1-B-2: 旧 Account 系 死にコード削除（完了）
+- 方針: AccountView.swift への分割ではなく、未使用のため削除
+- 削除した型（8つ）: `AccountView` / `AccountSection` / `AccountSectionButton` / `AccountStat` / `AccountMenuRow` / `FriendRow` / `FriendRequestRow` / `AccountQuickMenuView`
+- ContentView.swift: 3005行 → 2576行（429行削除）
+- 残した型: `JQAccountSheetView` 系（現役）/ `AppBackground`（共有）
+- コミット: `"Remove unused legacy account views"`
+
+---
+
+## 現在のファイル構成
+
+### Swift ファイル（全体）
+
+| ファイル | 行数 | 状態 |
+|---------|-----|------|
+| `ContentView.swift` | 2576行 | 分割進行中（Home/Map/Camera が混在） |
+| `MemoriesView.swift` | 455行 | 分割済み |
+| `JapanQuestApp.swift` | 10行 | 完了 |
+| `QuestModels.swift` | 172行 | 要精査（旧モデルが残存） |
+| `QuestSampleData.swift` | 618行 | 要精査（旧モックデータが残存） |
+| `QuestMemoryStore.swift` | 267行 | 安定 |
+| `QuestFriendStore.swift` | 54行 | 安定 |
+| `QuestLocationManager.swift` | 90行 | 安定 |
+| `QuestCameraService.swift` | 221行 | 安定 |
+| `QuestCameraPreview.swift` | 46行 | 安定 |
+| `QuestMapKitView.swift` | 411行 | 安定 |
+| `QuestOverlayRenderer.swift` | 109行 | 安定 |
+| `QuestProofBadge.swift` | 98行 | 安定 |
+| `ShareSheet.swift` | 20行 | 安定 |
+
+### ContentView.swift 内の残存ドメイン
+
+| ドメイン | 型 | 行数 | 備考 |
+|---------|---|-----|------|
+| Root / TabBar / JQUI | ContentView, JQFloatingTabBar, JQFloatingTabItem, AppTab, JQUI | ~168行 | 最終的に残す |
+| Home | HomeView, HomeMemoryTile, EmptyFeedCard, HomeLargePostCard, HomePostDetailSheet | ~514行 | 分割予定 |
+| JQAccount | JQAccountSheetView, JQAccountSection, JQAccountSectionButton, JQAccountStat, JQAccountMenuRow, JQFriendMiniRow, JQRequestMiniRow | ~313行 | Home と一緒に分割予定 |
+| Map | QuestMapView, QuestSpotDetailView | ~383行 | 分割予定 |
+| Camera | QuestCameraView, QuestDualCapturePhase, QuestDemoPhotoMaker, QuestDualPhotoComposer | ~1043行 | 分割予定 |
+| Shared | AppBackground | ~19行 | SharedComponents.swift へ移動予定 |
+
+---
+
+## 各画面の現状
+
+### Home（実装済み・動作確認未実施）
+- トップバー: JapanQuest タイトル + アカウントボタン（右上）
+- Hero カード: Map を開く / 撮るボタン（静的テキスト、実データ未反映）
+- 最近のシェア: フィードポスト一覧（モックデータ）
+- 最近埋まった場所: メモリーグリッド（実データ反映済み）
+- アカウントシート: Home 右上から `JQAccountSheetView` をシートで表示
+
+### Map（実装済み・動作確認未実施）
+- 神奈川のみ表示（他県は未実装）
+- `QuestMapKitView` で MapKit レンダリング
+- スポットタップ → `QuestSpotDetailView` へ NavigationStack で遷移
+- スポット詳細からカメラ画面へ遷移可能
+- `developerUnlockMode = true` のため、GPS に関わらずアンロック状態
+
+### Camera（実装済み・動作確認未実施）
+- 内カメ → 外カメの2枚連続撮影フロー（`QuestDualCapturePhase`）
+- `developerUnlockMode = true` のため、現地にいなくても撮影可能
+- `QuestDemoPhotoMaker`（カラーパネル生成）と `QuestDualPhotoComposer`（合成）が内蔵
+- 保存後に `QuestMemoryStore` へ追加され、Memories タブに反映される
+- 画面内に開発者モード Toggle が表示されている（line 1843）
+
+### Memories（実装済み・動作確認未実施）
+- `MemoriesView.swift` として分離済み
+- 県別サマリーカード + 詳細ビュー
+- `QuestMemoryStore` の実データを表示
+
+### Account（実装済み・動作確認未実施）
+- `JQAccountSheetView` がシートとして表示される
+- フォロー中 / フォロワー / スポット統計
+- フレンド追加・申請管理（ローカルのみ、Firebase 未接続）
+
+---
+
+## コアフローの確認状況
+
+| フロー | 状態 |
+|-------|------|
+| Home → Map タブ遷移 | 未確認 |
+| Map でスポット選択 | 未確認 |
+| Map → Camera へ activeCameraSpotId を渡す | 未確認 |
+| Camera で2枚撮影 → 保存 | 未確認 |
+| 保存後に Memories に反映 | 未確認 |
+| Home フィードにポストが表示 | 未確認 |
+| Account シートの開閉 | 未確認 |
+
+---
+
+## 既知の課題
+
+### App Store 提出前に必須の修正
+1. **`developerUnlockMode` デフォルトが `true`**
+   - `QuestSpotDetailView`（line 1280）と `QuestCameraView`（line 1549）の両方で `@AppStorage("developerUnlockMode") private var developerUnlockMode = true`
+   - ユーザーが現地にいなくてもスポットをアンロック・撮影できてしまう
+   - デフォルトを `false` に変更し、開発者向けトグルは隠す必要がある
+
+2. **カメラ権限なしの場合のフォールバック未確認**
+   - AVFoundation のエラーハンドリングが十分かは未確認
+
+### コードの課題
+3. **旧モデル型が QuestModels.swift に残存**
+   - `RecentQuestPost` / `PrefectureMemory` / `MemorySpot` / `MapDot` / `KanagawaDot` は View からは参照されていないが、`QuestSampleData.swift` 内でのみ使われている（`mockRecentPosts` 等）
+   - `mockRecentPosts` / `mockKanagawaSpots` 等の定数が View から使われているか未確認
+   - 未使用なら Models + SampleData から削除可能
+
+4. **Map は神奈川のみ**
+   - 他県のスポットデータは `mockQuestSpots` に含まれているが、Map 画面は `kanagawa` フィルタのみ
+
+5. **ContentView.swift が 2576 行**
+   - Camera（1043行）/ Home+JQAccount（827行）/ Map（383行）が未分割
