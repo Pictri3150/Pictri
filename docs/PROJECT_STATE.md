@@ -10,19 +10,21 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | `66bd4b5` — Remove unused legacy account views |
-| ワーキングツリー | クリーン（Xcode ユーザーデータのみ未追跡） |
+| 最新コミット | `8ea9e0e` — Update empty home state for map-first journey |
+| ワーキングツリー | クリーン |
 
 ---
 
 ## コミット履歴（直近）
 
 ```
+8ea9e0e  Update empty home state for map-first journey
+ebfd099  Show spot progress in home hero card
+b169cfc  Add Xcode gitignore rules
+5e67124  Add Claude project context docs
 66bd4b5  Remove unused legacy account views
 d14dfe2  Extract Memories views from ContentView
 7c2639c  Fix build error and complete Step 1-A cleanup
-c831f0f  Backup current Japan Quest state before Claude refactor
-d53f900  Initial Commit
 ```
 
 ---
@@ -48,6 +50,18 @@ d53f900  Initial Commit
 - 残した型: `JQAccountSheetView` 系（現役）/ `AppBackground`（共有）
 - コミット: `"Remove unused legacy account views"`
 
+### Step 3-A: Home Hero カード スポット進捗表示（完了）
+- `HomeView` に `completedSpotCount`（ユニーク spotId 数）と `kanagawaTotalSpotCount`（`mockQuestPrefectures` から取得）を追加
+- Hero カードのサブテキストを動的に: 0件時「まず1箇所...」/ 1件以上「神奈川 X / 24 スポット」
+- ContentView.swift: 2576行 → 2586行（+10行）
+- コミット: `"Show spot progress in home hero card"`
+
+### Step 3-B: EmptyFeedCard Map-first 改善（完了）
+- アイコン: `camera.circle` → `mappin.and.ellipse`
+- 見出し: 「まだ7日以内のシェアがありません」→「まだフレンドの記録がありません」
+- サブテキスト: 撮影促進 → 「地図でスポットを見つけて、現地で写真を残すと...」
+- コミット: `"Update empty home state for map-first journey"`
+
 ---
 
 ## 現在のファイル構成
@@ -56,7 +70,7 @@ d53f900  Initial Commit
 
 | ファイル | 行数 | 状態 |
 |---------|-----|------|
-| `ContentView.swift` | 2576行 | 分割進行中（Home/Map/Camera が混在） |
+| `ContentView.swift` | 2586行 | 分割進行中（Home/Map/Camera が混在） |
 | `MemoriesView.swift` | 455行 | 分割済み |
 | `JapanQuestApp.swift` | 10行 | 完了 |
 | `QuestModels.swift` | 172行 | 要精査（旧モデルが残存） |
@@ -88,10 +102,11 @@ d53f900  Initial Commit
 
 ### Home（実装済み・動作確認未実施）
 - トップバー: JapanQuest タイトル + アカウントボタン（右上）
-- Hero カード: Map を開く / 撮るボタン（静的テキスト、実データ未反映）
-- 最近のシェア: フィードポスト一覧（モックデータ）
+- Hero カード: Map を開く / 撮るボタン / **スポット進捗を実データ反映済み**（0件時・達成時で文言切替）
+- 最近のシェア: フィードポスト一覧（モックデータ）/ **空状態は Map-first 文言・アイコンに更新済み**
 - 最近埋まった場所: メモリーグリッド（実データ反映済み）
 - アカウントシート: Home 右上から `JQAccountSheetView` をシートで表示
+- 未改善: 「最近のシェア」「最近埋まった場所」のセクション名
 
 ### Map（実装済み・動作確認未実施）
 - 神奈川のみ表示（他県は未実装）

@@ -4,11 +4,22 @@
 
 ---
 
+## 完了済みタスク（Phase 3 先行分）
+
+- ~~Step 3-A: Home Hero カードを実データで動的に~~ → `ebfd099` 完了
+- ~~Step 3-B: EmptyFeedCard を Map-first な空状態に改善~~ → `8ea9e0e` 完了
+
+---
+
 ## 推奨作業順序の概要
 
 ```
+Phase 3: 体験品質の改善（継続中）
+  Step 3-C    Home セクション名の改善（「最近のシェア」「最近埋まった場所」）
+  Step 3-D    Map 中心 UX 改善（スポット詳細・導線）
+
 Phase 1: コード整理（ファイル分割 + 死にコード削除）
-  Step 1-B-3  CameraView.swift 分割
+  Step 1-B-3  CameraView.swift 分割（Camera 改善の前提）
   Step 1-B-4  MapView.swift 分割
   Step 1-B-5  HomeView.swift + JQAccountView.swift 分割
   Step 1-B-6  SharedComponents.swift 分割
@@ -17,11 +28,56 @@ Phase 1: コード整理（ファイル分割 + 死にコード削除）
 Phase 2: App Store 必須修正
   Step 2-A    developerUnlockMode をデフォルト false に変更
 
-Phase 3: 体験品質の改善（見えるUI改善）
-  Step 3-A    Home Hero カードを実データで動的に
-  Step 3-B    コアフロー（Map→Camera→Save→Memories）の動作確認と修正
-  Step 3-C    Camera 保存フィードバック UI の改善
+Phase 3: 体験品質の改善（後続）
+  Step 3-E    コアフロー（Map→Camera→Save→Memories）の動作確認と修正
+  Step 3-F    Camera 保存フィードバック UI の改善（後回し）
 ```
+
+---
+
+## Phase 3: 体験品質の改善（継続）
+
+### Step 3-C: Home セクション名の改善
+
+**目的:** 「最近のシェア」「最近埋まった場所」という文言が SNS 的・スタンプラリー的に見える問題を解消し、Japan Quest らしい「旅の記録」「場所の発見」に寄せる
+
+**変更対象（ContentView.swift のみ）:**
+- `recentShareSection` 見出し: 「最近のシェア」→「フレンドの記録」（または「最近の記録」）
+- `recentMemorySection` 見出し: 「最近埋まった場所」→「最近の記録」（または「保存した場所」）
+
+**リスク:** 最低（Text 2行の変更のみ）
+
+**Definition of Done:**
+- 2箇所のセクション見出しが更新されている
+- レイアウト崩れなし
+- Build Succeeded
+
+**コミットメッセージ案:**
+```
+Update home section labels to reflect journey context
+```
+
+---
+
+### Step 3-D: Map 中心 UX 改善
+
+**目的:** Map 画面の「スポットを見つけて行ってみたくなる」体験を強化する
+
+**候補（作業前に詳細調査が必要）:**
+- スポット詳細画面（`QuestSpotDetailView`）のビジュアル強化
+- 未訪問・訪問済みスポットの視覚的区別の改善
+- 「このスポットで撮影する」ボタンの導線改善
+
+**前提条件:** Step 1-B-4（MapView.swift 分割）が完了していると安全に作業できる
+
+**リスク:** 中（Map 画面は MapKit との連携があるため、詳細調査が必要）
+
+**Definition of Done:** 作業前に詳細計画を立てること
+
+**コミットメッセージ案:**
+```
+Improve map spot detail UX
+```（変更内容に応じて変更）
 
 ---
 
@@ -217,33 +273,9 @@ Disable developer unlock mode by default
 
 ---
 
-## Phase 3: 体験品質の改善
+## Phase 3: 体験品質の改善（後続）
 
-### Step 3-A: Home Hero カードを実データで動的に
-
-**目的:** Hero カードの「Mapを拡大すると...」という静的テキストを、ユーザーの進捗に合わせた内容にする
-
-**変更内容:**
-- 未クリアスポット数を `QuestMemoryStore` から取得して表示
-- クリア済みスポット数の表示
-- 初回利用時（まだスポット0件）の onboarding メッセージ
-
-**前提条件:** Step 1-B-5（HomeView.swift 分割）が完了していること
-
-**リスク:** 低（表示テキストの変更のみ、ロジック変更なし）
-
-**Definition of Done:**
-- スポット達成数が Hero カードに反映される
-- 0件時・達成時それぞれの表示が適切
-
-**コミットメッセージ案:**
-```
-Show real spot progress in home hero card
-```
-
----
-
-### Step 3-B: コアフロー動作確認と修正
+### Step 3-E: コアフロー動作確認と修正
 
 **目的:** 「Map → スポット選択 → Camera → 撮影 → 保存 → Memories 反映」のコアフローを実機・シミュレーターで確認し、不具合を修正する
 
@@ -269,7 +301,7 @@ Fix core flow: map → camera → save → memories
 
 ---
 
-### Step 3-C: Camera 保存フィードバック UI の改善
+### Step 3-F: Camera 保存フィードバック UI の改善（後回し）
 
 **目的:** 撮影・保存後のユーザーへのフィードバックを改善する
 
@@ -278,7 +310,7 @@ Fix core flow: map → camera → save → memories
 - 保存失敗時のエラー表示
 - カメラ権限がない場合の案内表示
 
-**前提条件:** Step 3-B（コアフロー確認）が完了していること
+**前提条件:** Step 1-B-3（CameraView.swift 分割）と Step 3-E（コアフロー確認）が完了していること
 
 **リスク:** 中（AVFoundation の状態管理を変更するため）
 
@@ -297,20 +329,31 @@ Add save feedback and camera permission error handling
 ## タスク間の依存関係
 
 ```
+3-C (Homeセクション名)
+  ← いつでも実施可能（独立）
+
+3-D (Map UX改善)
+  ← 1-B-4 (MapView分割) が完了していると安全
+
 1-B-3 (Camera分割)
   └→ 2-A (developerUnlockMode)
-  └→ 3-B (コアフロー確認)
-      └→ 3-C (Camera UI改善)
+  └→ 3-F (Camera UI改善)
+      ← 3-E (コアフロー確認) も前提
 
 1-B-4 (Map分割)
   └→ 2-A (developerUnlockMode)
+  └→ 3-D (Map UX改善)
 
 1-B-5 (Home分割)
-  └→ 3-A (Hero カード実データ)
+  ← いつでも実施可能（3-C の後が安全）
 
 1-B-6 (SharedComponents)
   ← 1-B-3, 1-B-4, 1-B-5 完了後に実施
 
 1-B-7 (旧モデル削除)
   ← いつでも実施可能（他タスクと独立）
+
+3-E (コアフロー確認)
+  ← 1-B-3, 1-B-4 完了後が安全
+  └→ 3-F (Camera UI改善)
 ```
