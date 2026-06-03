@@ -1,6 +1,6 @@
 # NEXT_TASKS.md — ピクトリ（Pictri）次のタスク一覧
 
-最終更新: 2026-06-03
+最終更新: 2026-06-04
 
 > **プロダクト名:** ピクトリ（Pictri）— UI 上の表示名。内部プロジェクト名 JapanQuest はコード・Xcode 設定に残存中。
 
@@ -10,60 +10,34 @@
 
 - ~~Step 3-A: Home Hero カードを実データで動的に~~ → `ebfd099` 完了
 - ~~Step 3-B: EmptyFeedCard を Map-first な空状態に改善~~ → `8ea9e0e` 完了
+- ~~Step 3-G: UI 表示名を「ピクトリ」に変更~~ → `ce2df41` 完了
 
 ---
 
 ## 推奨作業順序の概要
 
 ```
-Phase 3: 体験品質の改善（継続中）
-  Step 3-C    Home セクション名の改善（「最近のシェア」「最近埋まった場所」）
-  Step 3-D    Map 中心 UX 改善（スポット詳細・導線）
+Phase 1: コード整理（優先）
+  Step 1-B-5  HomeView.swift + JQAccountView.swift 分割（★次の推奨）
+  Step 1-B-4  MapView.swift 分割（Map改善の前提）
+  Step 1-B-3  CameraView.swift 分割（後回し）
+  Step 1-B-6  SharedComponents.swift 分割（後回し）
+  Step 1-B-7  旧モデル・旧サンプルデータ 削除（後回し）
 
-Phase 1: コード整理（ファイル分割 + 死にコード削除）
-  Step 1-B-3  CameraView.swift 分割（Camera 改善の前提）
-  Step 1-B-4  MapView.swift 分割
-  Step 1-B-5  HomeView.swift + JQAccountView.swift 分割
-  Step 1-B-6  SharedComponents.swift 分割
-  Step 1-B-7  旧モデル・旧サンプルデータ 削除
+Phase 3: 体験品質の改善（継続中）
+  Step 3-C    Home セクション名の改善（いつでも可）
+  Step 3-H    Home Hero カードの Map 導線改善（1-B-5 後に安全）
+  Step 3-D    Map 中心 UX 改善（1-B-4 後に安全）
+  Step 3-E    コアフロー動作確認と修正（1-B-3, 1-B-4 後に推奨）
+  Step 3-F    Camera 保存フィードバック UI（後回し）
 
 Phase 2: App Store 必須修正
   Step 2-A    developerUnlockMode をデフォルト false に変更
-
-Phase 3: 体験品質の改善（後続）
-  Step 3-E    コアフロー（Map→Camera→Save→Memories）の動作確認と修正
-  Step 3-F    Camera 保存フィードバック UI の改善（後回し）
 ```
 
 ---
 
 ## Phase 3: 体験品質の改善（継続）
-
-### Step 3-G: UI 表示名を「ピクトリ」に変更（新規追加）
-
-**目的:** UI 上に残る「JapanQuest」という文字列を正式な表示名「ピクトリ」に変更する
-
-**変更対象（ContentView.swift のみ）:**
-- `HomeView.topBar` の `Text("JapanQuest")` → `Text("ピクトリ")`
-- `HomeView.topBar` のサブテキスト `Text("場所で見つけて、現地で残す")` は現状維持でよい
-
-**対象外（変更しない）:**
-- Xcode プロジェクト名・Bundle Identifier
-- 型名・ファイル名（`JapanQuestApp.swift` 等）
-- コード内部の文字列定数（ユーザーに見えないもの）
-
-**リスク:** 最低（Text 1行の変更のみ）
-
-**Definition of Done:**
-- Home 画面トップバーに「ピクトリ」が表示される
-- Build Succeeded
-
-**コミットメッセージ案:**
-```
-Rename app display name to Pictri in home top bar
-```
-
----
 
 ### Step 3-C: Home セクション名の改善
 
@@ -83,6 +57,28 @@ Rename app display name to Pictri in home top bar
 **コミットメッセージ案:**
 ```
 Update home section labels to reflect journey context
+```
+
+---
+
+### Step 3-H: Home Hero カードの Map 導線改善（新規）
+
+**目的:** Home の Hero カードから Map タブへの導線をより直感的にする
+
+**候補（作業前に詳細調査が必要）:**
+- Hero カードの「地図を開く」ボタンの視認性・文言改善
+- Map タブへのタブ切り替えが正しく動作しているかの確認
+- Hero カード全体をタップで Map に遷移するなどの UX 強化
+
+**前提条件:** Step 1-B-5（HomeView.swift 分割）が完了していると安全に作業できる
+
+**リスク:** 低〜中
+
+**Definition of Done:** 作業前に詳細計画を立てること
+
+**コミットメッセージ案:**
+```
+Improve map navigation from home hero card
 ```
 
 ---
@@ -358,22 +354,26 @@ Add save feedback and camera permission error handling
 
 ```
 3-C (Homeセクション名)
-  ← いつでも実施可能（独立）
+  ← いつでも実施可能（独立）★今すぐ可能
 
-3-D (Map UX改善)
-  ← 1-B-4 (MapView分割) が完了していると安全
+1-B-5 (Home分割) ★次の推奨
+  ← 3-C の後が安全
+  └→ 3-H (Home Hero Map導線)
 
-1-B-3 (Camera分割)
-  └→ 2-A (developerUnlockMode)
-  └→ 3-F (Camera UI改善)
-      ← 3-E (コアフロー確認) も前提
+3-H (Home Hero Map導線)
+  ← 1-B-5 (Home分割) 後が安全
 
 1-B-4 (Map分割)
   └→ 2-A (developerUnlockMode)
   └→ 3-D (Map UX改善)
 
-1-B-5 (Home分割)
-  ← いつでも実施可能（3-C の後が安全）
+3-D (Map UX改善)
+  ← 1-B-4 (MapView分割) が完了していると安全
+
+1-B-3 (Camera分割) ← 後回し
+  └→ 2-A (developerUnlockMode)
+  └→ 3-F (Camera UI改善)
+      ← 3-E (コアフロー確認) も前提
 
 1-B-6 (SharedComponents)
   ← 1-B-3, 1-B-4, 1-B-5 完了後に実施

@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
-最終更新: 2026-06-03
+最終更新: 2026-06-04
 
 > **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
 > **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
@@ -13,7 +13,7 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | `8ea9e0e` — Update empty home state for map-first journey |
+| 最新コミット | `ce2df41` — Rename app display name to Pictri in home top bar |
 | ワーキングツリー | クリーン |
 
 ---
@@ -21,13 +21,13 @@
 ## コミット履歴（直近）
 
 ```
+ce2df41  Rename app display name to Pictri in home top bar
+08600ac  Update home section labels for journey context
+b089eeb  Document Pictri product naming direction
 8ea9e0e  Update empty home state for map-first journey
 ebfd099  Show spot progress in home hero card
 b169cfc  Add Xcode gitignore rules
 5e67124  Add Claude project context docs
-66bd4b5  Remove unused legacy account views
-d14dfe2  Extract Memories views from ContentView
-7c2639c  Fix build error and complete Step 1-A cleanup
 ```
 
 ---
@@ -64,6 +64,12 @@ d14dfe2  Extract Memories views from ContentView
 - 見出し: 「まだ7日以内のシェアがありません」→「まだフレンドの記録がありません」
 - サブテキスト: 撮影促進 → 「地図でスポットを見つけて、現地で写真を残すと...」
 - コミット: `"Update empty home state for map-first journey"`
+
+### Step 3-G: UI 表示名を「ピクトリ」に変更（完了）
+- `HomeView.topBar` の `Text("JapanQuest")` → `Text("ピクトリ")`
+- 変更は `ContentView.swift` 1行のみ
+- Xcode プロジェクト名・Bundle Identifier・ファイル名・型名は変更していない
+- コミット: `"Rename app display name to Pictri in home top bar"`
 
 ---
 
@@ -104,7 +110,7 @@ d14dfe2  Extract Memories views from ContentView
 ## 各画面の現状
 
 ### Home（実装済み・動作確認未実施）
-- トップバー: 「JapanQuest」タイトル表示中（→ **「ピクトリ」への変更が必要**、Step 3-G 予定）
+- トップバー: **「ピクトリ」表示済み**（Step 3-G 完了）
 - Hero カード: Map を開く / 撮るボタン / **スポット進捗を実データ反映済み**（0件時・達成時で文言切替）
 - 最近のシェア: フィードポスト一覧（モックデータ）/ **空状態は Map-first 文言・アイコンに更新済み**
 - 最近埋まった場所: メモリーグリッド（実データ反映済み）
