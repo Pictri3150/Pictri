@@ -1,6 +1,9 @@
-# PROJECT_STATE.md — JapanQuest 現在の実装状況
+# PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
 最終更新: 2026-06-03
+
+> **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
+> **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
 
 ---
 
@@ -101,7 +104,7 @@ d14dfe2  Extract Memories views from ContentView
 ## 各画面の現状
 
 ### Home（実装済み・動作確認未実施）
-- トップバー: JapanQuest タイトル + アカウントボタン（右上）
+- トップバー: 「JapanQuest」タイトル表示中（→ **「ピクトリ」への変更が必要**、Step 3-G 予定）
 - Hero カード: Map を開く / 撮るボタン / **スポット進捗を実データ反映済み**（0件時・達成時で文言切替）
 - 最近のシェア: フィードポスト一覧（モックデータ）/ **空状態は Map-first 文言・アイコンに更新済み**
 - 最近埋まった場所: メモリーグリッド（実データ反映済み）

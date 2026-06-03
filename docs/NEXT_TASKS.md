@@ -1,6 +1,8 @@
-# NEXT_TASKS.md — JapanQuest 次のタスク一覧
+# NEXT_TASKS.md — ピクトリ（Pictri）次のタスク一覧
 
 最終更新: 2026-06-03
+
+> **プロダクト名:** ピクトリ（Pictri）— UI 上の表示名。内部プロジェクト名 JapanQuest はコード・Xcode 設定に残存中。
 
 ---
 
@@ -37,9 +39,35 @@ Phase 3: 体験品質の改善（後続）
 
 ## Phase 3: 体験品質の改善（継続）
 
+### Step 3-G: UI 表示名を「ピクトリ」に変更（新規追加）
+
+**目的:** UI 上に残る「JapanQuest」という文字列を正式な表示名「ピクトリ」に変更する
+
+**変更対象（ContentView.swift のみ）:**
+- `HomeView.topBar` の `Text("JapanQuest")` → `Text("ピクトリ")`
+- `HomeView.topBar` のサブテキスト `Text("場所で見つけて、現地で残す")` は現状維持でよい
+
+**対象外（変更しない）:**
+- Xcode プロジェクト名・Bundle Identifier
+- 型名・ファイル名（`JapanQuestApp.swift` 等）
+- コード内部の文字列定数（ユーザーに見えないもの）
+
+**リスク:** 最低（Text 1行の変更のみ）
+
+**Definition of Done:**
+- Home 画面トップバーに「ピクトリ」が表示される
+- Build Succeeded
+
+**コミットメッセージ案:**
+```
+Rename app display name to Pictri in home top bar
+```
+
+---
+
 ### Step 3-C: Home セクション名の改善
 
-**目的:** 「最近のシェア」「最近埋まった場所」という文言が SNS 的・スタンプラリー的に見える問題を解消し、Japan Quest らしい「旅の記録」「場所の発見」に寄せる
+**目的:** 「最近のシェア」「最近埋まった場所」という文言が SNS 的・スタンプラリー的に見える問題を解消し、ピクトリらしい「旅の記録」「場所の発見」に寄せる
 
 **変更対象（ContentView.swift のみ）:**
 - `recentShareSection` 見出し: 「最近のシェア」→「フレンドの記録」（または「最近の記録」）

@@ -1,4 +1,4 @@
-# CLAUDE.md — JapanQuest 開発ガイド
+# CLAUDE.md — ピクトリ（Pictri）開発ガイド
 
 Claude Codeはこのファイルを最初に読み、作業前に `docs/PROJECT_STATE.md` と `docs/NEXT_TASKS.md` を確認すること。
 
@@ -6,7 +6,18 @@ Claude Codeはこのファイルを最初に読み、作業前に `docs/PROJECT_
 
 ## プロダクト概要
 
-**JapanQuest** は Swift / SwiftUI 製の iOS 旅行写真 SNS アプリ。
+### 名称について
+
+| 区分 | 名称 | 用途 |
+|-----|-----|-----|
+| **正式な表示名** | **ピクトリ**（Pictri） | UI・ユーザーに見える場所すべて |
+| 内部プロジェクト名 | JapanQuest | Xcode プロジェクト名・Bundle ID・型名・ファイル名 |
+
+- 「ピクトリ」は *picture trip* に由来する
+- Xcode プロジェクト名・Bundle Identifier・型名・ファイル名は **JapanQuest のまま維持**（将来の専用タスクで変更予定）
+- UI 上のテキスト（`Text("JapanQuest")` 等）は順次「ピクトリ」に変更する
+
+**ピクトリ** は Swift / SwiftUI 製の iOS 旅行写真アプリ。
 
 - 場所認証された旅行写真と思い出保存を中心にする
 - ゲーム・ランキングアプリではない
@@ -25,6 +36,7 @@ Claude Codeはこのファイルを最初に読み、作業前に `docs/PROJECT_
 - 黒白基調、高級感、余白、静けさを重視
 - Bottom Tab: Home / Map / Camera / Memories
 - Account / Friend はタブではなく Home 右上アイコンから入る
+- UI 上のアプリ名表示は「ピクトリ」を使う（「JapanQuest」は内部名のため表示しない）
 
 ---
 
