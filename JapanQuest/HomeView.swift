@@ -122,7 +122,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("次の場所を見つける")
+                        Text("次のスポットを地図で探す")
                             .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(.white)
 
@@ -150,7 +150,7 @@ struct HomeView: View {
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "mappin.and.ellipse")
-                            Text("Mapを開く")
+                            Text("地図でスポットを探す")
                         }
                         .font(.system(size: 15, weight: .bold))
                         .frame(maxWidth: .infinity)
