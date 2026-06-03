@@ -1,0 +1,975 @@
+import SwiftUI
+
+// MARK: - Home
+
+struct HomeView: View {
+    @Binding var selectedTab: AppTab
+    @EnvironmentObject var memoryStore: QuestMemoryStore
+    @EnvironmentObject var friendStore: QuestFriendStore
+
+    @State private var showAccountMenu = false
+    @State private var selectedPostForDetail: QuestFeedPost?
+
+    private var visiblePosts: [QuestFeedPost] {
+        memoryStore.visibleFeedPosts()
+    }
+
+    private var latestPost: QuestFeedPost? {
+        visiblePosts.first
+    }
+
+    private var recentUnlockedMemories: [QuestMemoryPhoto] {
+        Array(memoryStore.memoryPhotos.prefix(6))
+    }
+
+    private var completedSpotCount: Int {
+        Set(memoryStore.memoryPhotos.map { $0.spotId }).count
+    }
+
+    private var kanagawaTotalSpotCount: Int {
+        mockQuestPrefectures.first { $0.id == "kanagawa" }?.totalSpotCount ?? 24
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppBackground()
+
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 22) {
+                        topBar
+                        questHeroCard
+                        recentShareSection
+                        recentMemorySection
+
+                        Spacer(minLength: 90)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.top, 18)
+                }
+            }
+            .sheet(isPresented: $showAccountMenu) {
+                JQAccountSheetView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
+            .sheet(item: $selectedPostForDetail) { post in
+                HomePostDetailSheet(post: post)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
+        }
+    }
+
+    private var topBar: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("ピクトリ")
+                    .font(.system(size: 30, weight: .bold))
+
+                Text("場所で見つけて、現地で残す")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.50))
+            }
+
+            Spacer()
+
+            Button {
+                showAccountMenu = true
+            } label: {
+                ZStack(alignment: .bottomTrailing) {
+                    Circle()
+                        .fill(.white.opacity(0.10))
+                        .frame(width: 46, height: 46)
+                        .overlay {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.92))
+                        }
+
+                    if !friendStore.incomingRequests.isEmpty {
+                        Circle()
+                            .fill(.white)
+                            .frame(width: 14, height: 14)
+                            .overlay {
+                                Text("\(friendStore.incomingRequests.count)")
+                                    .font(.system(size: 8, weight: .heavy))
+                                    .foregroundStyle(.black)
+                            }
+                            .offset(x: 1, y: 1)
+                    }
+                }
+            }
+        }
+    }
+
+    private var questHeroCard: some View {
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: 30)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(0.12),
+                            .white.opacity(0.045),
+                            .white.opacity(0.025)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(height: 250)
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("次の場所を見つける")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundStyle(.white)
+
+                        Text(completedSpotCount == 0
+                            ? "まず1箇所、現地で写真を残してみよう。"
+                            : "神奈川 \(completedSpotCount) / \(kanagawaTotalSpotCount) スポット")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.52))
+                            .lineSpacing(3)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "map.fill")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(.black)
+                        .frame(width: 48, height: 48)
+                        .background(.white)
+                        .clipShape(Circle())
+                }
+
+                HStack(spacing: 10) {
+                    Button {
+                        selectedTab = .map
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "mappin.and.ellipse")
+                            Text("Mapを開く")
+                        }
+                        .font(.system(size: 15, weight: .bold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(.white)
+                        .foregroundStyle(.black)
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                    }
+
+                    Button {
+                        selectedTab = .camera
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "camera.fill")
+                            Text("撮る")
+                        }
+                        .font(.system(size: 15, weight: .bold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(.white.opacity(0.10))
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 30)
+                .stroke(.white.opacity(0.08), lineWidth: 1)
+        }
+    }
+
+    private var recentShareSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("フレンドの旅の記録")
+                    .font(.system(size: 20, weight: .bold))
+
+                Spacer()
+
+                Text("7日間")
+                    .font(.system(size: 12, weight: .bold))
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 7)
+                    .background(.white.opacity(0.10))
+                    .foregroundStyle(.white.opacity(0.72))
+                    .clipShape(Capsule())
+            }
+
+            if visiblePosts.isEmpty {
+                EmptyFeedCard()
+            } else {
+                ForEach(visiblePosts.prefix(4)) { post in
+                    HomeLargePostCard(post: post)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            selectedPostForDetail = post
+                        }
+                }
+            }
+        }
+    }
+
+    private var recentMemorySection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("保存した場所")
+                    .font(.system(size: 20, weight: .bold))
+
+                Spacer()
+
+                Button {
+                    selectedTab = .memories
+                } label: {
+                    Text("見る")
+                        .font(.system(size: 12, weight: .bold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(.white.opacity(0.10))
+                        .foregroundStyle(.white)
+                        .clipShape(Capsule())
+                }
+            }
+
+            if recentUnlockedMemories.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "square.grid.2x2")
+                        .font(.system(size: 34, weight: .regular))
+                        .foregroundStyle(.white.opacity(0.38))
+
+                    Text("まだメモリーがありません")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.72))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 30)
+                .background(.white.opacity(0.055))
+                .clipShape(RoundedRectangle(cornerRadius: 24))
+            } else {
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: 8),
+                        GridItem(.flexible(), spacing: 8),
+                        GridItem(.flexible(), spacing: 8)
+                    ],
+                    spacing: 8
+                ) {
+                    ForEach(recentUnlockedMemories) { memory in
+                        HomeMemoryTile(memory: memory)
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct HomeMemoryTile: View {
+    let memory: QuestMemoryPhoto
+    @EnvironmentObject var memoryStore: QuestMemoryStore
+
+    private var spot: QuestSpot? {
+        mockQuestSpots.first { $0.id == memory.spotId }
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            if let spot, let image = memoryStore.image(for: spot) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 118)
+                    .clipped()
+            } else if let spot {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(MemoryVisualStyle.gradient(for: spot))
+                    .frame(height: 118)
+            } else {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.white.opacity(0.07))
+                    .frame(height: 118)
+            }
+
+            LinearGradient(
+                colors: [
+                    .black.opacity(0),
+                    .black.opacity(0.55)
+                ],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+
+            Text(spot?.name ?? "Spot")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .padding(9)
+        }
+        .frame(height: 118)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+struct EmptyFeedCard: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "mappin.and.ellipse")
+                .font(.system(size: 44, weight: .regular))
+                .foregroundStyle(.white.opacity(0.42))
+
+            Text("まだフレンドの記録がありません")
+                .font(.system(size: 17, weight: .bold))
+
+            Text("地図でスポットを見つけて、現地で写真を残すとここに表示されます。")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.white.opacity(0.45))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 36)
+        .background(.white.opacity(0.055))
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+}
+
+struct HomeLargePostCard: View {
+    let post: QuestFeedPost
+
+    @EnvironmentObject var memoryStore: QuestMemoryStore
+
+    private var spot: QuestSpot? {
+        mockQuestSpots.first { $0.id == post.spotId }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            postHeader
+
+            ZStack(alignment: .bottomLeading) {
+                postVisual
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(post.displayDate)
+                        .font(.system(size: 18, weight: .semibold, design: .monospaced))
+
+                    Text(post.displayPlace)
+                        .font(.system(size: 25, weight: .bold, design: .monospaced))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(.white.opacity(0.16))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .padding(16)
+
+                if post.isMine {
+                    Text("you")
+                        .font(.system(size: 12, weight: .bold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(.white)
+                        .foregroundStyle(.black)
+                        .clipShape(Capsule())
+                        .padding(14)
+                        .frame(
+                            maxWidth: .infinity,
+                            maxHeight: .infinity,
+                            alignment: .topTrailing
+                        )
+                }
+            }
+        }
+        .padding(12)
+        .background(.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 26))
+    }
+
+    private var postHeader: some View {
+        HStack(spacing: 10) {
+            Circle()
+                .fill(.white.opacity(0.14))
+                .frame(width: 34, height: 34)
+                .overlay {
+                    Text(String(post.username.prefix(1)).uppercased())
+                        .font(.system(size: 13, weight: .bold))
+                }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(post.username)
+                    .font(.system(size: 14, weight: .bold))
+
+                Text("\(post.displayPlace) ・ \(daysLeftText)")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.white.opacity(0.45))
+        }
+    }
+
+    @ViewBuilder
+    private var postVisual: some View {
+        if let image = memoryStore.image(for: post) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(height: 255)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: 22))
+        } else {
+            RoundedRectangle(cornerRadius: 22)
+                .fill(placeholderGradient)
+                .frame(height: 255)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 22)
+                        .fill(.black.opacity(0.12))
+                }
+        }
+    }
+
+    private var placeholderGradient: LinearGradient {
+        if let spot {
+            return MemoryVisualStyle.gradient(for: spot)
+        }
+
+        return LinearGradient(
+            colors: [
+                .gray.opacity(0.4),
+                .black
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
+    private var daysLeftText: String {
+        let seconds = post.expiresAt.timeIntervalSince(Date())
+        let days = max(Int(ceil(seconds / 86400)), 0)
+
+        if days <= 0 {
+            return "まもなく消えます"
+        } else {
+            return "あと\(days)日"
+        }
+    }
+}
+
+struct JQAccountSheetView: View {
+    @EnvironmentObject var friendStore: QuestFriendStore
+    @EnvironmentObject var memoryStore: QuestMemoryStore
+
+    @State private var selectedSection: JQAccountSection = .profile
+    @State private var addFriendText = ""
+
+    var body: some View {
+        ZStack {
+            AppBackground()
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    header
+                    stats
+                    sectionTabs
+                    sectionContent
+
+                    Spacer(minLength: 40)
+                }
+                .padding(18)
+            }
+        }
+    }
+
+    private var header: some View {
+        VStack(spacing: 12) {
+            Circle()
+                .fill(.white.opacity(0.12))
+                .frame(width: 82, height: 82)
+                .overlay {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 34, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+
+            VStack(spacing: 5) {
+                Text("keita_travel")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(.white)
+
+                Text("場所で残す、旅の記録")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.48))
+            }
+        }
+    }
+
+    private var stats: some View {
+        HStack(spacing: 10) {
+            JQAccountStat(title: "フォロー中", value: "\(friendStore.friends.count)")
+            JQAccountStat(title: "フォロワー", value: "12")
+            JQAccountStat(title: "スポット", value: "\(memoryStore.memoryPhotos.count)")
+        }
+    }
+
+    private var sectionTabs: some View {
+        HStack(spacing: 8) {
+            JQAccountSectionButton(title: "概要", section: .profile, selectedSection: $selectedSection)
+            JQAccountSectionButton(title: "フォロー", section: .following, selectedSection: $selectedSection)
+            JQAccountSectionButton(title: "追加", section: .add, selectedSection: $selectedSection)
+            JQAccountSectionButton(title: "申請", section: .requests, selectedSection: $selectedSection)
+        }
+        .padding(5)
+        .background(.white.opacity(0.06))
+        .clipShape(Capsule())
+    }
+
+    @ViewBuilder
+    private var sectionContent: some View {
+        switch selectedSection {
+        case .profile:
+            VStack(spacing: 12) {
+                JQAccountMenuRow(icon: "person.crop.circle", title: "プロフィール編集")
+                JQAccountMenuRow(icon: "lock.fill", title: "公開範囲")
+                JQAccountMenuRow(icon: "bell.fill", title: "通知")
+                JQAccountMenuRow(icon: "gearshape.fill", title: "設定")
+            }
+
+        case .following:
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(friendStore.friends) { friend in
+                    JQFriendMiniRow(friend: friend)
+                }
+            }
+
+        case .add:
+            VStack(alignment: .leading, spacing: 14) {
+                Text("ユーザー名で追加")
+                    .font(.system(size: 19, weight: .bold))
+                    .foregroundStyle(.white)
+
+                TextField("@username", text: $addFriendText)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .font(.system(size: 16, weight: .semibold))
+                    .padding(15)
+                    .background(.white.opacity(0.08))
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                Button {
+                    friendStore.addFriend(username: addFriendText)
+                    addFriendText = ""
+                    selectedSection = .following
+                } label: {
+                    Text("フォローする")
+                        .font(.system(size: 16, weight: .bold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 15)
+                        .background(.white)
+                        .foregroundStyle(.black)
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                }
+            }
+            .padding(15)
+            .background(.white.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 22))
+
+        case .requests:
+            VStack(alignment: .leading, spacing: 12) {
+                if friendStore.incomingRequests.isEmpty {
+                    Text("新しい申請はありません")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.65))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 32)
+                        .background(.white.opacity(0.055))
+                        .clipShape(RoundedRectangle(cornerRadius: 22))
+                } else {
+                    ForEach(friendStore.incomingRequests) { request in
+                        JQRequestMiniRow(request: request)
+                    }
+                }
+            }
+        }
+    }
+}
+
+enum JQAccountSection {
+    case profile
+    case following
+    case add
+    case requests
+}
+
+struct JQAccountSectionButton: View {
+    let title: String
+    let section: JQAccountSection
+    @Binding var selectedSection: JQAccountSection
+
+    var body: some View {
+        Button {
+            selectedSection = section
+        } label: {
+            Text(title)
+                .font(.system(size: 12, weight: .bold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 9)
+                .background(selectedSection == section ? .white : .clear)
+                .foregroundStyle(selectedSection == section ? .black : .white.opacity(0.68))
+                .clipShape(Capsule())
+        }
+    }
+}
+
+struct JQAccountStat: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(spacing: 5) {
+            Text(value)
+                .font(.system(size: 21, weight: .bold))
+                .foregroundStyle(.white)
+
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white.opacity(0.48))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 13)
+        .background(.white.opacity(0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+}
+
+struct JQAccountMenuRow: View {
+    let icon: String
+    let title: String
+
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .frame(width: 28)
+
+            Text(title)
+                .font(.system(size: 16, weight: .semibold))
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.white.opacity(0.42))
+        }
+        .foregroundStyle(.white)
+        .padding(16)
+        .background(.white.opacity(0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+}
+
+struct JQFriendMiniRow: View {
+    let friend: QuestFriend
+
+    var body: some View {
+        HStack(spacing: 13) {
+            Circle()
+                .fill(.white.opacity(0.13))
+                .frame(width: 46, height: 46)
+                .overlay {
+                    Text(String(friend.displayName.prefix(1)).uppercased())
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(friend.displayName)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.white)
+
+                Text("@\(friend.username)")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.48))
+            }
+
+            Spacer()
+
+            Text("フォロー中")
+                .font(.system(size: 12, weight: .bold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(.white.opacity(0.08))
+                .foregroundStyle(.white.opacity(0.75))
+                .clipShape(Capsule())
+        }
+        .padding(13)
+        .background(.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+}
+
+struct JQRequestMiniRow: View {
+    @EnvironmentObject var friendStore: QuestFriendStore
+    let request: QuestFriendRequest
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 13) {
+                Circle()
+                    .fill(.white.opacity(0.13))
+                    .frame(width: 46, height: 46)
+                    .overlay {
+                        Text(String(request.displayName.prefix(1)).uppercased())
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(request.displayName)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.white)
+
+                    Text("@\(request.username)")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.48))
+                }
+
+                Spacer()
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    friendStore.decline(request)
+                } label: {
+                    Text("削除")
+                        .font(.system(size: 14, weight: .bold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(.white.opacity(0.08))
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+
+                Button {
+                    friendStore.accept(request)
+                } label: {
+                    Text("承認")
+                        .font(.system(size: 14, weight: .bold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(.white)
+                        .foregroundStyle(.black)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+            }
+        }
+        .padding(13)
+        .background(.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+}
+
+struct HomePostDetailSheet: View {
+    let post: QuestFeedPost
+
+    @EnvironmentObject var memoryStore: QuestMemoryStore
+    @Environment(\.dismiss) private var dismiss
+
+    private var spot: QuestSpot? {
+        mockQuestSpots.first { $0.id == post.spotId }
+    }
+
+    var body: some View {
+        ZStack {
+            AppBackground()
+
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 18) {
+                    topBar
+                    largePhoto
+                    postInfo
+                    actionArea
+
+                    Spacer(minLength: 40)
+                }
+                .padding(18)
+            }
+        }
+    }
+
+    private var topBar: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(.white.opacity(0.14))
+                .frame(width: 42, height: 42)
+                .overlay {
+                    Text(String(post.username.prefix(1)).uppercased())
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(post.username)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(.white)
+
+                Text("\(post.displayPlace) ・ \(daysLeftText)")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.52))
+            }
+
+            Spacer()
+
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 36, height: 36)
+                    .background(.white.opacity(0.10))
+                    .clipShape(Circle())
+            }
+        }
+    }
+
+    private var largePhoto: some View {
+        ZStack(alignment: .bottomLeading) {
+            if let image = memoryStore.image(for: post) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 520)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 30))
+            } else {
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(placeholderGradient)
+                    .frame(height: 520)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 30)
+                            .fill(.black.opacity(0.14))
+                    }
+            }
+
+            LinearGradient(
+                colors: [
+                    .black.opacity(0),
+                    .black.opacity(0.62)
+                ],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 30))
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(post.displayDate)
+                    .font(.system(size: 22, weight: .semibold, design: .monospaced))
+
+                Text(post.displayPlace)
+                    .font(.system(size: 34, weight: .bold, design: .monospaced))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 12)
+            .background(.white.opacity(0.16))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(18)
+        }
+    }
+
+    private var postInfo: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                infoBlock(title: "場所", value: spot?.name ?? post.displayPlace)
+                Spacer()
+                infoBlock(title: "エリア", value: spot?.areaName ?? "Japan")
+                Spacer()
+                infoBlock(title: "表示期限", value: daysLeftText)
+            }
+
+            Text("正確なGPS座標は公開されません。表示されるのはスポット名までです。")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white.opacity(0.42))
+                .lineSpacing(3)
+        }
+        .padding(16)
+        .background(.white.opacity(0.065))
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+    }
+
+    private func infoBlock(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white.opacity(0.42))
+
+            Text(value)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+    }
+
+    private var actionArea: some View {
+        HStack(spacing: 10) {
+            Button {} label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "heart")
+                    Text("いいね")
+                }
+                .font(.system(size: 14, weight: .bold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(.white.opacity(0.08))
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+
+            Button {} label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "paperplane")
+                    Text("送る")
+                }
+                .font(.system(size: 14, weight: .bold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(.white.opacity(0.08))
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+        }
+    }
+
+    private var placeholderGradient: LinearGradient {
+        if let spot {
+            return MemoryVisualStyle.gradient(for: spot)
+        }
+
+        return LinearGradient(
+            colors: [.gray.opacity(0.45), .black],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
+    private var daysLeftText: String {
+        let seconds = post.expiresAt.timeIntervalSince(Date())
+        let days = max(Int(ceil(seconds / 86400)), 0)
+
+        if days <= 0 {
+            return "まもなく消えます"
+        } else {
+            return "あと\(days)日"
+        }
+    }
+}
+
