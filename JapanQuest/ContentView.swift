@@ -188,6 +188,14 @@ struct HomeView: View {
         Array(memoryStore.memoryPhotos.prefix(6))
     }
 
+    private var completedSpotCount: Int {
+        Set(memoryStore.memoryPhotos.map { $0.spotId }).count
+    }
+
+    private var kanagawaTotalSpotCount: Int {
+        mockQuestPrefectures.first { $0.id == "kanagawa" }?.totalSpotCount ?? 24
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -284,7 +292,9 @@ struct HomeView: View {
                             .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(.white)
 
-                        Text("Mapを拡大すると、撮れるスポットが増えます。")
+                        Text(completedSpotCount == 0
+                            ? "まず1箇所、現地で写真を残してみよう。"
+                            : "神奈川 \(completedSpotCount) / \(kanagawaTotalSpotCount) スポット")
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(.white.opacity(0.52))
                             .lineSpacing(3)
