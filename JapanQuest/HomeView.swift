@@ -30,6 +30,15 @@ struct HomeView: View {
         mockQuestPrefectures.first { $0.id == "kanagawa" }?.totalSpotCount ?? 24
     }
 
+    private var unvisitedKanagawaSpots: [QuestSpot] {
+        let completedIds = Set(memoryStore.memoryPhotos.map { $0.spotId })
+        return mockQuestSpots
+            .filter { $0.prefectureId == "kanagawa" && !completedIds.contains($0.id) }
+            .sorted { $0.gridIndex < $1.gridIndex }
+            .prefix(2)
+            .map { $0 }
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -39,6 +48,9 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: 22) {
                         topBar
                         questHeroCard
+                        if !unvisitedKanagawaSpots.isEmpty {
+                            nextSpotSection
+                        }
                         recentShareSection
                         recentMemorySection
 
@@ -181,6 +193,57 @@ struct HomeView: View {
         .overlay {
             RoundedRectangle(cornerRadius: 30)
                 .stroke(.white.opacity(0.08), lineWidth: 1)
+        }
+    }
+
+    private var nextSpotSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("気になるスポット")
+                    .font(.system(size: 20, weight: .bold))
+
+                Spacer()
+
+                Button {
+                    selectedTab = .map
+                } label: {
+                    Text("地図で見る")
+                        .font(.system(size: 12, weight: .bold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(.white.opacity(0.10))
+                        .foregroundStyle(.white)
+                        .clipShape(Capsule())
+                }
+            }
+
+            ForEach(unvisitedKanagawaSpots) { spot in
+                Button {
+                    selectedTab = .map
+                } label: {
+                    HStack(spacing: 14) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(spot.name)
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(.white)
+
+                            Text(spot.areaName)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.52))
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.42))
+                    }
+                    .padding(16)
+                    .background(.white.opacity(0.06))
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
