@@ -11,25 +11,25 @@
 - ~~Step 3-A: Home Hero カードを実データで動的に~~ → `ebfd099` 完了
 - ~~Step 3-B: EmptyFeedCard を Map-first な空状態に改善~~ → `8ea9e0e` 完了
 - ~~Step 3-G: UI 表示名を「ピクトリ」に変更~~ → `ce2df41` 完了
+- ~~Step 1-B-5: HomeView.swift 分割（Home + JQAccount 系）~~ → `74c68f6` 完了
 
 ---
 
 ## 推奨作業順序の概要
 
 ```
-Phase 1: コード整理（優先）
-  Step 1-B-5  HomeView.swift + JQAccountView.swift 分割（★次の推奨）
+Phase 3: 体験品質の改善（継続中）
+  Step 3-H    Home Hero カードの Map 導線改善（★次の推奨、HomeView分割済みのため今すぐ可）
+  Step 3-C    Home セクション名の改善（いつでも可）
+  Step 3-D    Map 中心 UX 改善（1-B-4 後に安全）
+  Step 3-E    コアフロー動作確認と修正（1-B-4 後に推奨）
+  Step 3-F    Camera 保存フィードバック UI（後回し）
+
+Phase 1: コード整理（継続）
   Step 1-B-4  MapView.swift 分割（Map改善の前提）
   Step 1-B-3  CameraView.swift 分割（後回し）
   Step 1-B-6  SharedComponents.swift 分割（後回し）
   Step 1-B-7  旧モデル・旧サンプルデータ 削除（後回し）
-
-Phase 3: 体験品質の改善（継続中）
-  Step 3-C    Home セクション名の改善（いつでも可）
-  Step 3-H    Home Hero カードの Map 導線改善（1-B-5 後に安全）
-  Step 3-D    Map 中心 UX 改善（1-B-4 後に安全）
-  Step 3-E    コアフロー動作確認と修正（1-B-3, 1-B-4 後に推奨）
-  Step 3-F    Camera 保存フィードバック UI（後回し）
 
 Phase 2: App Store 必須修正
   Step 2-A    developerUnlockMode をデフォルト false に変更
@@ -43,7 +43,7 @@ Phase 2: App Store 必須修正
 
 **目的:** 「最近のシェア」「最近埋まった場所」という文言が SNS 的・スタンプラリー的に見える問題を解消し、ピクトリらしい「旅の記録」「場所の発見」に寄せる
 
-**変更対象（ContentView.swift のみ）:**
+**変更対象（HomeView.swift のみ）:**
 - `recentShareSection` 見出し: 「最近のシェア」→「フレンドの記録」（または「最近の記録」）
 - `recentMemorySection` 見出し: 「最近埋まった場所」→「最近の記録」（または「保存した場所」）
 
@@ -164,44 +164,6 @@ Extract CameraView and capture enums from ContentView
 **コミットメッセージ案:**
 ```
 Extract MapView and SpotDetailView from ContentView
-```
-
----
-
-### Step 1-B-5: HomeView.swift + JQAccountView.swift 分割
-
-**目的:** Home ドメインと Account シートを分離する
-
-**対象型（HomeView.swift）:**
-- `HomeView`
-- `HomeMemoryTile`
-- `EmptyFeedCard`
-- `HomeLargePostCard`
-- `HomePostDetailSheet`
-
-**対象型（JQAccountView.swift）:**
-- `JQAccountSheetView`
-- `JQAccountSection`（enum）
-- `JQAccountSectionButton`
-- `JQAccountStat`
-- `JQAccountMenuRow`
-- `JQFriendMiniRow`
-- `JQRequestMiniRow`
-
-**注意:** HomeView と JQAccountSheetView は密接に関連（HomeView が sheet として表示する）。同じコミットで2ファイルに分けるか、2ステップに分けるかは作業時に判断する。
-
-**リスク:** 中
-- `HomeView` は `@Binding var selectedTab` を受け取り、Camera・Map・Memories へのタブ切り替えを行う
-- `JQAccountSheetView` は `@EnvironmentObject` で friendStore / memoryStore を使用
-
-**Definition of Done:**
-- `HomeView.swift` と `JQAccountView.swift` が存在する
-- Build Succeeded
-- git diff の変更が ContentView.swift（削除）と新規2ファイル（追加）のみ
-
-**コミットメッセージ案:**
-```
-Extract HomeView and account sheet views from ContentView
 ```
 
 ---
@@ -353,15 +315,11 @@ Add save feedback and camera permission error handling
 ## タスク間の依存関係
 
 ```
+3-H (Home Hero Map導線) ★次の推奨
+  ← 1-B-5 完了済みのため今すぐ可能
+
 3-C (Homeセクション名)
-  ← いつでも実施可能（独立）★今すぐ可能
-
-1-B-5 (Home分割) ★次の推奨
-  ← 3-C の後が安全
-  └→ 3-H (Home Hero Map導線)
-
-3-H (Home Hero Map導線)
-  ← 1-B-5 (Home分割) 後が安全
+  ← いつでも実施可能（独立）
 
 1-B-4 (Map分割)
   └→ 2-A (developerUnlockMode)
@@ -376,12 +334,12 @@ Add save feedback and camera permission error handling
       ← 3-E (コアフロー確認) も前提
 
 1-B-6 (SharedComponents)
-  ← 1-B-3, 1-B-4, 1-B-5 完了後に実施
+  ← 1-B-3, 1-B-4 完了後に実施（1-B-5 は完了済み）
 
 1-B-7 (旧モデル削除)
   ← いつでも実施可能（他タスクと独立）
 
 3-E (コアフロー確認)
-  ← 1-B-3, 1-B-4 完了後が安全
+  ← 1-B-4 完了後が安全
   └→ 3-F (Camera UI改善)
 ```

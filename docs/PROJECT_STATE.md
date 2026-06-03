@@ -13,7 +13,7 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | `ce2df41` — Rename app display name to Pictri in home top bar |
+| 最新コミット | `74c68f6` — Extract Home views from ContentView |
 | ワーキングツリー | クリーン |
 
 ---
@@ -21,13 +21,13 @@
 ## コミット履歴（直近）
 
 ```
+74c68f6  Extract Home views from ContentView
+8d104d6  Update project state after Pictri rename
 ce2df41  Rename app display name to Pictri in home top bar
 08600ac  Update home section labels for journey context
 b089eeb  Document Pictri product naming direction
+967a358  Update project state after home improvements
 8ea9e0e  Update empty home state for map-first journey
-ebfd099  Show spot progress in home hero card
-b169cfc  Add Xcode gitignore rules
-5e67124  Add Claude project context docs
 ```
 
 ---
@@ -71,6 +71,14 @@ b169cfc  Add Xcode gitignore rules
 - Xcode プロジェクト名・Bundle Identifier・ファイル名・型名は変更していない
 - コミット: `"Rename app display name to Pictri in home top bar"`
 
+### Step 1-B-5: HomeView.swift 分割（完了）
+- `HomeView.swift` を新規作成（975行）
+- ContentView.swift: 2586行 → 1613行（-973行）
+- 移動した型（13型）: `HomeView` / `HomeMemoryTile` / `EmptyFeedCard` / `HomeLargePostCard` / `HomePostDetailSheet` / `JQAccountSheetView` / `JQAccountSection` / `JQAccountSectionButton` / `JQAccountStat` / `JQAccountMenuRow` / `JQFriendMiniRow` / `JQRequestMiniRow`
+- `AppBackground` / `JQUI` は今回移動しなかった（ContentView.swift に残存）
+- pbxproj 変更不要（PBXFileSystemSynchronizedRootGroup 使用）
+- コミット: `"Extract Home views from ContentView"`
+
 ---
 
 ## 現在のファイル構成
@@ -79,7 +87,8 @@ b169cfc  Add Xcode gitignore rules
 
 | ファイル | 行数 | 状態 |
 |---------|-----|------|
-| `ContentView.swift` | 2586行 | 分割進行中（Home/Map/Camera が混在） |
+| `ContentView.swift` | 1613行 | 分割進行中（Map/Camera が残存） |
+| `HomeView.swift` | 975行 | 分割済み（Home + JQAccount 系） |
 | `MemoriesView.swift` | 455行 | 分割済み |
 | `JapanQuestApp.swift` | 10行 | 完了 |
 | `QuestModels.swift` | 172行 | 要精査（旧モデルが残存） |
@@ -99,11 +108,16 @@ b169cfc  Add Xcode gitignore rules
 | ドメイン | 型 | 行数 | 備考 |
 |---------|---|-----|------|
 | Root / TabBar / JQUI | ContentView, JQFloatingTabBar, JQFloatingTabItem, AppTab, JQUI | ~168行 | 最終的に残す |
-| Home | HomeView, HomeMemoryTile, EmptyFeedCard, HomeLargePostCard, HomePostDetailSheet | ~514行 | 分割予定 |
-| JQAccount | JQAccountSheetView, JQAccountSection, JQAccountSectionButton, JQAccountStat, JQAccountMenuRow, JQFriendMiniRow, JQRequestMiniRow | ~313行 | Home と一緒に分割予定 |
-| Map | QuestMapView, QuestSpotDetailView | ~383行 | 分割予定 |
-| Camera | QuestCameraView, QuestDualCapturePhase, QuestDemoPhotoMaker, QuestDualPhotoComposer | ~1043行 | 分割予定 |
+| Map | QuestMapView, QuestSpotDetailView | ~383行 | 分割予定（Step 1-B-4） |
+| Camera | QuestCameraView, QuestDualCapturePhase, QuestDemoPhotoMaker, QuestDualPhotoComposer | ~1043行 | 分割予定（Step 1-B-3、後回し） |
 | Shared | AppBackground | ~19行 | SharedComponents.swift へ移動予定 |
+
+### HomeView.swift 内のドメイン（分割済み）
+
+| ドメイン | 型 | 行数 | 備考 |
+|---------|---|-----|------|
+| Home | HomeView, HomeMemoryTile, EmptyFeedCard, HomeLargePostCard, HomePostDetailSheet | ~640行 | 分割済み |
+| JQAccount | JQAccountSheetView, JQAccountSection, JQAccountSectionButton, JQAccountStat, JQAccountMenuRow, JQFriendMiniRow, JQRequestMiniRow | ~335行 | 分割済み |
 
 ---
 
@@ -177,5 +191,5 @@ b169cfc  Add Xcode gitignore rules
 4. **Map は神奈川のみ**
    - 他県のスポットデータは `mockQuestSpots` に含まれているが、Map 画面は `kanagawa` フィルタのみ
 
-5. **ContentView.swift が 2576 行**
-   - Camera（1043行）/ Home+JQAccount（827行）/ Map（383行）が未分割
+5. **ContentView.swift が 1613 行**
+   - Camera（~1043行）/ Map（~383行）が未分割（Home+JQAccount は HomeView.swift 分割済み）
