@@ -207,13 +207,17 @@ struct HomeView: View {
                 Button {
                     selectedTab = .map
                 } label: {
-                    Text("地図で見る")
-                        .font(.system(size: 12, weight: .bold))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(.white.opacity(0.10))
-                        .foregroundStyle(.white)
-                        .clipShape(Capsule())
+                    HStack(spacing: 5) {
+                        Image(systemName: "map.fill")
+                            .font(.system(size: 11, weight: .bold))
+                        Text("地図で見る")
+                            .font(.system(size: 12, weight: .bold))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(.white.opacity(0.10))
+                    .foregroundStyle(.white)
+                    .clipShape(Capsule())
                 }
             }
 
@@ -222,6 +226,13 @@ struct HomeView: View {
                     selectedTab = .map
                 } label: {
                     HStack(spacing: 14) {
+                        Image(systemName: "mappin.and.ellipse")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.75))
+                            .frame(width: 42, height: 42)
+                            .background(.white.opacity(0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+
                         VStack(alignment: .leading, spacing: 4) {
                             Text(spot.name)
                                 .font(.system(size: 16, weight: .bold))
@@ -236,11 +247,15 @@ struct HomeView: View {
 
                         Image(systemName: "chevron.right")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.42))
+                            .foregroundStyle(.white.opacity(0.55))
                     }
-                    .padding(16)
-                    .background(.white.opacity(0.06))
+                    .padding(14)
+                    .background(.white.opacity(0.08))
                     .clipShape(RoundedRectangle(cornerRadius: 18))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(.white.opacity(0.08), lineWidth: 1)
+                    }
                 }
                 .buttonStyle(.plain)
             }
