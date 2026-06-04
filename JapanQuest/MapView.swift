@@ -221,15 +221,7 @@ struct QuestSpotDetailView: View {
                         .background(.white.opacity(0.16))
                         .clipShape(Capsule())
 
-                    if isCompleted {
-                        Text("撮影済み")
-                            .font(.system(size: 13, weight: .bold))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(.white)
-                            .foregroundStyle(.black)
-                            .clipShape(Capsule())
-                    }
+                    heroStatusChip
                 }
                 .foregroundStyle(.white)
             }
@@ -287,6 +279,35 @@ struct QuestSpotDetailView: View {
         .padding(16)
         .background(.black.opacity(0.035))
         .clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+
+    @ViewBuilder
+    private var heroStatusChip: some View {
+        if isCompleted {
+            Label("撮影済み", systemImage: "checkmark")
+                .font(.system(size: 13, weight: .bold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(.white)
+                .foregroundStyle(.black)
+                .clipShape(Capsule())
+        } else if isUnlocked {
+            Label("撮影可能", systemImage: "camera.fill")
+                .font(.system(size: 13, weight: .bold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(.white.opacity(0.88))
+                .foregroundStyle(.black)
+                .clipShape(Capsule())
+        } else {
+            Label("未撮影", systemImage: "circle")
+                .font(.system(size: 13, weight: .bold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(.white.opacity(0.13))
+                .foregroundStyle(.white.opacity(0.70))
+                .clipShape(Capsule())
+        }
     }
 
     private func statusItem(title: String, value: String) -> some View {
