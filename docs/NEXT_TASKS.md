@@ -1,12 +1,12 @@
 # NEXT_TASKS.md — ピクトリ（Pictri）次のタスク一覧
 
-最終更新: 2026-06-04（Step 3-E 完了記録）
+最終更新: 2026-06-05（Step 1-B-3 完了・Step 3-F 次の推奨に更新）
 
 > **プロダクト名:** ピクトリ（Pictri）— UI 上の表示名。内部プロジェクト名 JapanQuest はコード・Xcode 設定に残存中。
 
 ---
 
-## 完了済みタスク（Phase 3 先行分）
+## 完了済みタスク
 
 - ~~Step 3-A: Home Hero カードを実データで動的に~~ → `ebfd099` 完了
 - ~~Step 3-B: EmptyFeedCard を Map-first な空状態に改善~~ → `8ea9e0e` 完了
@@ -16,6 +16,7 @@
 - ~~Step 3-I: Home「気になるスポット」セクション追加・強化~~ → `651d464` / `cc15bf9` 完了
 - ~~Step 1-B-4: MapView.swift 分割~~ → `fab79d6` 完了
 - ~~Step 3-E: コアフロー確認~~ → コード調査完了・破損なし・Swift変更なし（実機完全確認は別途必要）
+- ~~Step 1-B-3: CameraView.swift 分割~~ → `4d6e29b` 完了
 
 ---
 
@@ -23,22 +24,85 @@
 
 ```
 Phase 3: 体験品質の改善（継続中）
-  Step 3-D    Map スポット詳細 UX 改善（★次の推奨、MapView.swift 分割済みのため今すぐ可）
+  Step 3-F    Camera 保存フィードバック UI（★次の推奨、CameraView.swift のみ）
+  Step 3-D    Map スポット詳細 UX 改善（いつでも可）
   Step 3-C    Home セクション名の改善（いつでも可）
-  Step 3-F    Camera 保存フィードバック UI（1-B-3 完了後）
-
-Phase 1: コード整理（継続）
-  Step 1-B-3  CameraView.swift 分割（★ Camera 改善の前提）
-  Step 1-B-6  SharedComponents.swift 分割（1-B-3 完了後）
-  Step 1-B-7  旧モデル・旧サンプルデータ 削除（後回し）
 
 Phase 2: App Store 必須修正
-  Step 2-A    developerUnlockMode をデフォルト false に変更（1-B-3 完了後）
+  Step 2-A    developerUnlockMode をデフォルト false に変更（前提条件 完了済み）
+
+Phase 1: コード整理（継続）
+  Step 1-B-6  SharedComponents.swift 分割（いつでも可）
+  Step 1-B-7  旧モデル・旧サンプルデータ 削除（いつでも可）
 ```
 
 ---
 
 ## Phase 3: 体験品質の改善（継続）
+
+### Step 3-F: Camera 保存フィードバック UI の改善（★次の推奨）
+
+**目的:** 撮影・保存後にユーザーが「Memories に保存された」と分かる体験を作る。「現地で写真を残す」コアフローの最後を気持ちよく締める。
+
+**前提条件:** Step 1-B-3（CameraView.swift 分割）**完了済み** — 今すぐ安全に着手可能
+
+**変更対象:** `CameraView.swift` のみ
+
+**実装候補（優先度順）:**
+1. 保存成功後に「Memoriesで確認する」ナビゲーションボタンを表示（`selectedTab = .memories`）
+2. 保存完了を示す控えめなサクセステキスト
+3. 保存済み状態の button appearance を黒白基調に合わせて整理（現在の `.green` は異質）
+
+**やってはいけないこと:**
+- 撮影順序・外カメ/内カメの流れを変えない
+- QuestMemoryStore の仕様を変えない
+- 位置認証ロジックを変えない
+- 大きな画面構造変更をしない
+- 派手なアニメーションやゲーム的演出を追加しない
+
+**リスク:** 低（`CameraView.swift` 1ファイル内、`@State` 追加と UI のみ）
+
+**Definition of Done:**
+- 保存後にユーザーが「次にどこへ行けばよいか」分かる
+- 変更は `CameraView.swift` のみ
+- 撮影・保存ロジックは変わっていない
+- Build Succeeded
+
+**コミットメッセージ案:**
+```
+Add camera save feedback UI
+```
+
+---
+
+### Step 3-D: Map スポット詳細 UX 改善
+
+**目的:** `QuestSpotDetailView` の体験を強化し、「このスポットに行って写真を残したい」と思わせる画面にする
+
+**前提条件:** Step 1-B-4（MapView.swift 分割）完了済み
+
+**変更対象:** `MapView.swift` のみ（`QuestSpotDetailView` 内）
+
+**候補:**
+- スポット詳細ヒーロー画像エリアのビジュアル強化
+- 「撮影済み」バッジの視認性改善
+- 「この場所で撮る」ボタンの視認性・文言改善
+- 場所の説明や距離感を伝えるテキスト追加（Store/Model の追加なしで可能な範囲）
+
+**リスク:** 低〜中（`MapView.swift` 1ファイル内、MapKit には触らない）
+
+**Definition of Done:**
+- `QuestSpotDetailView` がより魅力的になっている
+- 「この場所で撮る」導線が明確
+- 変更は `MapView.swift` のみ
+- Build Succeeded
+
+**コミットメッセージ案:**
+```
+Improve spot detail view on map screen
+```
+
+---
 
 ### Step 3-C: Home セクション名の改善
 
@@ -62,70 +126,43 @@ Update home section labels to reflect journey context
 
 ---
 
-### Step 3-D: Map スポット詳細 UX 改善（★次の推奨）
+## Phase 2: App Store 必須修正
 
-**目的:** `QuestSpotDetailView` の体験を強化し、「このスポットに行って写真を残したい」と思わせる画面にする
+### Step 2-A: developerUnlockMode デフォルト変更
 
-**前提条件:** Step 1-B-4（MapView.swift 分割）**完了済み** — 今すぐ安全に着手可能
+**目的:** App Store 提出時に、ユーザーが現地にいなくてもスポットをアンロックできる状態を解消する
 
-**変更対象:** `MapView.swift` のみ（`QuestSpotDetailView` 内）
+**前提条件:** Step 1-B-3（CameraView.swift 分割）と Step 1-B-4（MapView.swift 分割）**両方完了済み** — 今すぐ実施可能
 
-**候補（着手前に現状調査してから決定）:**
-- スポット詳細ヒーロー画像エリアのビジュアル強化
-- 「撮影済み」バッジの視認性改善
-- 「この場所で撮る」ボタンの視認性・文言改善
-- 場所の説明や距離感を伝えるテキスト追加（Store/Model の追加なしで可能な範囲）
+**変更内容:**
+- `QuestSpotDetailView`（`MapView.swift`）: `developerUnlockMode = true` → `false`
+- `QuestCameraView`（`CameraView.swift`）: `developerUnlockMode = true` → `false`
+- 開発者向けトグル UI は残す（`#if DEBUG` 内）
 
-**リスク:** 低〜中（`MapView.swift` 1ファイル内、MapKit には触らない）
+**リスク:** 中
+- 変更後、実機で GPS が正常に動作していないとスポットをアンロックできなくなる
+- シミュレーターでは位置情報のシミュレーションが必要
 
 **Definition of Done:**
-- `QuestSpotDetailView` がスマホで見てより魅力的になっている
-- 「この場所で撮る」導線が明確になっている
-- 変更は `MapView.swift` のみ
+- 両ファイルで `developerUnlockMode` のデフォルトが `false`
+- 実機または位置シミュレーターでスポット近くでアンロックされることを確認
 - Build Succeeded
 
 **コミットメッセージ案:**
 ```
-Improve spot detail view on map screen
+Disable developer unlock mode by default
 ```
 
 ---
 
-## Phase 1: コード整理
+## Phase 1: コード整理（継続）
 
-### Step 1-B-3: CameraView.swift 分割
+### ~~Step 1-B-3: CameraView.swift 分割~~（完了）
 
-**目的:** ContentView.swift 最大のブロック（1043行）を分離し、後の Camera 改善を安全にする
-
-**対象型:**
-- `QuestCameraView`（メイン View）
-- `QuestDualCapturePhase`（enum）
-- `QuestDemoPhotoMaker`（enum）
-- `QuestDualPhotoComposer`（enum）
-
-**リスク:** 中〜高
-- `QuestCameraView` は `@StateObject var cameraService = QuestCameraService()` をローカルで生成
-- `@Binding var selectedTab` と `@Binding var selectedSpotId` を ContentView から受け取る
-- `@AppStorage("developerUnlockMode")` を内部で参照
-- AVFoundation + 大量の `@State` を保持するため、移動後のビルドエラーに注意
-
-**作業手順:**
-1. `CameraView.swift` を新規作成（`import SwiftUI` + `import AVFoundation`）
-2. ContentView.swift から対象4型をコピー
-3. ContentView.swift から対象行を削除
-4. Build Succeeded を確認
-5. git diff で追加行ゼロ・削除行一致を確認
-
-**Definition of Done:**
-- `CameraView.swift` が存在する
-- ContentView.swift から対象4型が削除されている
-- Build Succeeded
-- git diff の変更が ContentView.swift（削除）と CameraView.swift（追加）のみ
-
-**コミットメッセージ案:**
-```
-Extract CameraView and capture enums from ContentView
-```
+- `CameraView.swift` を新規作成（1043行）
+- ContentView.swift: 1231行 → 186行（-1045行）
+- 移動した型（4型）: `QuestCameraView` / `QuestDualCapturePhase` / `QuestDemoPhotoMaker` / `QuestDualPhotoComposer`
+- コミット: `4d6e29b`
 
 ---
 
@@ -141,7 +178,7 @@ Extract CameraView and capture enums from ContentView
 - `AppTab`（enum）
 
 **リスク:** 低〜中
-- `AppTab` は全 View のタブ切り替えに使用される。移動後に全ファイルからアクセスできることを確認する（同一モジュールなので問題ないはず）
+- `AppTab` は全 View のタブ切り替えに使用される。移動後に全ファイルからアクセスできることを確認（同一モジュールなので問題ないはず）
 - `JQUI` の定数は Map・Camera から参照されるため、移動後のビルドエラーに注意
 
 **Definition of Done:**
@@ -163,18 +200,10 @@ Extract shared UI components into SharedComponents.swift
 **削除候補（要精査）:**
 
 `QuestModels.swift` 内:
-- `RecentQuestPost` — View からの参照なし（要確認）
-- `PrefectureMemory` — View からの参照なし（要確認）
-- `MemorySpot` — View からの参照なし（要確認）
-- `MapDot` — View からの参照なし（要確認）
-- `KanagawaDot` — View からの参照なし（要確認）
+- `RecentQuestPost` / `PrefectureMemory` / `MemorySpot` / `MapDot` / `KanagawaDot`
 
 `QuestSampleData.swift` 内:
-- `mockRecentPosts` — View からの参照なし（要確認）
-- `mockPrefectures` — View からの参照なし（要確認）
-- `mockKanagawaSpots` — View からの参照なし（要確認）
-- `mockMapDots` — View からの参照なし（要確認）
-- `mockKanagawaDots` — View からの参照なし（要確認）
+- `mockRecentPosts` / `mockPrefectures` / `mockKanagawaSpots` / `mockMapDots` / `mockKanagawaDots`
 
 **作業前の必須確認:** 削除前に `grep -rn` で全 Swift ファイルから参照されていないことを確認する
 
@@ -191,106 +220,33 @@ Remove unused legacy model types and sample data
 
 ---
 
-## Phase 2: App Store 必須修正
-
-### Step 2-A: developerUnlockMode デフォルト変更
-
-**目的:** App Store 提出時に、ユーザーが現地にいなくてもスポットをアンロックできる状態を解消する
-
-**変更内容:**
-- `QuestSpotDetailView`（`MapView.swift`）の `@AppStorage("developerUnlockMode") private var developerUnlockMode = true` を `false` に変更
-- `QuestCameraView`（`ContentView.swift` → 分割後は `CameraView.swift`）の同設定を `false` に変更
-- 開発者向けトグル UI は残す（隠しデバッグ機能として有用）
-
-**前提条件:** Step 1-B-3（CameraView.swift 分割）と Step 1-B-4（MapView.swift 分割）が完了していること
-
-**リスク:** 中
-- 変更後、実機で GPS が正常に動作していないとスポットをアンロックできなくなる
-- シミュレーターでは位置情報のシミュレーションが必要
-
-**Definition of Done:**
-- 両ファイルで `developerUnlockMode` のデフォルトが `false`
-- 実機または位置シミュレーターでスポット近くに近づいたときにアンロックされることを確認
-- Build Succeeded
-
-**コミットメッセージ案:**
-```
-Disable developer unlock mode by default
-```
-
----
-
-## Phase 3: 体験品質の改善（後続）
+## Phase 3: 体験品質の改善（完了済み）
 
 ### ~~Step 3-E: コアフロー確認~~（完了・Swift変更なし）
 
 **結果:**
-- `ContentView.swift` / `MapView.swift` / `HomeView.swift` / `MemoriesView.swift` / `QuestMemoryStore.swift` / `QuestMapKitView.swift` を静的に調査
-- 全ステップがコード上正しく接続されていることを確認
-- 破損箇所なし → Swift 変更ゼロ・コミットなし
-
-**コード上確認済みの項目（1〜5）:**
-1. Home → Map タブ遷移（`selectedTab = .map`）
-2. Map でスポットタップ → `path.append(spot)` → SpotDetailView
-3. SpotDetailView → `activeCameraSpotId = spot.id`, `selectedTab = .camera`
-4. Camera に binding chain 経由で spotId が渡る
-5. 保存後 `@Published` + `@EnvironmentObject` で Memories 自動反映
-
-**実機確認が別途必要な項目:**
-- 上記5ステップの実機動作確認
-- Home フィードへのポスト表示
-- Account シートの開閉
-
----
-
-### Step 3-F: Camera 保存フィードバック UI の改善（後回し）
-
-**目的:** 撮影・保存後のユーザーへのフィードバックを改善する
-
-**変更内容（未確認のため仮）:**
-- 保存成功時のアニメーション・確認メッセージ
-- 保存失敗時のエラー表示
-- カメラ権限がない場合の案内表示
-
-**前提条件:** Step 1-B-3（CameraView.swift 分割）と Step 3-E（コアフロー確認）が完了していること
-
-**リスク:** 中（AVFoundation の状態管理を変更するため）
-
-**Definition of Done:**
-- 保存成功時に視覚的フィードバックがある
-- カメラ権限なしの場合に適切なメッセージが表示される
-- Build Succeeded
-
-**コミットメッセージ案:**
-```
-Add save feedback and camera permission error handling
-```
+- 全ステップがコード上正しく接続されていることを確認（破損なし）
+- **実機確認が別途必要な項目:** コアフロー5ステップ / Home フィードへのポスト表示 / Account シートの開閉
 
 ---
 
 ## タスク間の依存関係
 
 ```
-3-D (Map スポット詳細 UX 改善) ★次の推奨
-  ← 1-B-4 完了済みのため今すぐ可能
+3-F (Camera 保存フィードバック) ← ★次の推奨
+  ← 1-B-3 完了済みのため今すぐ可能
 
-3-E (コアフロー確認)
-  ← いつでも可（1-B-4 完了済み）
-  └→ 3-F (Camera UI改善)
+3-D (Map スポット詳細 UX 改善)
+  ← 1-B-4 完了済みのため今すぐ可能
 
 3-C (Homeセクション名)
   ← いつでも実施可能（独立）
 
 2-A (developerUnlockMode)
-  ← MapView.swift の QuestSpotDetailView は変更可能
-  ← CameraView.swift 分割後に Camera 側も変更
-
-1-B-3 (Camera分割) ← 後回し
-  └→ 2-A (Camera側)
-  └→ 3-F (Camera UI改善)
+  ← 1-B-3 / 1-B-4 両方完了済み → 今すぐ実施可能
 
 1-B-6 (SharedComponents)
-  ← 1-B-3 完了後に実施（1-B-4, 1-B-5 は完了済み）
+  ← 1-B-3 完了済み → 今すぐ実施可能
 
 1-B-7 (旧モデル削除)
   ← いつでも実施可能（他タスクと独立）

@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
-最終更新: 2026-06-04（Step 3-E 検証結果追記）
+最終更新: 2026-06-05（Step 1-B-3 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
 > **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
@@ -13,8 +13,8 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | `fab79d6` — Extract Map views from ContentView |
-| 最新Swiftコード変更 | `fab79d6` — Extract Map views from ContentView |
+| 最新コミット | `4d6e29b` — Extract Camera views from ContentView |
+| 最新Swiftコード変更 | `4d6e29b` — Extract Camera views from ContentView |
 | ワーキングツリー | クリーン |
 
 ---
@@ -22,13 +22,12 @@
 ## コミット履歴（直近）
 
 ```
+4d6e29b  Extract Camera views from ContentView
+6448f82  Record core flow verification results
+3726de5  Improve spot detail view on map screen
+4063000  Update project state after MapView extraction
 fab79d6  Extract Map views from ContentView
 cc15bf9  Enhance next spot card on home screen
-651d464  Add next spot prompt to home screen
-1c894c7  Update project state after home hero navigation improvement
-43e9fca  Improve map navigation from home hero card
-1f35a15  Fix project state commit references
-4eac84a  Update project state after HomeView extraction
 ```
 
 ---
@@ -57,7 +56,6 @@ cc15bf9  Enhance next spot card on home screen
 ### Step 3-A: Home Hero カード スポット進捗表示（完了）
 - `HomeView` に `completedSpotCount`（ユニーク spotId 数）と `kanagawaTotalSpotCount`（`mockQuestPrefectures` から取得）を追加
 - Hero カードのサブテキストを動的に: 0件時「まず1箇所...」/ 1件以上「神奈川 X / 24 スポット」
-- ContentView.swift: 2576行 → 2586行（+10行）
 - コミット: `"Show spot progress in home hero card"`
 
 ### Step 3-B: EmptyFeedCard Map-first 改善（完了）
@@ -68,7 +66,7 @@ cc15bf9  Enhance next spot card on home screen
 
 ### Step 3-G: UI 表示名を「ピクトリ」に変更（完了）
 - `HomeView.topBar` の `Text("JapanQuest")` → `Text("ピクトリ")`
-- 変更は `ContentView.swift` 1行のみ
+- 変更は `HomeView.swift` 1行のみ
 - Xcode プロジェクト名・Bundle Identifier・ファイル名・型名は変更していない
 - コミット: `"Rename app display name to Pictri in home top bar"`
 
@@ -76,7 +74,6 @@ cc15bf9  Enhance next spot card on home screen
 - `HomeView.swift` を新規作成（975行）
 - ContentView.swift: 2586行 → 1613行（-973行）
 - 移動した型（13型）: `HomeView` / `HomeMemoryTile` / `EmptyFeedCard` / `HomeLargePostCard` / `HomePostDetailSheet` / `JQAccountSheetView` / `JQAccountSection` / `JQAccountSectionButton` / `JQAccountStat` / `JQAccountMenuRow` / `JQFriendMiniRow` / `JQRequestMiniRow`
-- `AppBackground` / `JQUI` は今回移動しなかった（ContentView.swift に残存）
 - pbxproj 変更不要（PBXFileSystemSynchronizedRootGroup 使用）
 - コミット: `"Extract Home views from ContentView"`
 
@@ -107,6 +104,14 @@ cc15bf9  Enhance next spot card on home screen
 - コミットなし（差分なし）
 - **実機での完全確認は別途必要**（Build Succeeded および重大エラーなしは確認済み）
 
+### Step 1-B-3: CameraView.swift 分割（完了）
+- `CameraView.swift` を新規作成（1043行）
+- ContentView.swift: 1231行 → 186行（-1045行）
+- 移動した型（4型）: `QuestCameraView` / `QuestDualCapturePhase` / `QuestDemoPhotoMaker` / `QuestDualPhotoComposer`
+- import 調整: ContentView.swift から `import UIKit` / `import AVFoundation` を削除
+- pbxproj 変更不要（PBXFileSystemSynchronizedRootGroup 使用）
+- コミット: `"Extract Camera views from ContentView"`
+
 ---
 
 ## 現在のファイル構成
@@ -115,7 +120,8 @@ cc15bf9  Enhance next spot card on home screen
 
 | ファイル | 行数 | 状態 |
 |---------|-----|------|
-| `ContentView.swift` | 1231行 | 分割進行中（Camera が残存） |
+| `ContentView.swift` | 186行 | **分割完了**（Root / TabBar / JQUI / AppBackground のみ） |
+| `CameraView.swift` | 1043行 | **分割済み**（Camera 関連View） |
 | `HomeView.swift` | 1053行 | 分割済み（Home + JQAccount 系） |
 | `MapView.swift` | 384行 | 分割済み（QuestMapView / QuestSpotDetailView） |
 | `MemoriesView.swift` | 455行 | 分割済み |
@@ -137,21 +143,16 @@ cc15bf9  Enhance next spot card on home screen
 | ドメイン | 型 | 行数 | 備考 |
 |---------|---|-----|------|
 | Root / TabBar / JQUI | ContentView, JQFloatingTabBar, JQFloatingTabItem, AppTab, JQUI | ~168行 | 最終的に残す |
-| Camera | QuestCameraView, QuestDualCapturePhase, QuestDemoPhotoMaker, QuestDualPhotoComposer | ~1043行 | 分割予定（Step 1-B-3、後回し） |
-| Shared | AppBackground | ~19行 | SharedComponents.swift へ移動予定 |
+| Shared | AppBackground | ~18行 | SharedComponents.swift へ移動予定（Step 1-B-6） |
 
-### MapView.swift 内のドメイン（分割済み）
+### 各ファイルのドメイン（分割済み）
 
-| ドメイン | 型 | 行数 | 備考 |
-|---------|---|-----|------|
-| Map | QuestMapView, QuestSpotDetailView | ~382行 | 分割済み |
-
-### HomeView.swift 内のドメイン（分割済み）
-
-| ドメイン | 型 | 行数 | 備考 |
-|---------|---|-----|------|
-| Home | HomeView, HomeMemoryTile, EmptyFeedCard, HomeLargePostCard, HomePostDetailSheet, nextSpotSection | ~720行 | 分割済み |
-| JQAccount | JQAccountSheetView, JQAccountSection, JQAccountSectionButton, JQAccountStat, JQAccountMenuRow, JQFriendMiniRow, JQRequestMiniRow | ~333行 | 分割済み |
+| ファイル | 収録ドメイン | 備考 |
+|---------|------------|------|
+| `CameraView.swift` | QuestCameraView, QuestDualCapturePhase, QuestDemoPhotoMaker, QuestDualPhotoComposer | Step 1-B-3 完了 |
+| `MapView.swift` | QuestMapView, QuestSpotDetailView | Step 1-B-4 完了 |
+| `HomeView.swift` | HomeView 系13型 + JQAccount 系 | Step 1-B-5 完了 |
+| `MemoriesView.swift` | MemoriesView 系 + MemoryVisualStyle | Step 1-B-1 完了 |
 
 ---
 
@@ -159,26 +160,27 @@ cc15bf9  Enhance next spot card on home screen
 
 ### Home（実装済み・動作確認未実施）
 - トップバー: **「ピクトリ」表示済み**（Step 3-G 完了）
-- Hero カード: **「地図でスポットを探す」Map導線強化済み**（Step 3-H）/ 撮るボタン / **スポット進捗を実データ反映済み**（0件時・達成時で文言切替）
+- Hero カード: **「地図でスポットを探す」Map導線強化済み**（Step 3-H）/ 撮るボタン / **スポット進捗を実データ反映済み**
 - 最近のシェア: フィードポスト一覧（モックデータ）/ **空状態は Map-first 文言・アイコンに更新済み**
 - 最近埋まった場所: メモリーグリッド（実データ反映済み）
 - アカウントシート: Home 右上から `JQAccountSheetView` をシートで表示
 - 未改善: 「最近のシェア」「最近埋まった場所」のセクション名
 
 ### Map（実装済み・MapView.swift 分割済み・動作確認未実施）
-- **`MapView.swift` に分割済み**（Step 1-B-4 完了）
+- `MapView.swift` に分割済み（Step 1-B-4 完了）
 - 神奈川のみ表示（他県は未実装）
 - `QuestMapKitView` で MapKit レンダリング
 - スポットタップ → `QuestSpotDetailView` へ NavigationStack で遷移
 - スポット詳細からカメラ画面へ遷移可能
 - `developerUnlockMode = true` のため、GPS に関わらずアンロック状態
 
-### Camera（実装済み・動作確認未実施）
+### Camera（実装済み・CameraView.swift 分割済み・動作確認未実施）
+- `CameraView.swift` に分割済み（Step 1-B-3 完了）
 - 内カメ → 外カメの2枚連続撮影フロー（`QuestDualCapturePhase`）
 - `developerUnlockMode = true` のため、現地にいなくても撮影可能
 - `QuestDemoPhotoMaker`（カラーパネル生成）と `QuestDualPhotoComposer`（合成）が内蔵
 - 保存後に `QuestMemoryStore` へ追加され、Memories タブに反映される
-- 画面内に開発者モード Toggle が表示されている（line 1843）
+- 保存後フィードバック UI は改善余地あり（Step 3-F で対応予定）
 
 ### Memories（実装済み・動作確認未実施）
 - `MemoriesView.swift` として分離済み
@@ -213,21 +215,17 @@ cc15bf9  Enhance next spot card on home screen
 
 ### App Store 提出前に必須の修正
 1. **`developerUnlockMode` デフォルトが `true`**
-   - `QuestSpotDetailView`（line 1280）と `QuestCameraView`（line 1549）の両方で `@AppStorage("developerUnlockMode") private var developerUnlockMode = true`
+   - `QuestSpotDetailView`（`MapView.swift`）と `QuestCameraView`（`CameraView.swift`）の両方で `@AppStorage("developerUnlockMode") private var developerUnlockMode = true`
    - ユーザーが現地にいなくてもスポットをアンロック・撮影できてしまう
-   - デフォルトを `false` に変更し、開発者向けトグルは隠す必要がある
+   - デフォルトを `false` に変更し、開発者向けトグルは隠す必要がある（Step 2-A）
 
 2. **カメラ権限なしの場合のフォールバック未確認**
    - AVFoundation のエラーハンドリングが十分かは未確認
 
 ### コードの課題
 3. **旧モデル型が QuestModels.swift に残存**
-   - `RecentQuestPost` / `PrefectureMemory` / `MemorySpot` / `MapDot` / `KanagawaDot` は View からは参照されていないが、`QuestSampleData.swift` 内でのみ使われている（`mockRecentPosts` 等）
-   - `mockRecentPosts` / `mockKanagawaSpots` 等の定数が View から使われているか未確認
-   - 未使用なら Models + SampleData から削除可能
+   - `RecentQuestPost` / `PrefectureMemory` / `MemorySpot` / `MapDot` / `KanagawaDot` は View からは参照されていないが、`QuestSampleData.swift` 内でのみ使われている
+   - 未使用なら Models + SampleData から削除可能（Step 1-B-7）
 
 4. **Map は神奈川のみ**
    - 他県のスポットデータは `mockQuestSpots` に含まれているが、Map 画面は `kanagawa` フィルタのみ
-
-5. **ContentView.swift が 1231 行**
-   - Camera（~1043行）が未分割（Home+JQAccount は HomeView.swift 分割済み、Map は MapView.swift 分割済み）
