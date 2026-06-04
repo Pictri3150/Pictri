@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
-最終更新: 2026-06-05（Step 2-A / Camera保存後体験改善 完了）
+最終更新: 2026-06-05（Step 3-D / Mapスポット詳細ステータス改善 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
 > **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
@@ -13,8 +13,8 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | `f591d33` — Improve camera save completion flow |
-| 最新Swiftコード変更 | `f591d33` — Improve camera save completion flow |
+| 最新コミット | `31831c4` — Improve spot detail status clarity |
+| 最新Swiftコード変更 | `31831c4` — Improve spot detail status clarity |
 | ワーキングツリー | クリーン |
 
 ---
@@ -22,12 +22,12 @@
 ## コミット履歴（直近）
 
 ```
+31831c4  Improve spot detail status clarity
+ebf362d  Update project state after camera completion flow
 f591d33  Improve camera save completion flow
 7232f65  Default developer unlock mode to off
 89403e8  Update project state after camera save feedback
 103f968  Add camera save feedback UI
-f51b31d  Update project state after CameraView extraction
-4d6e29b  Extract Camera views from ContentView
 ```
 
 ---
@@ -132,6 +132,16 @@ f51b31d  Update project state after CameraView extraction
 - 変更ファイル: `CameraView.swift` のみ（+2行 / -6行）
 - コミット: `"Improve camera save completion flow"`
 
+### Step 3-D: Mapスポット詳細ステータス改善（完了）
+- `QuestSpotDetailView` の hero 内ステータスチップを3-state 対応に強化
+  - `isCompleted` → `[✓ 撮影済み]`（白背景・黒文字）— 以前から存在、`Label` に変更
+  - `isUnlocked && !isCompleted` → `[📷 撮影可能]`（白 0.88 背景・黒文字）— 現地到着時に表示
+  - `!isCompleted && !isUnlocked` → `[○ 未撮影]`（白 0.13 背景・白 0.70 文字）— ブラウズ時
+- `heroStatusChip` を `@ViewBuilder` computed var として追加（+30行 / -9行）
+- MapKit / Camera起動ロジック / 位置認証ロジック / Store / Model は変更なし
+- 変更ファイル: `MapView.swift` のみ
+- コミット: `"Improve spot detail status clarity"`
+
 ---
 
 ## 現在のファイル構成
@@ -143,7 +153,7 @@ f51b31d  Update project state after CameraView extraction
 | `ContentView.swift` | 186行 | **分割完了**（Root / TabBar / JQUI / AppBackground のみ） |
 | `CameraView.swift` | 1043行 | **分割済み**（Camera 関連View） |
 | `HomeView.swift` | 1053行 | 分割済み（Home + JQAccount 系） |
-| `MapView.swift` | 384行 | 分割済み（QuestMapView / QuestSpotDetailView） |
+| `MapView.swift` | ~405行 | 分割済み（QuestMapView / QuestSpotDetailView）|
 | `MemoriesView.swift` | 455行 | 分割済み |
 | `JapanQuestApp.swift` | 10行 | 完了 |
 | `QuestModels.swift` | 172行 | 要精査（旧モデルが残存） |
@@ -170,7 +180,7 @@ f51b31d  Update project state after CameraView extraction
 | ファイル | 収録ドメイン | 備考 |
 |---------|------------|------|
 | `CameraView.swift` | QuestCameraView, QuestDualCapturePhase, QuestDemoPhotoMaker, QuestDualPhotoComposer | Step 1-B-3 完了 |
-| `MapView.swift` | QuestMapView, QuestSpotDetailView | Step 1-B-4 完了 |
+| `MapView.swift` | QuestMapView, QuestSpotDetailView | Step 1-B-4 完了 / Step 3-D 完了 |
 | `HomeView.swift` | HomeView 系13型 + JQAccount 系 | Step 1-B-5 完了 |
 | `MemoriesView.swift` | MemoriesView 系 + MemoryVisualStyle | Step 1-B-1 完了 |
 
@@ -184,7 +194,7 @@ f51b31d  Update project state after CameraView extraction
 - 最近のシェア: フィードポスト一覧（モックデータ）/ **空状態は Map-first 文言・アイコンに更新済み**
 - 最近埋まった場所: メモリーグリッド（実データ反映済み）
 - アカウントシート: Home 右上から `JQAccountSheetView` をシートで表示
-- 未改善: 「最近のシェア」「最近埋まった場所」のセクション名
+- 未改善: 「最近のシェア」「最近埋まった場所」のセクション名（Step 3-C 候補）
 
 ### Map（実装済み・MapView.swift 分割済み・動作確認未実施）
 - `MapView.swift` に分割済み（Step 1-B-4 完了）
@@ -193,6 +203,7 @@ f51b31d  Update project state after CameraView extraction
 - スポットタップ → `QuestSpotDetailView` へ NavigationStack で遷移
 - スポット詳細からカメラ画面へ遷移可能
 - **`developerUnlockMode = false`（Step 2-A 完了）** — 現地認証が有効になった
+- **`heroStatusChip` で3-state ステータス表示**（Step 3-D 完了）— 撮影済み / 撮影可能 / 未撮影 をヒーロー内に表示
 
 ### Camera（実装済み・CameraView.swift 分割済み・動作確認未実施）
 - `CameraView.swift` に分割済み（Step 1-B-3 完了）
