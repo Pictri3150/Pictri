@@ -635,10 +635,36 @@ struct QuestCameraView: View {
                 captureControls
             }
 
-            Text("選択中のカメラから撮影し、続けて反対側を撮ります")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.42))
-                .frame(maxWidth: .infinity, alignment: .center)
+            if hasSaved {
+                Button {
+                    selectedTab = .memories
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "square.grid.2x2.fill")
+                        Text("Memoriesで確認する")
+                    }
+                    .font(.system(size: 15, weight: .bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(.white.opacity(0.08))
+                    .foregroundStyle(.white.opacity(0.88))
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(.white.opacity(0.18), lineWidth: 1)
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
+            Text(hasSaved
+                ? "Memoriesに保存しました"
+                : "選択中のカメラから撮影し、続けて反対側を撮ります"
+            )
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(.white.opacity(0.42))
+            .frame(maxWidth: .infinity, alignment: .center)
+            .animation(.easeInOut(duration: 0.22), value: hasSaved)
         }
     }
 
@@ -719,7 +745,9 @@ struct QuestCameraView: View {
                     verifiedDistanceMeters: currentDistanceMeters
                 )
 
-                hasSaved = true
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    hasSaved = true
+                }
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: hasSaved ? "checkmark.circle.fill" : "paperplane.fill")
@@ -728,8 +756,8 @@ struct QuestCameraView: View {
                 .font(.system(size: 15, weight: .black))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 15)
-                .background(hasSaved ? .green : .white)
-                .foregroundStyle(hasSaved ? .white : .black)
+                .background(hasSaved ? .white.opacity(0.14) : .white)
+                .foregroundStyle(hasSaved ? .white.opacity(0.88) : .black)
                 .clipShape(
                     RoundedRectangle(
                         cornerRadius: 18,
