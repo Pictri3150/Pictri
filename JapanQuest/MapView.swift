@@ -207,10 +207,10 @@ struct QuestSpotDetailView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(spot.areaName)
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.68))
+                    .foregroundStyle(.white.opacity(0.82))
 
                 Text(spot.name)
-                    .font(.system(size: 34, weight: .bold))
+                    .font(.system(size: 36, weight: .black))
                     .foregroundStyle(.white)
 
                 HStack(spacing: 8) {
@@ -313,8 +313,8 @@ struct QuestSpotDetailView: View {
             selectedTab = .camera
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: isUnlocked ? "camera.fill" : "lock.fill")
-                Text(isUnlocked ? "この場所で撮る" : "現地で解放")
+                Image(systemName: isUnlocked ? "camera.fill" : "location.fill")
+                Text(isUnlocked ? "この場所で撮る" : "現地に行くと撮れます")
             }
             .font(.system(size: 17, weight: .bold))
             .frame(maxWidth: .infinity)
@@ -362,11 +362,11 @@ struct QuestSpotDetailView: View {
                         .frame(height: 220)
 
                     VStack(spacing: 10) {
-                        Image(systemName: "photo")
-                            .font(.system(size: 34, weight: .regular))
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 32, weight: .regular))
                             .foregroundStyle(.black.opacity(0.28))
 
-                        Text("まだ撮影されていません")
+                        Text("ここで最初の一枚を残そう")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(.black.opacity(0.55))
                     }
