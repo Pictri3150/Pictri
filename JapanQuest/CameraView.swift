@@ -37,7 +37,7 @@ struct QuestCameraView: View {
     @EnvironmentObject var memoryStore: QuestMemoryStore
     @EnvironmentObject var locationManager: QuestLocationManager
 
-    @AppStorage("developerUnlockMode") private var developerUnlockMode = true
+    @AppStorage("developerUnlockMode") private var developerUnlockMode = false
 
     @StateObject private var cameraService = QuestCameraService()
 
