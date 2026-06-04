@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
-最終更新: 2026-06-05（Step 3-F 完了）
+最終更新: 2026-06-05（Step 2-A / Camera保存後体験改善 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
 > **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
@@ -13,8 +13,8 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | `103f968` — Add camera save feedback UI |
-| 最新Swiftコード変更 | `103f968` — Add camera save feedback UI |
+| 最新コミット | `f591d33` — Improve camera save completion flow |
+| 最新Swiftコード変更 | `f591d33` — Improve camera save completion flow |
 | ワーキングツリー | クリーン |
 
 ---
@@ -22,12 +22,12 @@
 ## コミット履歴（直近）
 
 ```
+f591d33  Improve camera save completion flow
+7232f65  Default developer unlock mode to off
+89403e8  Update project state after camera save feedback
 103f968  Add camera save feedback UI
 f51b31d  Update project state after CameraView extraction
 4d6e29b  Extract Camera views from ContentView
-6448f82  Record core flow verification results
-3726de5  Improve spot detail view on map screen
-4063000  Update project state after MapView extraction
 ```
 
 ---
@@ -120,6 +120,18 @@ f51b31d  Update project state after CameraView extraction
 - 変更ファイル: `CameraView.swift` のみ（+35行 / -7行）
 - コミット: `"Add camera save feedback UI"`
 
+### Step 2-A: developerUnlockMode デフォルト false 化（完了）
+- `MapView.swift` / `CameraView.swift` の両方で `developerUnlockMode = true` → `false`
+- 開発者向けトグルは `#if DEBUG` ブロック内に残存（削除なし）
+- 変更ファイル: `MapView.swift` / `CameraView.swift`（各1行）
+- コミット: `"Default developer unlock mode to off"`
+
+### Camera 保存後体験改善（完了）
+- 「Memoriesで確認する」ボタンを ghost スタイル（`.white.opacity(0.08)` + border）→ primary スタイル（白背景・黒文字）に格上げ
+- 保存後の「次のアクション」が視覚的に明確になった
+- 変更ファイル: `CameraView.swift` のみ（+2行 / -6行）
+- コミット: `"Improve camera save completion flow"`
+
 ---
 
 ## 現在のファイル構成
@@ -180,15 +192,15 @@ f51b31d  Update project state after CameraView extraction
 - `QuestMapKitView` で MapKit レンダリング
 - スポットタップ → `QuestSpotDetailView` へ NavigationStack で遷移
 - スポット詳細からカメラ画面へ遷移可能
-- `developerUnlockMode = true` のため、GPS に関わらずアンロック状態
+- **`developerUnlockMode = false`（Step 2-A 完了）** — 現地認証が有効になった
 
 ### Camera（実装済み・CameraView.swift 分割済み・動作確認未実施）
 - `CameraView.swift` に分割済み（Step 1-B-3 完了）
 - 内カメ → 外カメの2枚連続撮影フロー（`QuestDualCapturePhase`）
-- `developerUnlockMode = true` のため、現地にいなくても撮影可能（Step 2-A で `false` 化予定）
+- **`developerUnlockMode = false`（Step 2-A 完了）** — 現地でのみ撮影可能（`#if DEBUG` トグルで開発時は解除可）
 - `QuestDemoPhotoMaker`（カラーパネル生成）と `QuestDualPhotoComposer`（合成）が内蔵
 - 保存後に `QuestMemoryStore` へ追加され、Memories タブに反映される
-- **保存後フィードバック UI 改善済み**（Step 3-F 完了）: 「Memoriesで確認する」ナビゲーション + 保存完了テキスト
+- **保存後フィードバック UI 改善済み**（Step 3-F + 追加改善）: 「Memoriesに保存しました」テキスト + **白背景・黒文字の primary CTA「Memoriesで確認する」**
 
 ### Memories（実装済み・動作確認未実施）
 - `MemoriesView.swift` として分離済み
@@ -222,18 +234,13 @@ f51b31d  Update project state after CameraView extraction
 ## 既知の課題
 
 ### App Store 提出前に必須の修正
-1. **`developerUnlockMode` デフォルトが `true`**
-   - `QuestSpotDetailView`（`MapView.swift`）と `QuestCameraView`（`CameraView.swift`）の両方で `@AppStorage("developerUnlockMode") private var developerUnlockMode = true`
-   - ユーザーが現地にいなくてもスポットをアンロック・撮影できてしまう
-   - デフォルトを `false` に変更し、開発者向けトグルは隠す必要がある（Step 2-A）
-
-2. **カメラ権限なしの場合のフォールバック未確認**
+1. **カメラ権限なしの場合のフォールバック未確認**
    - AVFoundation のエラーハンドリングが十分かは未確認
 
 ### コードの課題
-3. **旧モデル型が QuestModels.swift に残存**
+2. **旧モデル型が QuestModels.swift に残存**
    - `RecentQuestPost` / `PrefectureMemory` / `MemorySpot` / `MapDot` / `KanagawaDot` は View からは参照されていないが、`QuestSampleData.swift` 内でのみ使われている
    - 未使用なら Models + SampleData から削除可能（Step 1-B-7）
 
-4. **Map は神奈川のみ**
+3. **Map は神奈川のみ**
    - 他県のスポットデータは `mockQuestSpots` に含まれているが、Map 画面は `kanagawa` フィルタのみ
