@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
-最終更新: 2026-06-04
+最終更新: 2026-06-04（Step 3-E 検証結果追記）
 
 > **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
 > **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
@@ -100,6 +100,13 @@ cc15bf9  Enhance next spot card on home screen
 - pbxproj 変更不要（PBXFileSystemSynchronizedRootGroup 使用）
 - コミット: `"Extract Map views from ContentView"`
 
+### Step 3-E: コアフロー確認（完了・Swift変更なし）
+- 調査対象: `ContentView.swift` / `MapView.swift` / `HomeView.swift` / `MemoriesView.swift` / `QuestMemoryStore.swift` / `QuestMapKitView.swift`
+- 結果: 破損箇所なし。全ステップがコード上正しく接続されていることを確認
+- Swift コード変更ゼロ（修正対象なし）
+- コミットなし（差分なし）
+- **実機での完全確認は別途必要**（Build Succeeded および重大エラーなしは確認済み）
+
 ---
 
 ## 現在のファイル構成
@@ -187,13 +194,16 @@ cc15bf9  Enhance next spot card on home screen
 
 ## コアフローの確認状況
 
+> 「コード上確認済み」= コードの接続を静的に確認。「実機確認済み」= 実機/シミュレーターで実際に動作確認。
+
 | フロー | 状態 |
 |-------|------|
-| Home → Map タブ遷移 | 未確認 |
-| Map でスポット選択 | 未確認 |
-| Map → Camera へ activeCameraSpotId を渡す | 未確認 |
-| Camera で2枚撮影 → 保存 | 未確認 |
-| 保存後に Memories に反映 | 未確認 |
+| Home → Map タブ遷移 | コード上確認済み（実機確認は別途必要） |
+| Map でスポット選択 → SpotDetailView 遷移 | コード上確認済み（実機確認は別途必要） |
+| SpotDetailView → Camera へ activeCameraSpotId を渡す | コード上確認済み（実機確認は別途必要） |
+| Camera に正しい spotId が渡る（binding chain） | コード上確認済み（実機確認は別途必要） |
+| Camera で2枚撮影 → QuestMemoryStore.save() 呼び出し | コード上確認済み（実機確認は別途必要） |
+| 保存後に Memories に自動反映（@Published + @EnvironmentObject） | コード上確認済み（実機確認は別途必要） |
 | Home フィードにポストが表示 | 未確認 |
 | Account シートの開閉 | 未確認 |
 

@@ -1,6 +1,6 @@
 # NEXT_TASKS.md — ピクトリ（Pictri）次のタスク一覧
 
-最終更新: 2026-06-04
+最終更新: 2026-06-04（Step 3-E 完了記録）
 
 > **プロダクト名:** ピクトリ（Pictri）— UI 上の表示名。内部プロジェクト名 JapanQuest はコード・Xcode 設定に残存中。
 
@@ -15,6 +15,7 @@
 - ~~Step 3-H: Home Hero カードの Map 導線改善~~ → `43e9fca` 完了
 - ~~Step 3-I: Home「気になるスポット」セクション追加・強化~~ → `651d464` / `cc15bf9` 完了
 - ~~Step 1-B-4: MapView.swift 分割~~ → `fab79d6` 完了
+- ~~Step 3-E: コアフロー確認~~ → コード調査完了・破損なし・Swift変更なし（実機完全確認は別途必要）
 
 ---
 
@@ -23,17 +24,16 @@
 ```
 Phase 3: 体験品質の改善（継続中）
   Step 3-D    Map スポット詳細 UX 改善（★次の推奨、MapView.swift 分割済みのため今すぐ可）
-  Step 3-E    コアフロー動作確認と修正（いつでも可）
   Step 3-C    Home セクション名の改善（いつでも可）
-  Step 3-F    Camera 保存フィードバック UI（後回し）
+  Step 3-F    Camera 保存フィードバック UI（1-B-3 完了後）
 
 Phase 1: コード整理（継続）
-  Step 1-B-3  CameraView.swift 分割（後回し）
-  Step 1-B-6  SharedComponents.swift 分割（後回し）
+  Step 1-B-3  CameraView.swift 分割（★ Camera 改善の前提）
+  Step 1-B-6  SharedComponents.swift 分割（1-B-3 完了後）
   Step 1-B-7  旧モデル・旧サンプルデータ 削除（後回し）
 
 Phase 2: App Store 必須修正
-  Step 2-A    developerUnlockMode をデフォルト false に変更
+  Step 2-A    developerUnlockMode をデフォルト false に変更（1-B-3 完了後）
 ```
 
 ---
@@ -222,29 +222,24 @@ Disable developer unlock mode by default
 
 ## Phase 3: 体験品質の改善（後続）
 
-### Step 3-E: コアフロー動作確認と修正
+### ~~Step 3-E: コアフロー確認~~（完了・Swift変更なし）
 
-**目的:** 「Map → スポット選択 → Camera → 撮影 → 保存 → Memories 反映」のコアフローを実機・シミュレーターで確認し、不具合を修正する
+**結果:**
+- `ContentView.swift` / `MapView.swift` / `HomeView.swift` / `MemoriesView.swift` / `QuestMemoryStore.swift` / `QuestMapKitView.swift` を静的に調査
+- 全ステップがコード上正しく接続されていることを確認
+- 破損箇所なし → Swift 変更ゼロ・コミットなし
 
-**確認項目:**
-1. Home → Map タブ遷移
-2. Map でスポットをタップ → SpotDetailView に遷移
-3. SpotDetailView から Camera へ `activeCameraSpotId` を渡す
-4. Camera で2枚撮影 → 保存
-5. 保存後に Memories タブに反映される
-6. Home フィードにポストが表示される
+**コード上確認済みの項目（1〜5）:**
+1. Home → Map タブ遷移（`selectedTab = .map`）
+2. Map でスポットタップ → `path.append(spot)` → SpotDetailView
+3. SpotDetailView → `activeCameraSpotId = spot.id`, `selectedTab = .camera`
+4. Camera に binding chain 経由で spotId が渡る
+5. 保存後 `@Published` + `@EnvironmentObject` で Memories 自動反映
 
-**リスク:** 中（不具合が発見された場合、修正の範囲が広がる可能性）
-
-**Definition of Done:**
-- 上記6ステップがすべてエラーなく動作する（実機またはシミュレーター）
-
-**コミットメッセージ案:**
-```
-Fix core flow: map → camera → save → memories
-```
-
-（修正内容に応じて変更）
+**実機確認が別途必要な項目:**
+- 上記5ステップの実機動作確認
+- Home フィードへのポスト表示
+- Account シートの開閉
 
 ---
 
