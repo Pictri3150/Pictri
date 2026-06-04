@@ -1,6 +1,6 @@
 # NEXT_TASKS.md — ピクトリ（Pictri）次のタスク一覧
 
-最終更新: 2026-06-05（Step 1-B-3 完了・Step 3-F 次の推奨に更新）
+最終更新: 2026-06-05（Step 3-F 完了・Step 2-A 次の推奨に更新）
 
 > **プロダクト名:** ピクトリ（Pictri）— UI 上の表示名。内部プロジェクト名 JapanQuest はコード・Xcode 設定に残存中。
 
@@ -17,19 +17,19 @@
 - ~~Step 1-B-4: MapView.swift 分割~~ → `fab79d6` 完了
 - ~~Step 3-E: コアフロー確認~~ → コード調査完了・破損なし・Swift変更なし（実機完全確認は別途必要）
 - ~~Step 1-B-3: CameraView.swift 分割~~ → `4d6e29b` 完了
+- ~~Step 3-F: Camera 保存フィードバック UI 改善~~ → `103f968` 完了
 
 ---
 
 ## 推奨作業順序の概要
 
 ```
+Phase 2: App Store 必須修正
+  Step 2-A    developerUnlockMode デフォルト false 化（★次の推奨、前提条件 完了済み）
+
 Phase 3: 体験品質の改善（継続中）
-  Step 3-F    Camera 保存フィードバック UI（★次の推奨、CameraView.swift のみ）
   Step 3-D    Map スポット詳細 UX 改善（いつでも可）
   Step 3-C    Home セクション名の改善（いつでも可）
-
-Phase 2: App Store 必須修正
-  Step 2-A    developerUnlockMode をデフォルト false に変更（前提条件 完了済み）
 
 Phase 1: コード整理（継続）
   Step 1-B-6  SharedComponents.swift 分割（いつでも可）
@@ -40,38 +40,13 @@ Phase 1: コード整理（継続）
 
 ## Phase 3: 体験品質の改善（継続）
 
-### Step 3-F: Camera 保存フィードバック UI の改善（★次の推奨）
+### ~~Step 3-F: Camera 保存フィードバック UI の改善~~（完了）
 
-**目的:** 撮影・保存後にユーザーが「Memories に保存された」と分かる体験を作る。「現地で写真を残す」コアフローの最後を気持ちよく締める。
-
-**前提条件:** Step 1-B-3（CameraView.swift 分割）**完了済み** — 今すぐ安全に着手可能
-
-**変更対象:** `CameraView.swift` のみ
-
-**実装候補（優先度順）:**
-1. 保存成功後に「Memoriesで確認する」ナビゲーションボタンを表示（`selectedTab = .memories`）
-2. 保存完了を示す控えめなサクセステキスト
-3. 保存済み状態の button appearance を黒白基調に合わせて整理（現在の `.green` は異質）
-
-**やってはいけないこと:**
-- 撮影順序・外カメ/内カメの流れを変えない
-- QuestMemoryStore の仕様を変えない
-- 位置認証ロジックを変えない
-- 大きな画面構造変更をしない
-- 派手なアニメーションやゲーム的演出を追加しない
-
-**リスク:** 低（`CameraView.swift` 1ファイル内、`@State` 追加と UI のみ）
-
-**Definition of Done:**
-- 保存後にユーザーが「次にどこへ行けばよいか」分かる
-- 変更は `CameraView.swift` のみ
-- 撮影・保存ロジックは変わっていない
-- Build Succeeded
-
-**コミットメッセージ案:**
-```
-Add camera save feedback UI
-```
+- 保存済みボタン背景 `.green` → `.white.opacity(0.14)`（黒白基調に統一）
+- `hasSaved = true` を `withAnimation` でラップ
+- 保存後「Memoriesで確認する」ボタン追加（`selectedTab = .memories`）
+- ヒントテキスト「Memoriesに保存しました」に切り替え
+- コミット: `103f968`
 
 ---
 
@@ -128,7 +103,7 @@ Update home section labels to reflect journey context
 
 ## Phase 2: App Store 必須修正
 
-### Step 2-A: developerUnlockMode デフォルト変更
+### Step 2-A: developerUnlockMode デフォルト変更（★次の推奨）
 
 **目的:** App Store 提出時に、ユーザーが現地にいなくてもスポットをアンロックできる状態を解消する
 
@@ -233,17 +208,14 @@ Remove unused legacy model types and sample data
 ## タスク間の依存関係
 
 ```
-3-F (Camera 保存フィードバック) ← ★次の推奨
-  ← 1-B-3 完了済みのため今すぐ可能
+2-A (developerUnlockMode) ← ★次の推奨
+  ← 1-B-3 / 1-B-4 / 3-F 完了済み → 今すぐ実施可能
 
 3-D (Map スポット詳細 UX 改善)
   ← 1-B-4 完了済みのため今すぐ可能
 
 3-C (Homeセクション名)
   ← いつでも実施可能（独立）
-
-2-A (developerUnlockMode)
-  ← 1-B-3 / 1-B-4 両方完了済み → 今すぐ実施可能
 
 1-B-6 (SharedComponents)
   ← 1-B-3 完了済み → 今すぐ実施可能

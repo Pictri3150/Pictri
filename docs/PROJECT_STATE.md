@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
-最終更新: 2026-06-05（Step 1-B-3 完了）
+最終更新: 2026-06-05（Step 3-F 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
 > **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
@@ -13,8 +13,8 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | `4d6e29b` — Extract Camera views from ContentView |
-| 最新Swiftコード変更 | `4d6e29b` — Extract Camera views from ContentView |
+| 最新コミット | `103f968` — Add camera save feedback UI |
+| 最新Swiftコード変更 | `103f968` — Add camera save feedback UI |
 | ワーキングツリー | クリーン |
 
 ---
@@ -22,12 +22,12 @@
 ## コミット履歴（直近）
 
 ```
+103f968  Add camera save feedback UI
+f51b31d  Update project state after CameraView extraction
 4d6e29b  Extract Camera views from ContentView
 6448f82  Record core flow verification results
 3726de5  Improve spot detail view on map screen
 4063000  Update project state after MapView extraction
-fab79d6  Extract Map views from ContentView
-cc15bf9  Enhance next spot card on home screen
 ```
 
 ---
@@ -112,6 +112,14 @@ cc15bf9  Enhance next spot card on home screen
 - pbxproj 変更不要（PBXFileSystemSynchronizedRootGroup 使用）
 - コミット: `"Extract Camera views from ContentView"`
 
+### Step 3-F: Camera 保存フィードバック UI 改善（完了）
+- 保存済みボタン背景を `.green` → `.white.opacity(0.14)` に変更（黒白基調に統一）
+- `hasSaved = true` を `withAnimation` でラップ（スムーズな出現）
+- 保存後に「Memoriesで確認する」ボタンを追加（`selectedTab = .memories` へ遷移）
+- ヒントテキストを保存後に「Memoriesに保存しました」へ切り替え
+- 変更ファイル: `CameraView.swift` のみ（+35行 / -7行）
+- コミット: `"Add camera save feedback UI"`
+
 ---
 
 ## 現在のファイル構成
@@ -177,10 +185,10 @@ cc15bf9  Enhance next spot card on home screen
 ### Camera（実装済み・CameraView.swift 分割済み・動作確認未実施）
 - `CameraView.swift` に分割済み（Step 1-B-3 完了）
 - 内カメ → 外カメの2枚連続撮影フロー（`QuestDualCapturePhase`）
-- `developerUnlockMode = true` のため、現地にいなくても撮影可能
+- `developerUnlockMode = true` のため、現地にいなくても撮影可能（Step 2-A で `false` 化予定）
 - `QuestDemoPhotoMaker`（カラーパネル生成）と `QuestDualPhotoComposer`（合成）が内蔵
 - 保存後に `QuestMemoryStore` へ追加され、Memories タブに反映される
-- 保存後フィードバック UI は改善余地あり（Step 3-F で対応予定）
+- **保存後フィードバック UI 改善済み**（Step 3-F 完了）: 「Memoriesで確認する」ナビゲーション + 保存完了テキスト
 
 ### Memories（実装済み・動作確認未実施）
 - `MemoriesView.swift` として分離済み
