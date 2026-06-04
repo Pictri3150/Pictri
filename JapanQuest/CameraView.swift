@@ -646,13 +646,9 @@ struct QuestCameraView: View {
                     .font(.system(size: 15, weight: .bold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(.white.opacity(0.08))
-                    .foregroundStyle(.white.opacity(0.88))
+                    .background(.white)
+                    .foregroundStyle(.black)
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(.white.opacity(0.18), lineWidth: 1)
-                    }
                 }
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
