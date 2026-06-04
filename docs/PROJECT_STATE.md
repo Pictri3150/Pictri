@@ -13,8 +13,8 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | `43e9fca` — Improve map navigation from home hero card |
-| 最新Swiftコード変更 | `43e9fca` — Improve map navigation from home hero card |
+| 最新コミット | `fab79d6` — Extract Map views from ContentView |
+| 最新Swiftコード変更 | `fab79d6` — Extract Map views from ContentView |
 | ワーキングツリー | クリーン |
 
 ---
@@ -22,13 +22,13 @@
 ## コミット履歴（直近）
 
 ```
+fab79d6  Extract Map views from ContentView
+cc15bf9  Enhance next spot card on home screen
+651d464  Add next spot prompt to home screen
+1c894c7  Update project state after home hero navigation improvement
 43e9fca  Improve map navigation from home hero card
 1f35a15  Fix project state commit references
 4eac84a  Update project state after HomeView extraction
-74c68f6  Extract Home views from ContentView
-8d104d6  Update project state after Pictri rename
-ce2df41  Rename app display name to Pictri in home top bar
-08600ac  Update home section labels for journey context
 ```
 
 ---
@@ -86,6 +86,20 @@ ce2df41  Rename app display name to Pictri in home top bar
 - 変更は `HomeView.swift` 2行のみ、レイアウト・遷移処理は変更なし
 - コミット: `"Improve map navigation from home hero card"`
 
+### Step 3-I: Home「気になるスポット」セクション追加（完了）
+- `unvisitedKanagawaSpots` — 未訪問スポット最大2件を gridIndex 順で取得
+- `nextSpotSection` — スポット名・エリア名カード + 「地図で見る」CTA（`selectedTab = .map`）
+- カードにピンアイコン・ボーダー・視認性強化を追加
+- 変更は `HomeView.swift` のみ
+- コミット: `"Add next spot prompt to home screen"` / `"Enhance next spot card on home screen"`
+
+### Step 1-B-4: MapView.swift 分割（完了）
+- `MapView.swift` を新規作成（384行）
+- ContentView.swift: 1613行 → 1231行（-382行）
+- 移動した型（2型）: `QuestMapView` / `QuestSpotDetailView`
+- pbxproj 変更不要（PBXFileSystemSynchronizedRootGroup 使用）
+- コミット: `"Extract Map views from ContentView"`
+
 ---
 
 ## 現在のファイル構成
@@ -94,8 +108,9 @@ ce2df41  Rename app display name to Pictri in home top bar
 
 | ファイル | 行数 | 状態 |
 |---------|-----|------|
-| `ContentView.swift` | 1613行 | 分割進行中（Map/Camera が残存） |
-| `HomeView.swift` | 975行 | 分割済み（Home + JQAccount 系） |
+| `ContentView.swift` | 1231行 | 分割進行中（Camera が残存） |
+| `HomeView.swift` | 1053行 | 分割済み（Home + JQAccount 系） |
+| `MapView.swift` | 384行 | 分割済み（QuestMapView / QuestSpotDetailView） |
 | `MemoriesView.swift` | 455行 | 分割済み |
 | `JapanQuestApp.swift` | 10行 | 完了 |
 | `QuestModels.swift` | 172行 | 要精査（旧モデルが残存） |
@@ -115,16 +130,21 @@ ce2df41  Rename app display name to Pictri in home top bar
 | ドメイン | 型 | 行数 | 備考 |
 |---------|---|-----|------|
 | Root / TabBar / JQUI | ContentView, JQFloatingTabBar, JQFloatingTabItem, AppTab, JQUI | ~168行 | 最終的に残す |
-| Map | QuestMapView, QuestSpotDetailView | ~383行 | 分割予定（Step 1-B-4） |
 | Camera | QuestCameraView, QuestDualCapturePhase, QuestDemoPhotoMaker, QuestDualPhotoComposer | ~1043行 | 分割予定（Step 1-B-3、後回し） |
 | Shared | AppBackground | ~19行 | SharedComponents.swift へ移動予定 |
+
+### MapView.swift 内のドメイン（分割済み）
+
+| ドメイン | 型 | 行数 | 備考 |
+|---------|---|-----|------|
+| Map | QuestMapView, QuestSpotDetailView | ~382行 | 分割済み |
 
 ### HomeView.swift 内のドメイン（分割済み）
 
 | ドメイン | 型 | 行数 | 備考 |
 |---------|---|-----|------|
-| Home | HomeView, HomeMemoryTile, EmptyFeedCard, HomeLargePostCard, HomePostDetailSheet | ~640行 | 分割済み |
-| JQAccount | JQAccountSheetView, JQAccountSection, JQAccountSectionButton, JQAccountStat, JQAccountMenuRow, JQFriendMiniRow, JQRequestMiniRow | ~335行 | 分割済み |
+| Home | HomeView, HomeMemoryTile, EmptyFeedCard, HomeLargePostCard, HomePostDetailSheet, nextSpotSection | ~720行 | 分割済み |
+| JQAccount | JQAccountSheetView, JQAccountSection, JQAccountSectionButton, JQAccountStat, JQAccountMenuRow, JQFriendMiniRow, JQRequestMiniRow | ~333行 | 分割済み |
 
 ---
 
@@ -138,7 +158,8 @@ ce2df41  Rename app display name to Pictri in home top bar
 - アカウントシート: Home 右上から `JQAccountSheetView` をシートで表示
 - 未改善: 「最近のシェア」「最近埋まった場所」のセクション名
 
-### Map（実装済み・動作確認未実施）
+### Map（実装済み・MapView.swift 分割済み・動作確認未実施）
+- **`MapView.swift` に分割済み**（Step 1-B-4 完了）
 - 神奈川のみ表示（他県は未実装）
 - `QuestMapKitView` で MapKit レンダリング
 - スポットタップ → `QuestSpotDetailView` へ NavigationStack で遷移
@@ -198,5 +219,5 @@ ce2df41  Rename app display name to Pictri in home top bar
 4. **Map は神奈川のみ**
    - 他県のスポットデータは `mockQuestSpots` に含まれているが、Map 画面は `kanagawa` フィルタのみ
 
-5. **ContentView.swift が 1613 行**
-   - Camera（~1043行）/ Map（~383行）が未分割（Home+JQAccount は HomeView.swift 分割済み）
+5. **ContentView.swift が 1231 行**
+   - Camera（~1043行）が未分割（Home+JQAccount は HomeView.swift 分割済み、Map は MapView.swift 分割済み）

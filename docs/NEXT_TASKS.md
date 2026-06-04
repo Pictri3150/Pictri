@@ -13,23 +13,24 @@
 - ~~Step 3-G: UI 表示名を「ピクトリ」に変更~~ → `ce2df41` 完了
 - ~~Step 1-B-5: HomeView.swift 分割（Home + JQAccount 系）~~ → `74c68f6` 完了
 - ~~Step 3-H: Home Hero カードの Map 導線改善~~ → `43e9fca` 完了
+- ~~Step 3-I: Home「気になるスポット」セクション追加・強化~~ → `651d464` / `cc15bf9` 完了
+- ~~Step 1-B-4: MapView.swift 分割~~ → `fab79d6` 完了
 
 ---
 
 ## 推奨作業順序の概要
 
 ```
+Phase 3: 体験品質の改善（継続中）
+  Step 3-D    Map スポット詳細 UX 改善（★次の推奨、MapView.swift 分割済みのため今すぐ可）
+  Step 3-E    コアフロー動作確認と修正（いつでも可）
+  Step 3-C    Home セクション名の改善（いつでも可）
+  Step 3-F    Camera 保存フィードバック UI（後回し）
+
 Phase 1: コード整理（継続）
-  Step 1-B-4  MapView.swift 分割（★次の推奨、Map改善の前提）
   Step 1-B-3  CameraView.swift 分割（後回し）
   Step 1-B-6  SharedComponents.swift 分割（後回し）
   Step 1-B-7  旧モデル・旧サンプルデータ 削除（後回し）
-
-Phase 3: 体験品質の改善（継続中）
-  Step 3-C    Home セクション名の改善（いつでも可）
-  Step 3-D    Map 中心 UX 改善（1-B-4 後に安全）
-  Step 3-E    コアフロー動作確認と修正（1-B-4 後に推奨）
-  Step 3-F    Camera 保存フィードバック UI（後回し）
 
 Phase 2: App Store 必須修正
   Step 2-A    developerUnlockMode をデフォルト false に変更
@@ -61,25 +62,32 @@ Update home section labels to reflect journey context
 
 ---
 
-### Step 3-D: Map 中心 UX 改善
+### Step 3-D: Map スポット詳細 UX 改善（★次の推奨）
 
-**目的:** Map 画面の「スポットを見つけて行ってみたくなる」体験を強化する
+**目的:** `QuestSpotDetailView` の体験を強化し、「このスポットに行って写真を残したい」と思わせる画面にする
 
-**候補（作業前に詳細調査が必要）:**
-- スポット詳細画面（`QuestSpotDetailView`）のビジュアル強化
-- 未訪問・訪問済みスポットの視覚的区別の改善
-- 「このスポットで撮影する」ボタンの導線改善
+**前提条件:** Step 1-B-4（MapView.swift 分割）**完了済み** — 今すぐ安全に着手可能
 
-**前提条件:** Step 1-B-4（MapView.swift 分割）が完了していると安全に作業できる
+**変更対象:** `MapView.swift` のみ（`QuestSpotDetailView` 内）
 
-**リスク:** 中（Map 画面は MapKit との連携があるため、詳細調査が必要）
+**候補（着手前に現状調査してから決定）:**
+- スポット詳細ヒーロー画像エリアのビジュアル強化
+- 「撮影済み」バッジの視認性改善
+- 「この場所で撮る」ボタンの視認性・文言改善
+- 場所の説明や距離感を伝えるテキスト追加（Store/Model の追加なしで可能な範囲）
 
-**Definition of Done:** 作業前に詳細計画を立てること
+**リスク:** 低〜中（`MapView.swift` 1ファイル内、MapKit には触らない）
+
+**Definition of Done:**
+- `QuestSpotDetailView` がスマホで見てより魅力的になっている
+- 「この場所で撮る」導線が明確になっている
+- 変更は `MapView.swift` のみ
+- Build Succeeded
 
 **コミットメッセージ案:**
 ```
-Improve map spot detail UX
-```（変更内容に応じて変更）
+Improve spot detail view on map screen
+```
 
 ---
 
@@ -117,31 +125,6 @@ Improve map spot detail UX
 **コミットメッセージ案:**
 ```
 Extract CameraView and capture enums from ContentView
-```
-
----
-
-### Step 1-B-4: MapView.swift 分割
-
-**目的:** Map ドメインを分離し、後の Map 改善（複数県対応など）を安全にする
-
-**対象型:**
-- `QuestMapView`
-- `QuestSpotDetailView`
-
-**リスク:** 中
-- `QuestMapView` は `@Binding var activeCameraSpotId` を ContentView から受け取り、Camera 遷移時に書き込む
-- `QuestSpotDetailView` は `@AppStorage("developerUnlockMode")` を参照
-- `NavigationStack` + `navigationDestination` の構造を壊さないよう注意
-
-**Definition of Done:**
-- `MapView.swift` が存在する
-- Build Succeeded
-- git diff の変更が ContentView.swift（削除）と MapView.swift（追加）のみ
-
-**コミットメッセージ案:**
-```
-Extract MapView and SpotDetailView from ContentView
 ```
 
 ---
@@ -215,9 +198,9 @@ Remove unused legacy model types and sample data
 **目的:** App Store 提出時に、ユーザーが現地にいなくてもスポットをアンロックできる状態を解消する
 
 **変更内容:**
-- `QuestSpotDetailView`（ContentView.swift line 1280 → 分割後は MapView.swift）の `@AppStorage("developerUnlockMode") private var developerUnlockMode = true` を `false` に変更
-- `QuestCameraView`（ContentView.swift line 1549 → 分割後は CameraView.swift）の同設定を `false` に変更
-- 開発者向けトグル UI（line 1843）は残す（隠しデバッグ機能として有用）
+- `QuestSpotDetailView`（`MapView.swift`）の `@AppStorage("developerUnlockMode") private var developerUnlockMode = true` を `false` に変更
+- `QuestCameraView`（`ContentView.swift` → 分割後は `CameraView.swift`）の同設定を `false` に変更
+- 開発者向けトグル UI は残す（隠しデバッグ機能として有用）
 
 **前提条件:** Step 1-B-3（CameraView.swift 分割）と Step 1-B-4（MapView.swift 分割）が完了していること
 
@@ -293,28 +276,27 @@ Add save feedback and camera permission error handling
 ## タスク間の依存関係
 
 ```
-1-B-4 (Map分割) ★次の推奨
-  └→ 2-A (developerUnlockMode)
-  └→ 3-D (Map UX改善)
+3-D (Map スポット詳細 UX 改善) ★次の推奨
+  ← 1-B-4 完了済みのため今すぐ可能
+
+3-E (コアフロー確認)
+  ← いつでも可（1-B-4 完了済み）
+  └→ 3-F (Camera UI改善)
 
 3-C (Homeセクション名)
   ← いつでも実施可能（独立）
 
-3-D (Map UX改善)
-  ← 1-B-4 完了後が安全
+2-A (developerUnlockMode)
+  ← MapView.swift の QuestSpotDetailView は変更可能
+  ← CameraView.swift 分割後に Camera 側も変更
 
 1-B-3 (Camera分割) ← 後回し
-  └→ 2-A (developerUnlockMode)
+  └→ 2-A (Camera側)
   └→ 3-F (Camera UI改善)
-      ← 3-E (コアフロー確認) も前提
 
 1-B-6 (SharedComponents)
-  ← 1-B-3, 1-B-4 完了後に実施（1-B-5 は完了済み）
+  ← 1-B-3 完了後に実施（1-B-4, 1-B-5 は完了済み）
 
 1-B-7 (旧モデル削除)
   ← いつでも実施可能（他タスクと独立）
-
-3-E (コアフロー確認)
-  ← 1-B-4 完了後が安全
-  └→ 3-F (Camera UI改善)
 ```
