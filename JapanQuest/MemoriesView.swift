@@ -31,7 +31,7 @@ struct MemoriesView: View {
                 Text("メモリーズ")
                     .font(.system(size: 30, weight: .bold))
 
-                Text("撮った場所だけが埋まる")
+                Text("現地で撮った写真が記録になる")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.white.opacity(0.48))
             }
@@ -169,14 +169,21 @@ struct PrefecturePreviewTile: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(tileBackground)
-                .frame(height: 74)
+            if let spot, let image = memoryStore.image(for: spot) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 74)
+            } else {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(tileBackground)
+                    .frame(height: 74)
 
-            if memoryPhoto == nil {
-                Image(systemName: "flag")
-                    .font(.system(size: 18))
-                    .foregroundStyle(.white.opacity(0.12))
+                if memoryPhoto == nil {
+                    Image(systemName: "mappin")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.white.opacity(0.14))
+                }
             }
 
             if extraCount > 0 {
@@ -186,6 +193,8 @@ struct PrefecturePreviewTile: View {
                     .padding(8)
             }
         }
+        .frame(height: 74)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     private var tileBackground: LinearGradient {
@@ -376,7 +385,7 @@ struct FixedMemorySpotCell: View {
     }
 
     private var lockedContent: some View {
-        Image(systemName: "flag")
+        Image(systemName: "mappin")
             .font(.system(size: 24, weight: .regular))
             .foregroundStyle(.white.opacity(0.16))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -417,7 +426,7 @@ struct FixedEmptySpotCell: View {
                     )
                 )
 
-            Image(systemName: "flag")
+            Image(systemName: "mappin")
                 .font(.system(size: 22, weight: .regular))
                 .foregroundStyle(.white.opacity(0.10))
         }
