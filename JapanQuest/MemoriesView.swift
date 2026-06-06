@@ -311,13 +311,51 @@ struct PrefectureMemorySummaryCard: View {
         max(completedCount - 4, 0)
     }
 
+    private var progressRatio: Double {
+        guard prefecture.totalSpotCount > 0 else { return 0 }
+        return min(1.0, Double(completedCount) / Double(prefecture.totalSpotCount))
+    }
+
+    private var isCompleted: Bool {
+        completedCount > 0 && completedCount >= prefecture.totalSpotCount
+    }
+
+    private var progressBar: some View {
+        ZStack(alignment: .leading) {
+            Capsule()
+                .fill(.white.opacity(0.10))
+                .frame(height: 2)
+
+            if completedCount > 0 {
+                GeometryReader { geo in
+                    Capsule()
+                        .fill(.white.opacity(isCompleted ? 0.90 : 0.55))
+                        .frame(width: geo.size.width * progressRatio, height: 2)
+                }
+                .frame(height: 2)
+            }
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(prefecture.name)
-                        .font(.system(size: 23, weight: .bold))
-                        .foregroundStyle(.white)
+                    HStack(spacing: 8) {
+                        Text(prefecture.name)
+                            .font(.system(size: 23, weight: .bold))
+                            .foregroundStyle(.white)
+
+                        if isCompleted {
+                            Text("all visited")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.75))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(.white.opacity(0.12))
+                                .clipShape(Capsule())
+                        }
+                    }
 
                     Text("\(completedCount) / \(prefecture.totalSpotCount) スポット")
                         .font(.system(size: 13, weight: .medium))
@@ -341,6 +379,8 @@ struct PrefectureMemorySummaryCard: View {
                     )
                 }
             }
+
+            progressBar
         }
         .padding(14)
         .background(.white.opacity(0.065))
