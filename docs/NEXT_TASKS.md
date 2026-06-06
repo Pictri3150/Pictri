@@ -1,6 +1,6 @@
 # NEXT_TASKS.md — ピクトリ（Pictri）次のタスク一覧
 
-最終更新: 2026-06-05（Memories UI 改善完了・Explore モード設計追加）
+最終更新: 2026-06-07（Memories Explore Stage 2 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— UI 上の表示名。内部プロジェクト名 JapanQuest はコード・Xcode 設定に残存中。
 
@@ -25,6 +25,8 @@
 - ~~Camera 保存後体験改善（primary CTA 格上げ）~~ → `f591d33` 完了
 - ~~Step 3-D: QuestSpotDetailView の heroStatusChip を3-state 対応に~~ → `31831c4` 完了
 - ~~Memories UI 改善: サマリータイルで実写真・ヘッダー文言・mappin アイコン~~ → `e09368a` 完了
+- ~~候補 A — Memories Explore モード Stage 1: コレクト/探索切り替え・横スクロールカルーセル~~ → `dbb2b0c` 完了
+- ~~Memories Explore Stage 2: スナップスクロール・カード影・垂直配置改善~~ → `6693d59` 完了
 
 ---
 

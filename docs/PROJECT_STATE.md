@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
-最終更新: 2026-06-05（Memories画面UI改善 完了）
+最終更新: 2026-06-07（Memories Explore モード Stage 2 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
 > **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
@@ -13,8 +13,8 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | `e09368a` — Improve memories view visual quality |
-| 最新 Swift コード変更 | `e09368a` — Improve memories view visual quality |
+| 最新コミット | `6693d59` — Polish memories explore carousel interaction |
+| 最新 Swift コード変更 | `6693d59` — Polish memories explore carousel interaction |
 | ワーキングツリー | クリーン |
 
 ---
@@ -22,12 +22,12 @@
 ## コミット履歴（直近）
 
 ```
+6693d59  Polish memories explore carousel interaction
+dbb2b0c  Add memories explore mode carousel
+db03fa1  Update project state after memories visual improvement
 e09368a  Improve memories view visual quality
 8e827aa  Clean up project docs and next task priorities
 1eaca0e  Update project state after spot detail status improvement
-31831c4  Improve spot detail status clarity
-f591d33  Improve camera save completion flow
-7232f65  Default developer unlock mode to off
 ```
 
 ---
@@ -53,6 +53,8 @@ f591d33  Improve camera save completion flow
 | Camera 保存後改善 | 「Memoriesで確認する」CTA を primary スタイルに格上げ | `f591d33` |
 | Step 3-D | QuestSpotDetailView の heroStatusChip を3-state 対応に | `31831c4` |
 | Memories UI 改善 | サマリータイルで実写真表示・ヘッダー文言改善・mappin アイコン | `e09368a` |
+| Memories Explore Stage 1 | コレクト/探索モード切り替え・横スクロールカルーセル・ExplorePhotoCard | `dbb2b0c` |
+| Memories Explore Stage 2 | スナップスクロール・カード影・カルーセル垂直配置改善 | `6693d59` |
 
 ---
 
@@ -64,7 +66,7 @@ f591d33  Improve camera save completion flow
 | `HomeView.swift` | ~1053行 | Home 系 + JQAccount 系（13型） |
 | `MapView.swift` | ~405行 | QuestMapView / QuestSpotDetailView（heroStatusChip 追加済み） |
 | `CameraView.swift` | 1043行 | QuestCameraView 系（4型） |
-| `MemoriesView.swift` | ~465行 | MemoriesView 系 + MemoryVisualStyle（UI 改善済み） |
+| `MemoriesView.swift` | ~540行 | MemoriesView 系 + ExplorePhotoCard + MemoryVisualStyle（Explore Stage 1/2 実装済み） |
 | `QuestModels.swift` | 172行 | **要精査**（旧モデルが残存） |
 | `QuestSampleData.swift` | 618行 | **要精査**（旧モックデータが残存） |
 | `QuestMemoryStore.swift` | 267行 | 安定 |
@@ -102,7 +104,9 @@ f591d33  Improve camera save completion flow
 - **サマリーカードのプレビュータイルで実際の写真サムネイルを表示**（`e09368a`）
 - **ヘッダーサブテキスト: 「現地で撮った写真が記録になる」**（旅の記録寄りに改善）
 - **未訪問・空セルのアイコンを `mappin` に変更**（フラグ感・ゲーム感を除去）
-- 現状: Collectモード（固定グリッド）のみ。Exploreモードは設計済み・未実装
+- **Exploreモード Stage 1 実装済み**（`dbb2b0c`）: コレクト/探索切り替え・横スクロールカルーセル・スケール演出
+- **Exploreモード Stage 2 実装済み**（`6693d59`）: スナップスクロール（`.scrollTargetBehavior(.viewAligned)`）・カード影・カルーセル垂直配置改善
+- Stage 3（タップで県詳細 or 写真拡大遷移）は未実装
 
 ### Account（動作確認未実施）
 - `JQAccountSheetView`（Home 右上アイコンからシート表示）
