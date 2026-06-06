@@ -257,6 +257,14 @@ struct ExplorePhotoCard: View {
         }
     }
 
+    private var formattedDate: String {
+        let input = DateFormatter()
+        input.dateFormat = "yyyy/MM/dd HH:mm"
+        let output = DateFormatter()
+        output.dateFormat = "M月d日"
+        return input.date(from: photo.createdAtText).map { output.string(from: $0) } ?? photo.createdAtText
+    }
+
     private var cardCaption: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(spot?.name ?? "—")
@@ -270,7 +278,7 @@ struct ExplorePhotoCard: View {
                     .foregroundStyle(.white.opacity(0.62))
             }
 
-            Text(photo.createdAtText)
+            Text(formattedDate)
                 .font(.system(size: 11, weight: .regular))
                 .foregroundStyle(.white.opacity(0.42))
                 .padding(.top, 2)
