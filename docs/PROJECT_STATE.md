@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
-最終更新: 2026-06-07（Memories Collect 達成感強化 完了）
+最終更新: 2026-06-07（Memories Explore Stage 3 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
 > **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
@@ -13,8 +13,8 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | `7b1e38b` — Enhance memories collect progress feedback |
-| 最新 Swift コード変更 | `7b1e38b` — Enhance memories collect progress feedback |
+| 最新コミット | `4d5b257` — Add memories explore detail interaction |
+| 最新 Swift コード変更 | `4d5b257` — Add memories explore detail interaction |
 | ワーキングツリー | クリーン |
 
 ---
@@ -22,12 +22,12 @@
 ## コミット履歴（直近）
 
 ```
+4d5b257  Add memories explore detail interaction
+f2efc66  Update project state after memories collect progress
 7b1e38b  Enhance memories collect progress feedback
 578f6d3  Update project state after memories date polish
 730e530  Improve memories explore date formatting
 92acbe7  Update project state after memories explore polish
-6693d59  Polish memories explore carousel interaction
-dbb2b0c  Add memories explore mode carousel
 ```
 
 ---
@@ -57,6 +57,7 @@ dbb2b0c  Add memories explore mode carousel
 | Memories Explore Stage 2 | スナップスクロール・カード影・カルーセル垂直配置改善 | `6693d59` |
 | Memories Explore 日付改善 | `ExplorePhotoCard` の日付を `"M月d日"` 形式に整形（`formattedDate`） | `730e530` |
 | Memories Collect 達成感強化 | 県別サマリーカードに進捗バー・達成テキスト・コンプリート演出を追加（`completedCount / totalSpotCount` 活用） | `7b1e38b` |
+| Memories Explore Stage 3 | Exploreカードをタップで `ExplorePhotoDetailSheet` 表示。写真全面 + スポット名・エリア名・日付。`ExploreCardButtonStyle` で押下フィードバック | `4d5b257` |
 
 ---
 
@@ -68,7 +69,7 @@ dbb2b0c  Add memories explore mode carousel
 | `HomeView.swift` | ~1053行 | Home 系 + JQAccount 系（13型） |
 | `MapView.swift` | ~405行 | QuestMapView / QuestSpotDetailView（heroStatusChip 追加済み） |
 | `CameraView.swift` | 1043行 | QuestCameraView 系（4型） |
-| `MemoriesView.swift` | ~593行 | MemoriesView 系 + ExplorePhotoCard + MemoryVisualStyle（Explore Stage 1/2 + 日付改善 + Collect 達成感強化済み） |
+| `MemoriesView.swift` | ~687行 | MemoriesView 系 + ExplorePhotoCard + ExplorePhotoDetailSheet + MemoryVisualStyle（Explore Stage 1/2/3 + 日付改善 + Collect 達成感強化済み） |
 | `QuestModels.swift` | 172行 | **要精査**（旧モデルが残存） |
 | `QuestSampleData.swift` | 618行 | **要精査**（旧モックデータが残存） |
 | `QuestMemoryStore.swift` | 267行 | 安定 |
@@ -110,7 +111,8 @@ dbb2b0c  Add memories explore mode carousel
 - **Exploreモード Stage 2 実装済み**（`6693d59`）: スナップスクロール（`.scrollTargetBehavior(.viewAligned)`）・カード影・カルーセル垂直配置改善
 - **ExplorePhotoCard 日付表示改善済み**（`730e530`）: `createdAtText` を `"M月d日"` 形式に整形（`formattedDate` computed property）
 - **Collectモード 達成感強化済み**（`7b1e38b`）: `PrefectureMemorySummaryCard` に進捗バー・「あと N スポット」/「コンプリート」テキストを追加。固定グリッド・未訪問プレースホルダー・gridIndex 思想は維持
-- Stage 3（タップで県詳細 or 写真拡大遷移）は未実装
+- **Exploreモード Stage 3 実装済み**（`4d5b257`）: Exploreカードをタップ → `ExplorePhotoDetailSheet` がシート表示。写真全面・グラデーションオーバーレイ・スポット名/エリア名/日付。`ExploreCardButtonStyle` で押下フィードバック。Collectモード・Store・Model への変更なし
+- Stage 4（本格的な 2D 空間配置）は別ファイル分離を推奨、未実装
 
 ### Account（動作確認未実施）
 - `JQAccountSheetView`（Home 右上アイコンからシート表示）

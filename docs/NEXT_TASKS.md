@@ -1,6 +1,6 @@
 # NEXT_TASKS.md — ピクトリ（Pictri）次のタスク一覧
 
-最終更新: 2026-06-07（Memories Collect 達成感強化 完了）
+最終更新: 2026-06-07（Memories Explore Stage 3 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— UI 上の表示名。内部プロジェクト名 JapanQuest はコード・Xcode 設定に残存中。
 
@@ -29,26 +29,29 @@
 - ~~Memories Explore Stage 2: スナップスクロール・カード影・垂直配置改善~~ → `6693d59` 完了
 - ~~Memories Explore 日付フォーマット改善: `formattedDate` で `"M月d日"` 表示~~ → `730e530` 完了
 - ~~候補 B — Memories Collect 達成感強化: 進捗バー・達成テキスト・コンプリート演出~~ → `7b1e38b` 完了
+- ~~候補 A — Memories Explore Stage 3: Exploreカードタップで `ExplorePhotoDetailSheet` 表示~~ → `4d5b257` 完了
 
 ---
 
 ## 次の候補タスク
 
-### 候補 A — Memories Explore Stage 3: カードタップ時の詳細/拡大体験
+### 候補 A — Memories Explore Stage 4: 写真詳細シートの品質強化
 
-**目的:** Explore カードに触れても何も起きない「死んだUI」状態を解消。旅の記録を深掘りできる体験へ。
+**目的:** Stage 3 で実装した `ExplorePhotoDetailSheet` の体験品質を高める。現状は必要最低限の実装であり、「旅の記憶を開く」感覚をさらに磨く余地がある。
 
-**変更対象:** `MemoriesView.swift` のみ
-- `ExplorePhotoCard` を `NavigationLink` で包み、既存の `PrefectureMemoryDetailView` へ遷移
-- または `.sheet` でカード内写真のフルスクリーン表示（新 View 追加が必要）
+**変更対象:** `MemoriesView.swift` のみ（`ExplorePhotoDetailSheet` 周辺）
+- 写真が未保存の場合のフォールバック表示の改善（スポット名のみ大きく表示など）
+- 撮影枚数（selfie + outdoor）のインジケーター表示
+- シートを開いた瞬間のフェードイン演出（`.transition` / `.animation`）
+- 「この県のコレクトを見る」テキストリンク（`NavigationLink` は不要、Collectモードへの切替ボタン）
 
-**ユーザーに見える変化:** カードをタップ → 県の固定グリッド詳細へ遷移できる。「旅を深掘りする」体験が生まれる。
+**ユーザーに見える変化:** 写真詳細シートの完成度が上がり、旅の記憶を開いた瞬間の没入感が強まる。
 
-**リスク:** 低（`NavigationLink` + 既存 `PrefectureMemoryDetailView` の活用なら数行）〜中（フルスクリーン新 View を作る場合）
+**リスク:** 低（`MemoriesView.swift` 内の `ExplorePhotoDetailSheet` のみ。Store / Model 変更不要）
 
-**ピクトリ独自性:** 中。「旅の記録を選んで深掘りできる」ことで Collect と Explore の連携が生まれる。
+**ピクトリ独自性:** 中〜高。「旅の記憶を開く」という唯一無二の体験を磨く。
 
-**推奨度:** ★★★（Explore モードの自然な次ステップ）
+**推奨度:** ★★★（Stage 3 の自然な仕上げ。小さく安全に進められる）
 
 ---
 
@@ -142,12 +145,12 @@
 
 **絶対に壊さないもの:** 固定グリッド枠・未訪問プレースホルダー・進捗カウント・gridIndex によるソート
 
-### Explore モード（Stage 1/2/日付改善 完了）
+### Explore モード（Stage 1/2/3 + 日付改善 完了）
 
 | Stage | 内容 | コミット |
 |-------|-----|---------|
 | Stage 1 | モード切替・横スクロールカルーセル・ExplorePhotoCard | `dbb2b0c` |
 | Stage 2 | スナップスクロール・カード影・垂直配置 | `6693d59` |
 | 日付改善 | `formattedDate`（`"M月d日"` 表示） | `730e530` |
-| Stage 3 | タップで詳細遷移 | 未実装 |
-| Stage 4（将来） | 本格的な 2D 空間配置 | 別ファイル分離推奨 |
+| Stage 3 | カードタップ → `ExplorePhotoDetailSheet`（写真全面・スポット名・エリア名・日付） | `4d5b257` |
+| Stage 4（将来） | 詳細シート品質強化・本格的な 2D 空間配置 | 別ファイル分離推奨 |
