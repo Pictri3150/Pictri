@@ -1,32 +1,136 @@
 import SwiftUI
 import UIKit
 
+// MARK: - View Mode
+
+enum MemoriesViewMode {
+    case collect
+    case explore
+}
+
+private struct ExploreItem: Identifiable {
+    let id: String
+    let photo: QuestMemoryPhoto
+    let spot: QuestSpot?
+}
+
 // MARK: - Memories
 
 struct MemoriesView: View {
     @EnvironmentObject var memoryStore: QuestMemoryStore
+    @State private var viewMode: MemoriesViewMode = .collect
 
     var body: some View {
         NavigationStack {
             ZStack {
                 AppBackground()
 
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 18) {
-                        memoriesHeader
-                        prefectureChips
-                        prefectureCards
-                        Spacer(minLength: 90)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 18)
+                if viewMode == .collect {
+                    collectBody
+                } else {
+                    exploreBody
                 }
             }
         }
     }
 
+    // MARK: - Collect
+
+    private var collectBody: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 18) {
+                memoriesHeader
+                prefectureChips
+                prefectureCards
+                Spacer(minLength: 90)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 18)
+        }
+    }
+
+    // MARK: - Explore
+
+    private var exploreBody: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            memoriesHeader
+                .padding(.horizontal, 16)
+                .padding(.top, 18)
+
+            if exploreItems.isEmpty {
+                Spacer()
+                exploreEmptyState
+                Spacer()
+            } else {
+                exploreCarousel
+                    .padding(.top, 32)
+                Spacer(minLength: 90)
+            }
+        }
+    }
+
+    private var exploreItems: [ExploreItem] {
+        memoryStore.memoryPhotos.map { photo in
+            ExploreItem(
+                id: photo.id,
+                photo: photo,
+                spot: mockQuestSpots.first { $0.id == photo.spotId }
+            )
+        }
+    }
+
+    private var exploreCarousel: some View {
+        let cardWidth: CGFloat = 264
+        let cardHeight: CGFloat = 390
+        let screenWidth = UIScreen.main.bounds.width
+        let sidePadding = (screenWidth - cardWidth) / 2
+
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 14) {
+                ForEach(exploreItems) { item in
+                    GeometryReader { geo in
+                        let midX = geo.frame(in: .global).midX
+                        let screenMidX = screenWidth / 2
+                        let distance = abs(screenMidX - midX)
+                        let scale = max(0.82, 1.0 - distance / screenMidX * 0.18)
+
+                        ExplorePhotoCard(photo: item.photo, spot: item.spot)
+                            .frame(width: cardWidth, height: cardHeight)
+                            .scaleEffect(scale)
+                    }
+                    .frame(width: cardWidth, height: cardHeight)
+                }
+            }
+            .padding(.horizontal, sidePadding)
+        }
+        .frame(height: cardHeight + 20)
+    }
+
+    private var exploreEmptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "map")
+                .font(.system(size: 52, weight: .thin))
+                .foregroundStyle(.white.opacity(0.28))
+
+            VStack(spacing: 8) {
+                Text("まだ写真がありません")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.75))
+
+                Text("Mapでスポットを訪れて\n最初の記録を残しましょう")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(.white.opacity(0.42))
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 90)
+    }
+
+    // MARK: - Header (shared between modes)
+
     private var memoriesHeader: some View {
-        HStack {
+        HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 5) {
                 Text("メモリーズ")
                     .font(.system(size: 30, weight: .bold))
@@ -38,16 +142,37 @@ struct MemoriesView: View {
 
             Spacer()
 
-            Button {} label: {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 42, height: 42)
-                    .background(.white.opacity(0.08))
-                    .clipShape(Circle())
-            }
+            modeToggle
         }
     }
+
+    private var modeToggle: some View {
+        HStack(spacing: 2) {
+            modeButton("コレクト", mode: .collect)
+            modeButton("探索", mode: .explore)
+        }
+        .padding(3)
+        .background(.white.opacity(0.08))
+        .clipShape(Capsule())
+    }
+
+    private func modeButton(_ label: String, mode: MemoriesViewMode) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.22)) {
+                viewMode = mode
+            }
+        } label: {
+            Text(label)
+                .font(.system(size: 13, weight: .bold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(viewMode == mode ? .white : .clear)
+                .foregroundStyle(viewMode == mode ? .black : .white.opacity(0.55))
+                .clipShape(Capsule())
+        }
+    }
+
+    // MARK: - Collect subviews
 
     private var prefectureChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -86,6 +211,77 @@ struct MemoriesView: View {
         }
     }
 }
+
+// MARK: - Explore Photo Card
+
+struct ExplorePhotoCard: View {
+    let photo: QuestMemoryPhoto
+    let spot: QuestSpot?
+    @EnvironmentObject var memoryStore: QuestMemoryStore
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            cardBackground
+
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.72)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+
+            cardCaption
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22)
+                .stroke(.white.opacity(0.10), lineWidth: 1)
+        }
+    }
+
+    @ViewBuilder
+    private var cardBackground: some View {
+        if let spot, let image = memoryStore.image(for: spot) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+        } else if let spot {
+            Rectangle()
+                .fill(MemoryVisualStyle.gradient(for: spot))
+        } else {
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [.white.opacity(0.10), .white.opacity(0.05)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+        }
+    }
+
+    private var cardCaption: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(spot?.name ?? "—")
+                .font(.system(size: 19, weight: .bold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+
+            if let areaName = spot?.areaName {
+                Text(areaName)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.62))
+            }
+
+            Text(photo.createdAtText)
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(.white.opacity(0.42))
+                .padding(.top, 2)
+        }
+        .padding(16)
+    }
+}
+
+// MARK: - Prefecture Summary Card
 
 struct PrefectureMemorySummaryCard: View {
     let prefecture: QuestPrefecture
