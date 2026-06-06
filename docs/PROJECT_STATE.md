@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
-最終更新: 2026-06-07（Memories Explore モード Stage 2 完了）
+最終更新: 2026-06-07（Memories Explore 日付フォーマット改善 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
 > **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
@@ -13,8 +13,8 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | `6693d59` — Polish memories explore carousel interaction |
-| 最新 Swift コード変更 | `6693d59` — Polish memories explore carousel interaction |
+| 最新コミット | `730e530` — Improve memories explore date formatting |
+| 最新 Swift コード変更 | `730e530` — Improve memories explore date formatting |
 | ワーキングツリー | クリーン |
 
 ---
@@ -22,12 +22,12 @@
 ## コミット履歴（直近）
 
 ```
+730e530  Improve memories explore date formatting
+92acbe7  Update project state after memories explore polish
 6693d59  Polish memories explore carousel interaction
 dbb2b0c  Add memories explore mode carousel
 db03fa1  Update project state after memories visual improvement
 e09368a  Improve memories view visual quality
-8e827aa  Clean up project docs and next task priorities
-1eaca0e  Update project state after spot detail status improvement
 ```
 
 ---
@@ -55,6 +55,7 @@ e09368a  Improve memories view visual quality
 | Memories UI 改善 | サマリータイルで実写真表示・ヘッダー文言改善・mappin アイコン | `e09368a` |
 | Memories Explore Stage 1 | コレクト/探索モード切り替え・横スクロールカルーセル・ExplorePhotoCard | `dbb2b0c` |
 | Memories Explore Stage 2 | スナップスクロール・カード影・カルーセル垂直配置改善 | `6693d59` |
+| Memories Explore 日付改善 | `ExplorePhotoCard` の日付を `"M月d日"` 形式に整形（`formattedDate`） | `730e530` |
 
 ---
 
@@ -66,7 +67,7 @@ e09368a  Improve memories view visual quality
 | `HomeView.swift` | ~1053行 | Home 系 + JQAccount 系（13型） |
 | `MapView.swift` | ~405行 | QuestMapView / QuestSpotDetailView（heroStatusChip 追加済み） |
 | `CameraView.swift` | 1043行 | QuestCameraView 系（4型） |
-| `MemoriesView.swift` | ~540行 | MemoriesView 系 + ExplorePhotoCard + MemoryVisualStyle（Explore Stage 1/2 実装済み） |
+| `MemoriesView.swift` | ~550行 | MemoriesView 系 + ExplorePhotoCard + MemoryVisualStyle（Explore Stage 1/2 + 日付改善済み） |
 | `QuestModels.swift` | 172行 | **要精査**（旧モデルが残存） |
 | `QuestSampleData.swift` | 618行 | **要精査**（旧モックデータが残存） |
 | `QuestMemoryStore.swift` | 267行 | 安定 |
@@ -106,6 +107,7 @@ e09368a  Improve memories view visual quality
 - **未訪問・空セルのアイコンを `mappin` に変更**（フラグ感・ゲーム感を除去）
 - **Exploreモード Stage 1 実装済み**（`dbb2b0c`）: コレクト/探索切り替え・横スクロールカルーセル・スケール演出
 - **Exploreモード Stage 2 実装済み**（`6693d59`）: スナップスクロール（`.scrollTargetBehavior(.viewAligned)`）・カード影・カルーセル垂直配置改善
+- **ExplorePhotoCard 日付表示改善済み**（`730e530`）: `createdAtText` を `"M月d日"` 形式に整形（`formattedDate` computed property）
 - Stage 3（タップで県詳細 or 写真拡大遷移）は未実装
 
 ### Account（動作確認未実施）

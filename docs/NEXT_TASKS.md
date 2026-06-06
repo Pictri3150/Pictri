@@ -1,6 +1,6 @@
 # NEXT_TASKS.md — ピクトリ（Pictri）次のタスク一覧
 
-最終更新: 2026-06-07（Memories Explore Stage 2 完了）
+最終更新: 2026-06-07（Memories Explore 日付フォーマット改善 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— UI 上の表示名。内部プロジェクト名 JapanQuest はコード・Xcode 設定に残存中。
 
@@ -27,59 +27,51 @@
 - ~~Memories UI 改善: サマリータイルで実写真・ヘッダー文言・mappin アイコン~~ → `e09368a` 完了
 - ~~候補 A — Memories Explore モード Stage 1: コレクト/探索切り替え・横スクロールカルーセル~~ → `dbb2b0c` 完了
 - ~~Memories Explore Stage 2: スナップスクロール・カード影・垂直配置改善~~ → `6693d59` 完了
+- ~~Memories Explore 日付フォーマット改善: `formattedDate` で `"M月d日"` 表示~~ → `730e530` 完了
 
 ---
 
 ## 次の候補タスク
 
-### 候補 A — Memories Explore モード 最小実装（★最推奨）
+### 候補 A — Memories Explore Stage 3: カードタップ時の詳細/拡大体験
 
-**目的:** 固定グリッド（Collectモード）を残しつつ、撮影済み写真を空間的に並べて眺められる Explore モードを追加する。「埋める楽しさ」と「旅を振り返る静けさ」を両立させる。
+**目的:** Explore カードに触れても何も起きない「死んだUI」状態を解消。旅の記録を深掘りできる体験へ。
 
-**変更対象:** `MemoriesView.swift` のみ（詳細は下の設計セクションを参照）
+**変更対象:** `MemoriesView.swift` のみ
+- `ExplorePhotoCard` を `NavigationLink` で包み、既存の `PrefectureMemoryDetailView` へ遷移
+- または `.sheet` でカード内写真のフルスクリーン表示（新 View 追加が必要）
 
-**最小実装スコープ（Stage 1）:**
-- ヘッダー右上にモード切替ボタン（Collect / Explore）を追加
-- Explore モードでは `memoryStore.memoryPhotos` を元に撮影済み写真を横スクロールカルーセルで表示
-- 中央写真を大きく、両端を小さくする `scaleEffect`（GeometryReader 使用）
+**ユーザーに見える変化:** カードをタップ → 県の固定グリッド詳細へ遷移できる。「旅を深掘りする」体験が生まれる。
 
-**リスク:** 低〜中（`MemoriesView.swift` 1ファイル内。Store / Model 変更なし）
+**リスク:** 低（`NavigationLink` + 既存 `PrefectureMemoryDetailView` の活用なら数行）〜中（フルスクリーン新 View を作る場合）
 
-**ユーザーに見える変化:** 撮影した写真を「旅のアルバム」として眺める体験が生まれる
+**ピクトリ独自性:** 中。「旅の記録を選んで深掘りできる」ことで Collect と Explore の連携が生まれる。
 
-**コミットメッセージ案:**
-```
-Add explore mode to memories view
-```
+**推奨度:** ★★★（Explore モードの自然な次ステップ）
 
 ---
 
-### 候補 B — 旧モデル・旧サンプルデータ削除
+### 候補 B — Memories Collect 側の達成感強化
 
-**目的:** `QuestModels.swift` と `QuestSampleData.swift` に残る未使用コードを削除してコードベースをクリーンにする。
+**目的:** 「撮るたびにグリッドが埋まる」体験をより視覚的に強くする。県コンプリート時や一定枚数達成時に何かが変わる感覚を追加。
 
-**変更対象:** `QuestModels.swift` / `QuestSampleData.swift`
+**変更対象:** `MemoriesView.swift`（`PrefectureMemorySummaryCard` 周辺）
+- `completedCount == prefecture.totalSpotCount` 時にカードの見た目を変える（例: ボーダー強調・バッジ表示）
+- 「達成率バー」または「残り N スポット」テキストの追加
 
-**削除候補:**
-- `QuestModels.swift`: `RecentQuestPost` / `PrefectureMemory` / `MemorySpot` / `MapDot` / `KanagawaDot`
-- `QuestSampleData.swift`: `mockRecentPosts` / `mockPrefectures` / `mockKanagawaSpots` / `mockMapDots` / `mockKanagawaDots`
+**ユーザーに見える変化:** 県を撮り切ったカードが特別な見た目になる。コンプリートの達成感が視覚化される。
 
-**必須手順:** `grep -rn` で全 Swift ファイルから参照ゼロを確認してから削除
+**リスク:** 低（既存 `completedCount` と `totalSpotCount` を使うだけ。Store / Model 変更不要）
 
-**リスク:** 低
+**ピクトリ独自性:** 高。「行った場所だけが埋まる」がピクトリのコア価値。その達成感の強化は直接プロダクト価値に効く。
 
-**ユーザーに見える変化:** なし（コード整理のみ）
-
-**コミットメッセージ案:**
-```
-Remove unused legacy model types and sample data
-```
+**推奨度:** ★★★★（Collect がコア体験なので強化インパクトが大きい）
 
 ---
 
 ### 候補 C — コアフロー実機テスト確認
 
-**目的:** コード上の接続は確認済みだが、実機での end-to-end 動作がまだ未確認。App Store 提出前に必須。
+**目的:** コード上の接続は確認済みだが、実機での end-to-end 動作が未確認。App Store 提出前に必須。
 
 **変更対象:** なし（実機テストのみ）
 
@@ -90,7 +82,32 @@ Remove unused legacy model types and sample data
 4. Camera 遷移 → 2枚撮影 → 保存 → Memories に反映
 5. Home のスポット進捗が更新される
 
-**リスク:** なし
+**ユーザーに見える変化:** なし（品質保証）
+
+**リスク:** なし（実機テストのみ）
+
+**ピクトリ独自性:** 間接的。コアフローが壊れていないことを確認し、提出品質を担保する。
+
+**推奨度:** ★★（提出前に必須。今すぐでなくてもよいが先送り厳禁）
+
+---
+
+### 候補 D — 旧モデル・旧サンプルデータ削除
+
+**目的:** `QuestModels.swift` と `QuestSampleData.swift` に残る未使用コードを削除してコードベースをクリーンにする。
+
+**変更対象:** `QuestModels.swift` / `QuestSampleData.swift`
+- 削除候補: `RecentQuestPost` / `PrefectureMemory` / `MemorySpot` / `MapDot` / `KanagawaDot`
+- 削除候補: `mockRecentPosts` / `mockPrefectures` / `mockKanagawaSpots` / `mockMapDots` / `mockKanagawaDots`
+- 必須手順: `grep -rn` で全 Swift ファイルから参照ゼロを確認してから削除
+
+**ユーザーに見える変化:** なし（コード整理のみ）
+
+**リスク:** 低（参照ゼロを確認してから削除すれば安全）
+
+**ピクトリ独自性:** 直接貢献しない（内部品質向上）
+
+**推奨度:** ★（いつでも可。今は不急）
 
 ---
 
@@ -104,103 +121,27 @@ Remove unused legacy model types and sample data
 
 ---
 
-## Memories 次フェーズ設計: Collect + Explore 2モード構成
+## Memories モード構成（現在の実装状態）
 
-### 1. 現在の MemoriesView.swift の役割
+### Collect モード（完成済み・変更禁止）
 
-| 型 | 役割 |
-|---|-----|
-| `MemoriesView` | ヘッダー / 県チップ / 県カード一覧（現在これが Collect モード全体） |
-| `PrefectureMemorySummaryCard` | 県ごとのサマリーカード（5枚プレビュータイル + 進捗） |
-| `PrefecturePreviewTile` | サマリー内の小タイル（実写真サムネイル表示済み） |
-| `PrefectureMemoryDetailView` | 県詳細画面（3列グリッド） |
-| `FixedMemorySpotCell` | 撮影済み / 未撮影スポットのグリッドセル |
-| `FixedEmptySpotCell` | スポット枠のプレースホルダー |
-| `MemoryVisualStyle` | スポット別カラーグラデーション定義 |
+| 型 | 役割 | 状態 |
+|---|-----|------|
+| `MemoriesView.collectBody` | ヘッダー / 県チップ / 県カード一覧 | ✅ 完成 |
+| `PrefectureMemorySummaryCard` | 県ごとサマリーカード（5枚タイル + 進捗） | ✅ 完成 |
+| `PrefecturePreviewTile` | サムネイル表示タイル | ✅ 完成 |
+| `PrefectureMemoryDetailView` | 県詳細（3列固定グリッド） | ✅ 完成 |
+| `FixedMemorySpotCell` | 撮影済み / 未撮影グリッドセル | ✅ 完成 |
+| `FixedEmptySpotCell` | 未訪問プレースホルダー | ✅ 完成 |
 
----
+**絶対に壊さないもの:** 固定グリッド枠・未訪問プレースホルダー・進捗カウント・gridIndex によるソート
 
-### 2. Collect モードとして残すべきもの（変更禁止）
+### Explore モード（Stage 1/2/日付改善 完了）
 
-- **県別フィルタ**: `prefectureChips` による切り替え
-- **固定グリッド枠**: 全スポット数分のセルが常に表示される（撮影していない枠は空）
-- **未訪問プレースホルダー**: `FixedEmptySpotCell` と `mappin` アイコン
-- **撮影済みセルで埋まる体験**: 撮るたびにセルが写真で埋まっていく達成感
-- **進捗表示**: "X / 24 スポット" カウント
-
-この体験がピクトリの「行った場所だけが見える」コア価値。絶対に削除しない。
-
----
-
-### 3. Explore モードとして追加したいもの
-
-**コンセプト:** 撮影済み写真だけを「旅の記録」として空間的に並べ、静かに眺めるモード。スタンプ収集ではなく、アルバムを開く感覚。
-
-**UI イメージ:**
-```
-← [スポット名A] [スポット名B★中央・大] [スポット名C] →
-                      ↑ 大きく表示
-```
-- 中央写真: 大きく（例: `.scaleEffect(1.0)`）
-- 両端: 少し小さく（例: `.scaleEffect(0.82)`）
-- ドラッグ / スワイプで移動
-- 写真がない場合は表示しない（Collect と違い、撮影済みのみ）
-- タップで県詳細 or 写真単体の拡大詳細へ
-
-**データソース:** `memoryStore.memoryPhotos`（既存）+ `memoryStore.image(for: spot)`（既存）
-
----
-
-### 4. 最初に実装する最小安全タスク（Stage 1）
-
-`MemoriesView.swift` のみで完結する最小実装:
-
-1. `@State private var viewMode: MemoriesViewMode = .collect` を追加
-2. `enum MemoriesViewMode { case collect, explore }` を追加
-3. ヘッダー右上にモード切替ボタンを追加（テキストまたは SF Symbol）
-4. `exploreCarousel` computed var を新規追加:
-   - `memoryStore.memoryPhotos` から spotId ごとに写真を列挙
-   - `ScrollView(.horizontal)` + `HStack` で横スクロール
-   - `GeometryReader` で中央からの距離を計算し `.scaleEffect` を適用
-5. `body` で `viewMode == .collect ? collectBody : exploreBody` に切り替え
-
-既存の Collect モードは一切変更しない。Explore モードを分岐として追加するだけ。
-
----
-
-### 5. MemoriesView.swift だけで実装できる範囲
-
-| 機能 | MemoriesView.swift のみで可能か |
-|-----|-------------------------------|
-| モード切替 State / enum 追加 | ✅ 可能 |
-| 横スクロールカルーセル | ✅ 可能 |
-| GeometryReader による中央スケール | ✅ 可能（SwiftUI 標準） |
-| 写真の読み込み（`memoryStore.image`） | ✅ 可能（既存 API） |
-| タップで PrefectureMemoryDetailView へ | ✅ 可能（既存 NavigationLink 活用） |
-| 本格的な 2D 空間配置（Watch ホーム風） | ❌ 複雑。別ファイル分離が望ましい |
-
----
-
-### 6. Store / Model 変更が必要になる可能性
-
-**基本実装（Stage 1〜3）では変更不要:**
-- `memoryStore.memoryPhotos: [QuestMemoryPhoto]` — 保存済み写真のリスト（既存）
-- `memoryStore.image(for: spot) -> UIImage?` — 実際の写真（既存）
-
-**拡張時に検討が必要になる可能性:**
-- 写真に撮影日時（timestamp）を付けてソートしたい場合 → `QuestMemoryPhoto` に `savedAt: Date` フィールド追加が必要（現在は不明）
-- 写真のメタデータ（スポット名・撮影日）をオーバーレイ表示したい場合 → `QuestMemoryPhoto.spotId` から `mockQuestSpots` を引けば対応可能（Model 変更不要）
-
----
-
-### 7. 実装ステップ（3〜5段階）
-
-| Stage | 内容 | 対象ファイル | リスク |
-|-------|-----|------------|--------|
-| **Stage 1** | モード切替ボタン + 基本横スクロールカルーセル | `MemoriesView.swift` のみ | 低 |
-| **Stage 2** | GeometryReader による中央スケール演出 | `MemoriesView.swift` のみ | 低〜中 |
-| **Stage 3** | タップで写真拡大詳細 or 県詳細へ遷移 | `MemoriesView.swift` のみ | 低 |
-| **Stage 4** | アニメーション・snap scroll 調整 | `MemoriesView.swift` のみ | 中 |
-| **Stage 5** | 本格的な 2D 空間配置（Watch 風） | 新ファイル分離推奨 | 高 |
-
-Stage 1〜4 は `MemoriesView.swift` 1ファイルで完結可能。Stage 5 は設計上の複雑度が上がるため、必要になったときに判断する。
+| Stage | 内容 | コミット |
+|-------|-----|---------|
+| Stage 1 | モード切替・横スクロールカルーセル・ExplorePhotoCard | `dbb2b0c` |
+| Stage 2 | スナップスクロール・カード影・垂直配置 | `6693d59` |
+| 日付改善 | `formattedDate`（`"M月d日"` 表示） | `730e530` |
+| Stage 3 | タップで詳細遷移 | 未実装 |
+| Stage 4（将来） | 本格的な 2D 空間配置 | 別ファイル分離推奨 |
