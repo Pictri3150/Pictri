@@ -62,8 +62,8 @@ struct MemoriesView: View {
                 exploreEmptyState
                 Spacer()
             } else {
+                Spacer()
                 exploreCarousel
-                    .padding(.top, 32)
                 Spacer(minLength: 90)
             }
         }
@@ -88,21 +88,18 @@ struct MemoriesView: View {
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 14) {
                 ForEach(exploreItems) { item in
-                    GeometryReader { geo in
-                        let midX = geo.frame(in: .global).midX
-                        let screenMidX = screenWidth / 2
-                        let distance = abs(screenMidX - midX)
-                        let scale = max(0.82, 1.0 - distance / screenMidX * 0.18)
-
-                        ExplorePhotoCard(photo: item.photo, spot: item.spot)
-                            .frame(width: cardWidth, height: cardHeight)
-                            .scaleEffect(scale)
-                    }
-                    .frame(width: cardWidth, height: cardHeight)
+                    ExplorePhotoCard(photo: item.photo, spot: item.spot)
+                        .frame(width: cardWidth, height: cardHeight)
+                        .scrollTransition(.animated(.spring(response: 0.3, dampingFraction: 0.82))) { content, phase in
+                            content
+                                .scaleEffect(phase.isIdentity ? 1.0 : 0.82)
+                        }
                 }
             }
+            .scrollTargetLayout()
             .padding(.horizontal, sidePadding)
         }
+        .scrollTargetBehavior(.viewAligned)
         .frame(height: cardHeight + 20)
     }
 
@@ -236,6 +233,7 @@ struct ExplorePhotoCard: View {
             RoundedRectangle(cornerRadius: 22)
                 .stroke(.white.opacity(0.10), lineWidth: 1)
         }
+        .shadow(color: .black.opacity(0.32), radius: 14, y: 6)
     }
 
     @ViewBuilder
