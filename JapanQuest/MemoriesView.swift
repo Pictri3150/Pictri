@@ -19,6 +19,7 @@ private struct ExploreItem: Identifiable {
 struct MemoriesView: View {
     @EnvironmentObject var memoryStore: QuestMemoryStore
     @State private var viewMode: MemoriesViewMode = .collect
+    @State private var selectedExploreItem: ExploreItem?
 
     var body: some View {
         NavigationStack {
@@ -31,6 +32,9 @@ struct MemoriesView: View {
                     exploreBody
                 }
             }
+        }
+        .sheet(item: $selectedExploreItem) { item in
+            ExplorePhotoDetailSheet(item: item)
         }
     }
 
@@ -88,12 +92,17 @@ struct MemoriesView: View {
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 14) {
                 ForEach(exploreItems) { item in
-                    ExplorePhotoCard(photo: item.photo, spot: item.spot)
-                        .frame(width: cardWidth, height: cardHeight)
-                        .scrollTransition(.animated(.spring(response: 0.3, dampingFraction: 0.82))) { content, phase in
-                            content
-                                .scaleEffect(phase.isIdentity ? 1.0 : 0.82)
-                        }
+                    Button {
+                        selectedExploreItem = item
+                    } label: {
+                        ExplorePhotoCard(photo: item.photo, spot: item.spot)
+                            .frame(width: cardWidth, height: cardHeight)
+                    }
+                    .buttonStyle(ExploreCardButtonStyle())
+                    .scrollTransition(.animated(.spring(response: 0.3, dampingFraction: 0.82))) { content, phase in
+                        content
+                            .scaleEffect(phase.isIdentity ? 1.0 : 0.82)
+                    }
                 }
             }
             .scrollTargetLayout()
@@ -677,6 +686,91 @@ struct FixedEmptySpotCell: View {
             RoundedRectangle(cornerRadius: 14)
                 .stroke(.white.opacity(0.045), lineWidth: 1)
         }
+    }
+}
+
+// MARK: - Explore Photo Detail Sheet
+
+private struct ExplorePhotoDetailSheet: View {
+    let item: ExploreItem
+    @EnvironmentObject var memoryStore: QuestMemoryStore
+
+    private var formattedDate: String {
+        let input = DateFormatter()
+        input.dateFormat = "yyyy/MM/dd HH:mm"
+        let output = DateFormatter()
+        output.dateFormat = "M月d日"
+        return input.date(from: item.photo.createdAtText)
+            .map { output.string(from: $0) } ?? item.photo.createdAtText
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            Color.black.ignoresSafeArea()
+
+            photoLayer
+
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.80)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            captionLayer
+        }
+        .presentationDragIndicator(.visible)
+        .presentationDetents([.large])
+        .presentationBackground(.black)
+    }
+
+    @ViewBuilder
+    private var photoLayer: some View {
+        if let spot = item.spot, let image = memoryStore.image(for: spot) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+                .ignoresSafeArea()
+        } else if let spot = item.spot {
+            Rectangle()
+                .fill(MemoryVisualStyle.gradient(for: spot))
+                .ignoresSafeArea()
+        }
+    }
+
+    private var captionLayer: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(item.spot?.name ?? "—")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+
+            if let areaName = item.spot?.areaName {
+                Text(areaName)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.62))
+            }
+
+            Text(formattedDate)
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(.white.opacity(0.42))
+                .padding(.top, 2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 24)
+        .padding(.bottom, 52)
+    }
+}
+
+// MARK: - Explore Card Button Style
+
+private struct ExploreCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.86 : 1.0)
+            .animation(.easeInOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
