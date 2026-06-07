@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
-最終更新: 2026-06-07（コアフロー実機確認 完了）
+最終更新: 2026-06-07（QuestSpotDetailView ダークテーマ統一 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
 > **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
@@ -13,8 +13,8 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | `4d5b257` — Add memories explore detail interaction |
-| 最新 Swift コード変更 | `4d5b257` — Add memories explore detail interaction |
+| 最新コミット | `5a284a9` — Darken spot detail view to match app theme |
+| 最新 Swift コード変更 | `5a284a9` — Darken spot detail view to match app theme |
 | ワーキングツリー | クリーン |
 
 ---
@@ -22,12 +22,12 @@
 ## コミット履歴（直近）
 
 ```
+5a284a9  Darken spot detail view to match app theme
+79066a8  Record core flow device test results
+728d044  Update project state after memories explore detail
 4d5b257  Add memories explore detail interaction
 f2efc66  Update project state after memories collect progress
 7b1e38b  Enhance memories collect progress feedback
-578f6d3  Update project state after memories date polish
-730e530  Improve memories explore date formatting
-92acbe7  Update project state after memories explore polish
 ```
 
 ---
@@ -58,6 +58,7 @@ f2efc66  Update project state after memories collect progress
 | Memories Explore 日付改善 | `ExplorePhotoCard` の日付を `"M月d日"` 形式に整形（`formattedDate`） | `730e530` |
 | Memories Collect 達成感強化 | 県別サマリーカードに進捗バー・達成テキスト・コンプリート演出を追加（`completedCount / totalSpotCount` 活用） | `7b1e38b` |
 | Memories Explore Stage 3 | Exploreカードをタップで `ExplorePhotoDetailSheet` 表示。写真全面 + スポット名・エリア名・日付。`ExploreCardButtonStyle` で押下フィードバック | `4d5b257` |
+| QuestSpotDetailView ダークテーマ統一 | 白背景を廃止し黒基調に統一。statusCard / statusItem / actionButton / memoryPreview を暗背景向けに調整。セマンティックカラー4種追加 | `5a284a9` |
 
 ---
 
@@ -67,7 +68,7 @@ f2efc66  Update project state after memories collect progress
 |---------|-----|-----------|
 | `ContentView.swift` | 186行 | Root / TabBar / JQUI / AppBackground のみ |
 | `HomeView.swift` | ~1053行 | Home 系 + JQAccount 系（13型） |
-| `MapView.swift` | ~405行 | QuestMapView / QuestSpotDetailView（heroStatusChip 追加済み） |
+| `MapView.swift` | ~417行 | QuestMapView / QuestSpotDetailView（heroStatusChip 追加済み・ダークテーマ統一済み） |
 | `CameraView.swift` | 1043行 | QuestCameraView 系（4型） |
 | `MemoriesView.swift` | ~687行 | MemoriesView 系 + ExplorePhotoCard + ExplorePhotoDetailSheet + MemoryVisualStyle（Explore Stage 1/2/3 + 日付改善 + Collect 達成感強化済み） |
 | `QuestModels.swift` | 172行 | **要精査**（旧モデルが残存） |
@@ -92,8 +93,9 @@ f2efc66  Update project state after memories collect progress
 - 「気になるスポット」セクションあり
 - 未改善: セクション名「最近のシェア」「最近埋まった場所」（Step 3-C 候補）
 
-### Map（動作確認未実施）
+### Map（コアフロー実機確認済み）
 - `QuestSpotDetailView` に `heroStatusChip` 追加済み（撮影済み / 撮影可能 / 未撮影 を3-state 表示）
+- **`QuestSpotDetailView` ダークテーマ統一済み**（`5a284a9`）: 白背景を廃止し黒基調に。`statusCard` / `actionButton` / `memoryPreview` を暗背景向けに調整。Map → SpotDetail → Camera の世界観断絶を解消
 - `developerUnlockMode = false`（現地認証が有効）
 - 神奈川のみ表示
 
