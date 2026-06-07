@@ -170,9 +170,15 @@ struct QuestSpotDetailView: View {
         return "現地に近づくと撮影できます"
     }
 
+    // MARK: - SpotDetail theme colors
+    private var cardBackground: Color { .white.opacity(0.08) }
+    private var primaryText: Color { .white }
+    private var secondaryText: Color { .white.opacity(0.48) }
+    private var dividerColor: Color { .white.opacity(0.10) }
+
     var body: some View {
         ZStack {
-            Color.white.ignoresSafeArea()
+            Color.black.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
@@ -235,25 +241,26 @@ struct QuestSpotDetailView: View {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("撮影状態")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.black.opacity(0.48))
+                        .foregroundStyle(secondaryText)
 
                     Text(statusText)
                         .font(.system(size: 19, weight: .bold))
-                        .foregroundStyle(.black)
+                        .foregroundStyle(primaryText)
                 }
 
                 Spacer()
 
                 Image(systemName: isUnlocked ? "camera.fill" : "lock.fill")
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(isUnlocked ? .white : .black.opacity(0.4))
+                    .foregroundStyle(isUnlocked ? .black : .white.opacity(0.40))
                     .frame(width: 46, height: 46)
-                    .background(isUnlocked ? .black : .black.opacity(0.06))
+                    .background(isUnlocked ? .white : .white.opacity(0.10))
                     .clipShape(Circle())
             }
 
-            Divider()
-                .background(.black.opacity(0.08))
+            Rectangle()
+                .fill(dividerColor)
+                .frame(height: 1)
             
             HStack {
                 statusItem(
@@ -277,7 +284,7 @@ struct QuestSpotDetailView: View {
             }
         }
         .padding(16)
-        .background(.black.opacity(0.035))
+        .background(cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
@@ -314,11 +321,11 @@ struct QuestSpotDetailView: View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.black.opacity(0.42))
+                .foregroundStyle(secondaryText)
 
             Text(value)
                 .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(.black)
+                .foregroundStyle(primaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
@@ -340,8 +347,8 @@ struct QuestSpotDetailView: View {
             .font(.system(size: 17, weight: .bold))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(isUnlocked ? .black : .black.opacity(0.12))
-            .foregroundStyle(isUnlocked ? .white : .black.opacity(0.45))
+            .background(isUnlocked ? .white : .white.opacity(0.10))
+            .foregroundStyle(isUnlocked ? .black : .white.opacity(0.38))
             .clipShape(RoundedRectangle(cornerRadius: 22))
         }
         .disabled(!isUnlocked)
@@ -351,7 +358,7 @@ struct QuestSpotDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("メモリー")
                 .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(.black)
+                .foregroundStyle(primaryText)
 
             if let image = memoryStore.image(for: spot) {
                 ZStack(alignment: .bottomLeading) {
@@ -379,17 +386,17 @@ struct QuestSpotDetailView: View {
             } else {
                 ZStack {
                     RoundedRectangle(cornerRadius: 24)
-                        .fill(.black.opacity(0.035))
+                        .fill(cardBackground)
                         .frame(height: 220)
 
                     VStack(spacing: 10) {
                         Image(systemName: "camera.fill")
                             .font(.system(size: 32, weight: .regular))
-                            .foregroundStyle(.black.opacity(0.28))
+                            .foregroundStyle(.white.opacity(0.28))
 
                         Text("ここで最初の一枚を残そう")
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(.black.opacity(0.55))
+                            .foregroundStyle(.white.opacity(0.55))
                     }
                 }
             }
