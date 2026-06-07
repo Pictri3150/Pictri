@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
-最終更新: 2026-06-07（Camera 文言修正・cameraBootView 削除 完了）
+最終更新: 2026-06-07（Home Social Layer Stage 1 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
 > **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
@@ -13,8 +13,8 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | Refine camera save wording and cleanup |
-| 最新 Swift コード変更 | Refine camera save wording and cleanup |
+| 最新コミット | Add inline home social interactions |
+| 最新 Swift コード変更 | Add inline home social interactions |
 | ワーキングツリー | クリーン |
 
 ---
@@ -22,12 +22,11 @@
 ## コミット履歴（直近）
 
 ```
-(新) Refine camera save wording and cleanup
+9d8c2ea  Add inline home social interactions
+2353c6e  Refine home social interactions
+b047f5e  Refine camera save wording and cleanup
 6e0344f  Update project state after spot detail dark theme
 5a284a9  Darken spot detail view to match app theme
-79066a8  Record core flow device test results
-728d044  Update project state after memories explore detail
-4d5b257  Add memories explore detail interaction
 ```
 
 ---
@@ -59,7 +58,8 @@
 | Memories Collect 達成感強化 | 県別サマリーカードに進捗バー・達成テキスト・コンプリート演出を追加（`completedCount / totalSpotCount` 活用） | `7b1e38b` |
 | Memories Explore Stage 3 | Exploreカードをタップで `ExplorePhotoDetailSheet` 表示。写真全面 + スポット名・エリア名・日付。`ExploreCardButtonStyle` で押下フィードバック | `4d5b257` |
 | QuestSpotDetailView ダークテーマ統一 | 白背景を廃止し黒基調に統一。statusCard / statusItem / actionButton / memoryPreview を暗背景向けに調整。セマンティックカラー4種追加 | `5a284a9` |
-| Camera 文言修正・死にコード削除 | 「保存してシェア」→「メモリーに保存」。アイコン paperplane→bookmark。「Memoriesに/で」→「メモリーに/で」。未使用の `cameraBootView` 削除 | (新) |
+| Camera 文言修正・死にコード削除 | 「保存してシェア」→「メモリーに保存」。アイコン paperplane→bookmark。「Memoriesに/で」→「メモリーに/で」。未使用の `cameraBootView` 削除 | `b047f5e` |
+| Home Social Layer Stage 1 | 投稿カード上でいいね（`likedPostIds`）・コメント（インライン入力）・プロフィールSheet（`FriendProfileSheet`）を実装。投稿詳細依存を排除。「保存した場所」セクション削除 | `9d8c2ea` / `2353c6e` |
 
 ---
 
@@ -68,7 +68,7 @@
 | ファイル | 行数 | 状態・備考 |
 |---------|-----|-----------|
 | `ContentView.swift` | 186行 | Root / TabBar / JQUI / AppBackground のみ |
-| `HomeView.swift` | ~1053行 | Home 系 + JQAccount 系（13型） |
+| `HomeView.swift` | ~908行 | Home 系 + JQAccount 系（Social Layer Stage 1 実装済み） |
 | `MapView.swift` | ~417行 | QuestMapView / QuestSpotDetailView（heroStatusChip 追加済み・ダークテーマ統一済み） |
 | `CameraView.swift` | 1043行 | QuestCameraView 系（4型） |
 | `MemoriesView.swift` | ~687行 | MemoriesView 系 + ExplorePhotoCard + ExplorePhotoDetailSheet + MemoryVisualStyle（Explore Stage 1/2/3 + 日付改善 + Collect 達成感強化済み） |
@@ -92,7 +92,13 @@
 ### Home（動作確認未実施）
 - 「ピクトリ」表示・Hero Map導線・スポット進捗・空状態 Map-first 文言 — 改善済み
 - 「気になるスポット」セクションあり
-- 未改善: セクション名「最近のシェア」「最近埋まった場所」（Step 3-C 候補）
+- **Social Layer Stage 1 実装済み（`9d8c2ea` / `2353c6e`）:**
+  - 投稿カード上でいいね（`likedPostIds`）・アニメーション付き
+  - 投稿カード上でコメント入力・インライン表示
+  - 投稿ヘッダーから `FriendProfileSheet`（軽量プロフィール表示）
+  - `HomePostDetailSheet` 参照を完全排除
+  - 「保存した場所」セクション削除
+  - セクション名: 「フレンドの旅の記録」
 
 ### Map（コアフロー実機確認済み）
 - `QuestSpotDetailView` に `heroStatusChip` 追加済み（撮影済み / 撮影可能 / 未撮影 を3-state 表示）
