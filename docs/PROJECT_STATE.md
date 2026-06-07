@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
-最終更新: 2026-06-07（Home Social Layer Stage 1 完了）
+最終更新: 2026-06-07（Home Social Layer Stage 2 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
 > **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
@@ -13,8 +13,8 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | Add inline home social interactions |
-| 最新 Swift コード変更 | Add inline home social interactions |
+| 最新コミット | Polish inline home social feed |
+| 最新 Swift コード変更 | Polish inline home social feed |
 | ワーキングツリー | クリーン |
 
 ---
@@ -22,11 +22,11 @@
 ## コミット履歴（直近）
 
 ```
+465efa8  Polish inline home social feed
+1c1f552  Update project state after home social interactions
 9d8c2ea  Add inline home social interactions
 2353c6e  Refine home social interactions
 b047f5e  Refine camera save wording and cleanup
-6e0344f  Update project state after spot detail dark theme
-5a284a9  Darken spot detail view to match app theme
 ```
 
 ---
@@ -60,6 +60,7 @@ b047f5e  Refine camera save wording and cleanup
 | QuestSpotDetailView ダークテーマ統一 | 白背景を廃止し黒基調に統一。statusCard / statusItem / actionButton / memoryPreview を暗背景向けに調整。セマンティックカラー4種追加 | `5a284a9` |
 | Camera 文言修正・死にコード削除 | 「保存してシェア」→「メモリーに保存」。アイコン paperplane→bookmark。「Memoriesに/で」→「メモリーに/で」。未使用の `cameraBootView` 削除 | `b047f5e` |
 | Home Social Layer Stage 1 | 投稿カード上でいいね（`likedPostIds`）・コメント（インライン入力）・プロフィールSheet（`FriendProfileSheet`）を実装。投稿詳細依存を排除。「保存した場所」セクション削除 | `9d8c2ea` / `2353c6e` |
+| Home Social Layer Stage 2 | いいねを footer へ移動・like count 表示。`daysLeftText` 削除（消滅SNS感除去）。EmptyFeedCard コピー修正。FriendProfileSheet モック値削除・実データ表示。`JQAccountMenuRow` chevron 削除 | `465efa8` |
 
 ---
 
@@ -99,6 +100,16 @@ b047f5e  Refine camera save wording and cleanup
   - `HomePostDetailSheet` 参照を完全排除
   - 「保存した場所」セクション削除
   - セクション名: 「フレンドの旅の記録」
+- **Social Layer Stage 2 実装済み（`465efa8`）:**
+  - いいねボタンを postHeader から postFooter へ移動（コメントと並列配置）
+  - いいね数を表示（`baseLikeCount` + `isLiked` 差分でインライン計算）
+  - `daysLeftText`（"あとN日" / "まもなく消えます"）を完全削除 → 消滅SNS感を除去
+  - postHeader サブタイトルが `post.displayPlace` のみになり簡潔化
+  - コメント表示を最大3件に制限（`.prefix(3)`）
+  - EmptyFeedCard コピーを「フレンドが旅先で記録を残すと、ここに表示されます。」に修正
+  - `FriendProfileSheet` の hashValue 偽値（`recordCount`/`spotCount`）を削除
+  - FriendProfileSheet bio を「最近の記録: \(post.displayPlace)」（実データ）に変更
+  - `JQAccountMenuRow` の `chevron.right` アイコンを削除（無反応UIシグナルを除去）
 
 ### Map（コアフロー実機確認済み）
 - `QuestSpotDetailView` に `heroStatusChip` 追加済み（撮影済み / 撮影可能 / 未撮影 を3-state 表示）

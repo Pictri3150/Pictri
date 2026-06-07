@@ -1,6 +1,6 @@
 # NEXT_TASKS.md — ピクトリ（Pictri）次のタスク一覧
 
-最終更新: 2026-06-07（Home Social Layer Stage 1 完了）
+最終更新: 2026-06-07（Home Social Layer Stage 2 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— UI 上の表示名。内部プロジェクト名 JapanQuest はコード・Xcode 設定に残存中。
 
@@ -34,29 +34,12 @@
 - ~~候補 B — QuestSpotDetailView ダークテーマ統一: 白背景廃止・黒基調統一・セマンティックカラー4種追加~~ → `5a284a9` 完了
 - ~~候補 A — Camera 文言修正・cameraBootView 削除: 「保存してシェア」→「メモリーに保存」, Memoriesで→メモリーで, 未使用コード削除~~ → 完了
 - ~~Home Social Layer Stage 1: いいね・コメントUI・プロフィールSheet・投稿詳細依存排除・「保存した場所」セクション削除~~ → `9d8c2ea` / `2353c6e` 完了
+- ~~Home Social Layer Stage 2: いいね footer 移動・like count・daysLeftText 削除・EmptyFeedCard コピー修正・FriendProfileSheet モック除去・JQAccountMenuRow chevron 削除~~ → `465efa8` 完了
 
 ---
 
 ## 次の候補タスク
 
-### 候補 B — Home Social Layer Stage 2（磨き込み）
-
-**目的:** Stage 1 で実装したいいね・コメント・プロフィールの体験品質を高める。
-
-**変更対象:** `HomeView.swift` のみ
-
-**改善候補:**
-- `HomeLargePostCard` の `displayDate` / `displayPlace` の `.monospaced` フォントをピクトリらしい表現へ
-- いいね数の表示（現在はカウントなし）
-- コメント表示の上限・折りたたみ（現在は全件表示）
-
-**リスク:** 低（`HomeView.swift` 内完結。Store変更不要）
-
-**ピクトリ独自性:** 中。旅の記録に反応するSNS体験の磨き込み。
-
-**推奨度:** ★★（Stage 1 の仕上げ。急ぎではない）
-
----
 
 ### 候補 C — Memories Explore Stage 4: 写真詳細シートの品質強化
 
