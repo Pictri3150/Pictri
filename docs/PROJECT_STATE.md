@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
-最終更新: 2026-06-07（Home Social Layer Stage 2 完了）
+最終更新: 2026-06-07（Memories Explore Stage 4 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
 > **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
@@ -13,8 +13,8 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | Polish inline home social feed |
-| 最新 Swift コード変更 | Polish inline home social feed |
+| 最新コミット | Polish memories explore detail sheet |
+| 最新 Swift コード変更 | Polish memories explore detail sheet |
 | ワーキングツリー | クリーン |
 
 ---
@@ -22,11 +22,11 @@
 ## コミット履歴（直近）
 
 ```
+2441295  Polish memories explore detail sheet
+d6c46f7  Update project state after home social feed polish
 465efa8  Polish inline home social feed
 1c1f552  Update project state after home social interactions
 9d8c2ea  Add inline home social interactions
-2353c6e  Refine home social interactions
-b047f5e  Refine camera save wording and cleanup
 ```
 
 ---
@@ -61,6 +61,7 @@ b047f5e  Refine camera save wording and cleanup
 | Camera 文言修正・死にコード削除 | 「保存してシェア」→「メモリーに保存」。アイコン paperplane→bookmark。「Memoriesに/で」→「メモリーに/で」。未使用の `cameraBootView` 削除 | `b047f5e` |
 | Home Social Layer Stage 1 | 投稿カード上でいいね（`likedPostIds`）・コメント（インライン入力）・プロフィールSheet（`FriendProfileSheet`）を実装。投稿詳細依存を排除。「保存した場所」セクション削除 | `9d8c2ea` / `2353c6e` |
 | Home Social Layer Stage 2 | いいねを footer へ移動・like count 表示。`daysLeftText` 削除（消滅SNS感除去）。EmptyFeedCard コピー修正。FriendProfileSheet モック値削除・実データ表示。`JQAccountMenuRow` chevron 削除 | `465efa8` |
+| Memories Explore Stage 4 | `ExplorePhotoDetailSheet` 品質強化。グラデーション stop 改善（上部 40% 透明維持）。キャプション fade-in。写真なし fallback に `mappin.and.ellipse` 追加。右上 close button 追加。キャプション間隔整理。「コレクトで見る」テキスト導線追加（viewMode binding 経由）。Store / Model 変更なし | `2441295` |
 
 ---
 
@@ -72,7 +73,7 @@ b047f5e  Refine camera save wording and cleanup
 | `HomeView.swift` | ~908行 | Home 系 + JQAccount 系（Social Layer Stage 1 実装済み） |
 | `MapView.swift` | ~417行 | QuestMapView / QuestSpotDetailView（heroStatusChip 追加済み・ダークテーマ統一済み） |
 | `CameraView.swift` | 1043行 | QuestCameraView 系（4型） |
-| `MemoriesView.swift` | ~687行 | MemoriesView 系 + ExplorePhotoCard + ExplorePhotoDetailSheet + MemoryVisualStyle（Explore Stage 1/2/3 + 日付改善 + Collect 達成感強化済み） |
+| `MemoriesView.swift` | ~750行 | MemoriesView 系 + ExplorePhotoCard + ExplorePhotoDetailSheet + MemoryVisualStyle（Explore Stage 1/2/3/4 + 日付改善 + Collect 達成感強化済み） |
 | `QuestModels.swift` | 172行 | **要精査**（旧モデルが残存） |
 | `QuestSampleData.swift` | 618行 | **要精査**（旧モックデータが残存） |
 | `QuestMemoryStore.swift` | 267行 | 安定 |
@@ -134,7 +135,8 @@ b047f5e  Refine camera save wording and cleanup
 - **ExplorePhotoCard 日付表示改善済み**（`730e530`）: `createdAtText` を `"M月d日"` 形式に整形（`formattedDate` computed property）
 - **Collectモード 達成感強化済み**（`7b1e38b`）: `PrefectureMemorySummaryCard` に進捗バー・「あと N スポット」/「コンプリート」テキストを追加。固定グリッド・未訪問プレースホルダー・gridIndex 思想は維持
 - **Exploreモード Stage 3 実装済み**（`4d5b257`）: Exploreカードをタップ → `ExplorePhotoDetailSheet` がシート表示。写真全面・グラデーションオーバーレイ・スポット名/エリア名/日付。`ExploreCardButtonStyle` で押下フィードバック。Collectモード・Store・Model への変更なし
-- Stage 4（本格的な 2D 空間配置）は別ファイル分離を推奨、未実装
+- **Exploreモード Stage 4 実装済み**（`2441295`）: `ExplorePhotoDetailSheet` 品質強化。グラデーションを stop 形式で改善（上部 40% 完全透明 → 写真が主役になる）。キャプション fade-in（`.onAppear` 0.28s）。写真なし fallback に `mappin.and.ellipse` アイコン追加（グラデーション背景 + アイコン = 記録カード感）。右上に控えめな close button 追加。「コレクトで見る」テキスト導線（`viewMode` binding で切替 + dismiss）。Collectモード・Store・Model 変更なし
+- Stage 5（本格的な 2D 空間配置）は別ファイル分離を推奨、未実装
 
 ### Account（動作確認未実施）
 - `JQAccountSheetView`（Home 右上アイコンからシート表示）

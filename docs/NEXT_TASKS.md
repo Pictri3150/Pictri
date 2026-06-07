@@ -1,6 +1,6 @@
 # NEXT_TASKS.md — ピクトリ（Pictri）次のタスク一覧
 
-最終更新: 2026-06-07（Home Social Layer Stage 2 完了）
+最終更新: 2026-06-07（Memories Explore Stage 4 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— UI 上の表示名。内部プロジェクト名 JapanQuest はコード・Xcode 設定に残存中。
 
@@ -35,34 +35,39 @@
 - ~~候補 A — Camera 文言修正・cameraBootView 削除: 「保存してシェア」→「メモリーに保存」, Memoriesで→メモリーで, 未使用コード削除~~ → 完了
 - ~~Home Social Layer Stage 1: いいね・コメントUI・プロフィールSheet・投稿詳細依存排除・「保存した場所」セクション削除~~ → `9d8c2ea` / `2353c6e` 完了
 - ~~Home Social Layer Stage 2: いいね footer 移動・like count・daysLeftText 削除・EmptyFeedCard コピー修正・FriendProfileSheet モック除去・JQAccountMenuRow chevron 削除~~ → `465efa8` 完了
+- ~~Memories Explore Stage 4: ExplorePhotoDetailSheet 品質強化（グラデーション stop 改善・caption fade-in・fallback アイコン・close button・「コレクトで見る」導線）~~ → `2441295` 完了
 
 ---
 
 ## 次の候補タスク
 
+---
 
-### 候補 C — Memories Explore Stage 4: 写真詳細シートの品質強化
+### 候補 A — Home / Memories 実機 QA
 
-**目的:** Stage 3 で実装した `ExplorePhotoDetailSheet` の体験品質を高める。現状は必要最低限の実装であり、「旅の記憶を開く」感覚をさらに磨く余地がある。
+**目的:** 実装が進んだ Home フィード・Memories Explore・Account シートを実機で動作確認し、未確認フローを埋める。コード変更は不要。
 
-**変更対象:** `MemoriesView.swift` のみ（`ExplorePhotoDetailSheet` 周辺）
-- 写真が未保存の場合のフォールバック表示の改善
-- シートを開いた瞬間のフェードイン演出（`.transition` / `.animation`）
-- 「この県のコレクトを見る」テキストリンク（Collect モードへの切替導線）
+**変更対象:** なし（実機確認のみ）
 
-**ユーザーに見える変化:** 写真詳細シートの完成度が上がり、旅の記憶を開いた瞬間の没入感が強まる。
+**確認すべきポイント:**
+- Home フィードにモック投稿が表示されるか
+- いいね・コメントが正しく動くか
+- Explore カードタップ → 詳細シート → 「コレクトで見る」の流れが壊れていないか
+- Account シートの開閉・フレンド追加が動くか
 
-**リスク:** 低（`MemoriesView.swift` 内の `ExplorePhotoDetailSheet` のみ。Store / Model 変更不要）
+**ユーザーに見える変化:** なし（品質担保のみ）
 
-**ピクトリ独自性:** 中〜高。「旅の記憶を開く」という唯一無二の体験を磨く。
+**リスク:** なし
 
-**推奨度:** ★★★（Stage 3 の自然な仕上げ。A / B の後でも前でも進められる）
+**ピクトリ独自性:** 直接貢献しないが、体験の破綻を未然に防ぐ。
+
+**推奨度:** ★★★（コード変更なしで品質を上げられる。次の実装前に実施を強く推奨）
 
 ---
 
-### 候補 D — 旧モデル・旧サンプルデータ削除
+### 候補 B — 旧モデル・旧サンプルデータ削除
 
-**目的:** `QuestModels.swift` と `QuestSampleData.swift` に残る未使用コードを削除してコードベースをクリーンにする。
+**目的:** `QuestModels.swift` と `QuestSampleData.swift` に残る未使用コードを削除し、コードベースをクリーンにする。
 
 **変更対象:** `QuestModels.swift` / `QuestSampleData.swift`
 - 削除候補: `RecentQuestPost` / `PrefectureMemory` / `MemorySpot` / `MapDot` / `KanagawaDot`
@@ -71,21 +76,61 @@
 
 **ユーザーに見える変化:** なし（コード整理のみ）
 
-**リスク:** 低（参照ゼロを確認してから削除すれば安全）
+**リスク:** 低（参照ゼロ確認後に削除すれば安全）
 
 **ピクトリ独自性:** 直接貢献しない（内部品質向上）
 
-**推奨度:** ★（いつでも可。今は不急）
+**推奨度:** ★★（実機 QA の後、次の機能実装前に済ませておくと安全）
+
+---
+
+### 候補 C — Camera / Map 細部レビュー
+
+**目的:** Camera 保存フロー・Map SpotDetail の細部体験を見直す。特に「撮影後の達成感」と「スポット詳細からCamera起動の流れ」に磨く余地がある。
+
+**変更対象:** `CameraView.swift` または `MapView.swift`（1ファイルずつ）
+
+**改善候補の例:**
+- Camera 保存後の「メモリーで確認する」CTA のサイズ・余白
+- SpotDetailView の写真プレビューが空の場合の見え方
+- SpotDetail → Camera 起動の中間状態（ローディング感など）
+
+**ユーザーに見える変化:** 撮影後の手応え・スポット詳細の完成度が上がる
+
+**リスク:** 低〜中（Map と Camera はコアフロー本線。変更は慎重に1箇所ずつ）
+
+**ピクトリ独自性:** 高。「地図で見つける → 現地で撮る」の体験価値が直接上がる。
+
+**推奨度:** ★★（実機 QA 後に進むと判断しやすい。急ぎではないが価値は高い）
+
+---
+
+### 候補 D — Memories 空間 UI の設計検討（実装なし）
+
+**目的:** Explore Stage 5 に向けた「写真が時空間に浮かぶ」UI のコンセプトと技術的アプローチを整理する。今回は設計と方針決定のみ、コード変更は行わない。
+
+**変更対象:** なし（設計・議論のみ）
+
+**検討内容:**
+- カルーセルを脱した 2D / 3D 配置の方向性
+- `SwiftUI ScrollView` vs `UICollectionView` のトレードオフ
+- `MemoriesView.swift` の分割が前提になるかどうか
+- ピクトリらしい「旅の記憶が育つ空間」の定義
+
+**ユーザーに見える変化:** なし（設計フェーズ）
+
+**リスク:** なし（設計のみ）
+
+**ピクトリ独自性:** 最高。Memories が「世界にないアルバム体験」になる基盤設計。
+
+**推奨度:** ★★（A / B の後、次の大きな方向性を決めるフェーズとして価値が高い）
 
 ---
 
 ## その他の候補（いつでも実施可）
 
-### Step 3-C — Home セクション名の改善
-`HomeView.swift` のみ（Text 2行）— 「最近のシェア」→「フレンドの記録」 / 「最近埋まった場所」→「保存した場所」
-
 ### Step 1-B-6 — SharedComponents.swift 分割
-`ContentView.swift` を root coordinator のみ（~60行）にする。`AppTab` / `JQUI` / `JQFloatingTabBar` 等を新ファイルへ移動。
+`ContentView.swift` を root coordinator のみ（~60行）にする。`AppTab` / `JQUI` / `JQFloatingTabBar` 等を新ファイルへ移動。リスク低、UIへの影響なし。
 
 ---
 
@@ -114,4 +159,5 @@
 | Stage 2 | スナップスクロール・カード影・垂直配置 | `6693d59` |
 | 日付改善 | `formattedDate`（`"M月d日"` 表示） | `730e530` |
 | Stage 3 | カードタップ → `ExplorePhotoDetailSheet`（写真全面・スポット名・エリア名・日付） | `4d5b257` |
-| Stage 4（将来） | 詳細シート品質強化・本格的な 2D 空間配置 | 別ファイル分離推奨 |
+| Stage 4 | 詳細シート品質強化（グラデーション stop・caption fade-in・fallback アイコン・close button・「コレクトで見る」導線） | `2441295` |
+| Stage 5（将来） | 本格的な 2D / 3D 空間配置。別ファイル分離推奨 | 未実装 |
