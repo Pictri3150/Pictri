@@ -34,7 +34,7 @@ struct MemoriesView: View {
             }
         }
         .sheet(item: $selectedExploreItem) { item in
-            ExplorePhotoDetailSheet(item: item)
+            ExplorePhotoDetailSheet(item: item, viewMode: $viewMode)
         }
     }
 
@@ -693,7 +693,10 @@ struct FixedEmptySpotCell: View {
 
 private struct ExplorePhotoDetailSheet: View {
     let item: ExploreItem
+    @Binding var viewMode: MemoriesViewMode
     @EnvironmentObject var memoryStore: QuestMemoryStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var captionVisible = false
 
     private var formattedDate: String {
         let input = DateFormatter()
@@ -711,17 +714,50 @@ private struct ExplorePhotoDetailSheet: View {
             photoLayer
 
             LinearGradient(
-                colors: [.clear, .black.opacity(0.80)],
+                stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: .clear, location: 0.40),
+                    .init(color: .black.opacity(0.90), location: 1.0)
+                ],
                 startPoint: .top,
                 endPoint: .bottom
             )
             .ignoresSafeArea()
 
+            closeButton
+
             captionLayer
+                .opacity(captionVisible ? 1 : 0)
         }
         .presentationDragIndicator(.visible)
         .presentationDetents([.large])
         .presentationBackground(.black)
+        .onAppear {
+            withAnimation(.easeIn(duration: 0.28).delay(0.08)) {
+                captionVisible = true
+            }
+        }
+    }
+
+    private var closeButton: some View {
+        VStack {
+            HStack {
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.80))
+                        .frame(width: 34, height: 34)
+                        .background(.black.opacity(0.30))
+                        .clipShape(Circle())
+                }
+                .padding(.top, 60)
+                .padding(.trailing, 20)
+            }
+            Spacer()
+        }
     }
 
     @ViewBuilder
@@ -734,14 +770,20 @@ private struct ExplorePhotoDetailSheet: View {
                 .clipped()
                 .ignoresSafeArea()
         } else if let spot = item.spot {
-            Rectangle()
-                .fill(MemoryVisualStyle.gradient(for: spot))
-                .ignoresSafeArea()
+            ZStack {
+                Rectangle()
+                    .fill(MemoryVisualStyle.gradient(for: spot))
+                    .ignoresSafeArea()
+
+                Image(systemName: "mappin.and.ellipse")
+                    .font(.system(size: 52, weight: .thin))
+                    .foregroundStyle(.white.opacity(0.22))
+            }
         }
     }
 
     private var captionLayer: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 0) {
             Text(item.spot?.name ?? "—")
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(.white)
@@ -749,14 +791,26 @@ private struct ExplorePhotoDetailSheet: View {
 
             if let areaName = item.spot?.areaName {
                 Text(areaName)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.62))
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.58))
+                    .padding(.top, 5)
             }
 
             Text(formattedDate)
                 .font(.system(size: 13, weight: .regular))
                 .foregroundStyle(.white.opacity(0.42))
-                .padding(.top, 2)
+                .padding(.top, 6)
+
+            Button {
+                viewMode = .collect
+                dismiss()
+            } label: {
+                Text("コレクトで見る")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.50))
+                    .underline()
+            }
+            .padding(.top, 18)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 24)
