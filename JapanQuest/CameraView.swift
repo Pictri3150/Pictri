@@ -273,30 +273,6 @@ struct QuestCameraView: View {
         }
     }
 
-    private var cameraBootView: some View {
-        ZStack {
-            Color.black
-
-            VStack(spacing: 12) {
-                ProgressView()
-                    .tint(.white)
-
-                Text("カメラを起動中")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.82))
-
-                if let message = cameraService.errorMessage {
-                    Text(message)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.50))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                }
-            }
-        }
-        .frame(height: panelHeight)
-    }
-
     private var cameraPanelTopControls: some View {
         VStack(spacing: 10) {
             HStack {
@@ -641,7 +617,7 @@ struct QuestCameraView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "square.grid.2x2.fill")
-                        Text("Memoriesで確認する")
+                        Text("メモリーで確認する")
                     }
                     .font(.system(size: 15, weight: .bold))
                     .frame(maxWidth: .infinity)
@@ -654,7 +630,7 @@ struct QuestCameraView: View {
             }
 
             Text(hasSaved
-                ? "Memoriesに保存しました"
+                ? "メモリーに保存しました"
                 : "選択中のカメラから撮影し、続けて反対側を撮ります"
             )
             .font(.system(size: 12, weight: .semibold))
@@ -746,8 +722,8 @@ struct QuestCameraView: View {
                 }
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: hasSaved ? "checkmark.circle.fill" : "paperplane.fill")
-                    Text(hasSaved ? "保存済み" : "保存してシェア")
+                    Image(systemName: hasSaved ? "checkmark.circle.fill" : "bookmark.fill")
+                    Text(hasSaved ? "保存済み" : "メモリーに保存")
                 }
                 .font(.system(size: 15, weight: .black))
                 .frame(maxWidth: .infinity)

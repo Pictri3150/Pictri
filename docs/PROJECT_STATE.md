@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
-最終更新: 2026-06-07（QuestSpotDetailView ダークテーマ統一 完了）
+最終更新: 2026-06-07（Camera 文言修正・cameraBootView 削除 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
 > **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
@@ -13,8 +13,8 @@
 |-----|------|
 | Xcode Build | **Succeeded** |
 | ブランチ | `main` |
-| 最新コミット | `5a284a9` — Darken spot detail view to match app theme |
-| 最新 Swift コード変更 | `5a284a9` — Darken spot detail view to match app theme |
+| 最新コミット | Refine camera save wording and cleanup |
+| 最新 Swift コード変更 | Refine camera save wording and cleanup |
 | ワーキングツリー | クリーン |
 
 ---
@@ -22,12 +22,12 @@
 ## コミット履歴（直近）
 
 ```
+(新) Refine camera save wording and cleanup
+6e0344f  Update project state after spot detail dark theme
 5a284a9  Darken spot detail view to match app theme
 79066a8  Record core flow device test results
 728d044  Update project state after memories explore detail
 4d5b257  Add memories explore detail interaction
-f2efc66  Update project state after memories collect progress
-7b1e38b  Enhance memories collect progress feedback
 ```
 
 ---
@@ -59,6 +59,7 @@ f2efc66  Update project state after memories collect progress
 | Memories Collect 達成感強化 | 県別サマリーカードに進捗バー・達成テキスト・コンプリート演出を追加（`completedCount / totalSpotCount` 活用） | `7b1e38b` |
 | Memories Explore Stage 3 | Exploreカードをタップで `ExplorePhotoDetailSheet` 表示。写真全面 + スポット名・エリア名・日付。`ExploreCardButtonStyle` で押下フィードバック | `4d5b257` |
 | QuestSpotDetailView ダークテーマ統一 | 白背景を廃止し黒基調に統一。statusCard / statusItem / actionButton / memoryPreview を暗背景向けに調整。セマンティックカラー4種追加 | `5a284a9` |
+| Camera 文言修正・死にコード削除 | 「保存してシェア」→「メモリーに保存」。アイコン paperplane→bookmark。「Memoriesに/で」→「メモリーに/で」。未使用の `cameraBootView` 削除 | (新) |
 
 ---
 
@@ -102,7 +103,9 @@ f2efc66  Update project state after memories collect progress
 ### Camera（動作確認未実施）
 - 2枚連続撮影フロー（内カメ → 外カメ）
 - `developerUnlockMode = false`（`#if DEBUG` トグルで開発時解除可）
-- 保存後: 「Memoriesに保存しました」+ primary CTA「Memoriesで確認する」
+- 保存後: 「メモリーに保存しました」+ primary CTA「メモリーで確認する」
+- 保存ボタン: 「メモリーに保存」（bookmark.fill アイコン）— 旧「保存してシェア」(paperplane) から修正済み
+- `cameraBootView`（未使用 24行）削除済み
 
 ### Memories（動作確認未実施）
 - 県別サマリーカード + 詳細ビュー

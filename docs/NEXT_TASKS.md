@@ -1,6 +1,6 @@
 # NEXT_TASKS.md — ピクトリ（Pictri）次のタスク一覧
 
-最終更新: 2026-06-07（QuestSpotDetailView ダークテーマ統一 完了）
+最終更新: 2026-06-07（Camera 文言修正・cameraBootView 削除 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— UI 上の表示名。内部プロジェクト名 JapanQuest はコード・Xcode 設定に残存中。
 
@@ -32,30 +32,11 @@
 - ~~候補 A — Memories Explore Stage 3: Exploreカードタップで `ExplorePhotoDetailSheet` 表示~~ → `4d5b257` 完了
 - ~~候補 B — コアフロー実機テスト確認: Home / Map / Camera / Memories の end-to-end 動作~~ → 実機確認済み（コード変更なし）
 - ~~候補 B — QuestSpotDetailView ダークテーマ統一: 白背景廃止・黒基調統一・セマンティックカラー4種追加~~ → `5a284a9` 完了
+- ~~候補 A — Camera 文言修正・cameraBootView 削除: 「保存してシェア」→「メモリーに保存」, Memoriesで→メモリーで, 未使用コード削除~~ → 完了
 
 ---
 
 ## 次の候補タスク
-
-### 候補 A — Camera 画面の文言・保存体験改善
-
-**目的:** UIレビューで判明した Camera 画面の具体的な問題を解消する。「保存してシェア」という事実と異なるラベルを修正し、保存完了後の体験をピクトリらしい記録の瞬間として磨く。
-
-**変更対象:** `CameraView.swift` のみ（`previewActions` / `cameraBottomArea` 周辺）
-- `「保存してシェア」→「メモリーに保存」`（実態はローカル保存のみでシェアしていない）
-- × ボタンの遷移先を `selectedTab = .home` → `selectedTab = .map`（MapからCameraに来た流れに合わせる）
-- 保存後の体験強化（`hasSaved` 後のフィードバックをより印象的に）
-- 死にコード `cameraBootView` の削除
-
-**ユーザーに見える変化:** 保存ボタンの文言が正確になる。× ボタンがMapへ戻るようになる。保存の瞬間がより印象的になる。
-
-**リスク:** 低（`CameraView.swift` 内完結。保存ロジック・撮影ロジックは変更なし）
-
-**ピクトリ独自性:** 中〜高。「現地で撮る → メモリーに残す」がコア体験。その文言が「シェア」だと別サービスに見える。
-
-**推奨度:** ★★★★（事実誤認の文言修正は即対応すべき。リスクが最低で効果が高い）
-
----
 
 ### 候補 B — Home 画面の死んだUI / SNS感の整理
 
