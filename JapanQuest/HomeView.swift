@@ -290,7 +290,7 @@ struct EmptyFeedCard: View {
             Text("まだフレンドの記録がありません")
                 .font(.system(size: 17, weight: .bold))
 
-            Text("地図でスポットを見つけて、現地で写真を残すとここに表示されます。")
+            Text("フレンドが旅先で記録を残すと、ここに表示されます。")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.white.opacity(0.45))
                 .multilineTextAlignment(.center)
@@ -364,51 +364,40 @@ struct HomeLargePostCard: View {
     }
 
     private var postHeader: some View {
-        HStack(spacing: 10) {
-            Button {
-                onProfileTap()
-            } label: {
-                HStack(spacing: 10) {
-                    Circle()
-                        .fill(.white.opacity(0.14))
-                        .frame(width: 34, height: 34)
-                        .overlay {
-                            Text(String(post.username.prefix(1)).uppercased())
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.white)
-                        }
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(post.username)
-                            .font(.system(size: 14, weight: .bold))
+        Button {
+            onProfileTap()
+        } label: {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(.white.opacity(0.14))
+                    .frame(width: 34, height: 34)
+                    .overlay {
+                        Text(String(post.username.prefix(1)).uppercased())
+                            .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(.white)
-
-                        Text("\(post.displayPlace) ・ \(daysLeftText)")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.5))
                     }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(post.username)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+
+                    Text(post.displayPlace)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.5))
                 }
-            }
-            .buttonStyle(.plain)
 
-            Spacer()
-
-            Button {
-                onLike()
-            } label: {
-                Image(systemName: isLiked ? "heart.fill" : "heart")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(isLiked ? .white : .white.opacity(0.42))
-                    .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isLiked)
+                Spacer()
             }
         }
+        .buttonStyle(.plain)
     }
 
     private var postFooter: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !comments.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    ForEach(comments, id: \.self) { comment in
+                    ForEach(comments.prefix(3), id: \.self) { comment in
                         Text(comment)
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(.white.opacity(0.82))
@@ -417,18 +406,35 @@ struct HomeLargePostCard: View {
                 }
             }
 
-            Button {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                    isCommentVisible.toggle()
+            HStack(spacing: 18) {
+                Button {
+                    onLike()
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: isLiked ? "heart.fill" : "heart")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text("\(displayLikeCount)")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundStyle(isLiked ? .white : .white.opacity(0.45))
+                    .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isLiked)
                 }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "bubble.left")
-                        .font(.system(size: 14, weight: .semibold))
-                    Text(comments.isEmpty ? "コメントする" : "\(comments.count)件のコメント")
-                        .font(.system(size: 13, weight: .semibold))
+
+                Button {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                        isCommentVisible.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "bubble.left")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text(comments.isEmpty ? "コメント" : "\(comments.count)")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundStyle(.white.opacity(0.45))
                 }
-                .foregroundStyle(.white.opacity(0.48))
+
+                Spacer()
             }
 
             if isCommentVisible {
@@ -497,15 +503,12 @@ struct HomeLargePostCard: View {
         )
     }
 
-    private var daysLeftText: String {
-        let seconds = post.expiresAt.timeIntervalSince(Date())
-        let days = max(Int(ceil(seconds / 86400)), 0)
+    private var baseLikeCount: Int {
+        abs(post.id.hashValue % 17) + 3
+    }
 
-        if days <= 0 {
-            return "まもなく消えます"
-        } else {
-            return "あと\(days)日"
-        }
+    private var displayLikeCount: Int {
+        isLiked ? baseLikeCount + 1 : baseLikeCount
     }
 }
 
@@ -515,14 +518,6 @@ struct FriendProfileSheet: View {
     let post: QuestFeedPost
 
     @Environment(\.dismiss) private var dismiss
-
-    private var recordCount: Int {
-        abs(post.username.hashValue % 18) + 5
-    }
-
-    private var spotCount: Int {
-        max(recordCount / 3, 1)
-    }
 
     var body: some View {
         ZStack {
@@ -558,36 +553,15 @@ struct FriendProfileSheet: View {
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(.white)
 
-                    Text("現地で撮る、場所で残す")
+                    Text("最近の記録: \(post.displayPlace)")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.white.opacity(0.46))
-                }
-
-                HStack(spacing: 10) {
-                    profileStat(title: "記録", value: "\(recordCount)")
-                    profileStat(title: "旅先", value: "\(spotCount)")
                 }
 
                 Spacer()
             }
             .padding(20)
         }
-    }
-
-    private func profileStat(title: String, value: String) -> some View {
-        VStack(spacing: 5) {
-            Text(value)
-                .font(.system(size: 21, weight: .bold))
-                .foregroundStyle(.white)
-
-            Text(title)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white.opacity(0.48))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(.white.opacity(0.07))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 
@@ -793,10 +767,6 @@ struct JQAccountMenuRow: View {
                 .font(.system(size: 16, weight: .semibold))
 
             Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(.white.opacity(0.42))
         }
         .foregroundStyle(.white)
         .padding(16)
