@@ -9,17 +9,10 @@ struct HomeView: View {
 
     @State private var showAccountMenu = false
     @State private var selectedPostForDetail: QuestFeedPost?
+    @State private var likedPostIds: Set<String> = []
 
     private var visiblePosts: [QuestFeedPost] {
         memoryStore.visibleFeedPosts()
-    }
-
-    private var latestPost: QuestFeedPost? {
-        visiblePosts.first
-    }
-
-    private var recentUnlockedMemories: [QuestMemoryPhoto] {
-        Array(memoryStore.memoryPhotos.prefix(6))
     }
 
     private var completedSpotCount: Int {
@@ -52,7 +45,6 @@ struct HomeView: View {
                             nextSpotSection
                         }
                         recentShareSection
-                        recentMemorySection
 
                         Spacer(minLength: 90)
                     }
@@ -66,10 +58,22 @@ struct HomeView: View {
                     .presentationDragIndicator(.visible)
             }
             .sheet(item: $selectedPostForDetail) { post in
-                HomePostDetailSheet(post: post)
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
+                HomePostDetailSheet(
+                    post: post,
+                    isLiked: likedPostIds.contains(post.id),
+                    onLike: { toggleLike(postId: post.id) }
+                )
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
             }
+        }
+    }
+
+    private func toggleLike(postId: String) {
+        if likedPostIds.contains(postId) {
+            likedPostIds.remove(postId)
+        } else {
+            likedPostIds.insert(postId)
         }
     }
 
@@ -156,36 +160,19 @@ struct HomeView: View {
                         .clipShape(Circle())
                 }
 
-                HStack(spacing: 10) {
-                    Button {
-                        selectedTab = .map
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "mappin.and.ellipse")
-                            Text("地図でスポットを探す")
-                        }
-                        .font(.system(size: 15, weight: .bold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(.white)
-                        .foregroundStyle(.black)
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                Button {
+                    selectedTab = .map
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "mappin.and.ellipse")
+                        Text("地図でスポットを探す")
                     }
-
-                    Button {
-                        selectedTab = .camera
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "camera.fill")
-                            Text("撮る")
-                        }
-                        .font(.system(size: 15, weight: .bold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(.white.opacity(0.10))
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
-                    }
+                    .font(.system(size: 15, weight: .bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(.white)
+                    .foregroundStyle(.black)
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
                 }
             }
             .padding(20)
@@ -283,113 +270,18 @@ struct HomeView: View {
                 EmptyFeedCard()
             } else {
                 ForEach(visiblePosts.prefix(4)) { post in
-                    HomeLargePostCard(post: post)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            selectedPostForDetail = post
-                        }
-                }
-            }
-        }
-    }
-
-    private var recentMemorySection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("保存した場所")
-                    .font(.system(size: 20, weight: .bold))
-
-                Spacer()
-
-                Button {
-                    selectedTab = .memories
-                } label: {
-                    Text("見る")
-                        .font(.system(size: 12, weight: .bold))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(.white.opacity(0.10))
-                        .foregroundStyle(.white)
-                        .clipShape(Capsule())
-                }
-            }
-
-            if recentUnlockedMemories.isEmpty {
-                VStack(spacing: 10) {
-                    Image(systemName: "square.grid.2x2")
-                        .font(.system(size: 34, weight: .regular))
-                        .foregroundStyle(.white.opacity(0.38))
-
-                    Text("まだメモリーがありません")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.72))
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 30)
-                .background(.white.opacity(0.055))
-                .clipShape(RoundedRectangle(cornerRadius: 24))
-            } else {
-                LazyVGrid(
-                    columns: [
-                        GridItem(.flexible(), spacing: 8),
-                        GridItem(.flexible(), spacing: 8),
-                        GridItem(.flexible(), spacing: 8)
-                    ],
-                    spacing: 8
-                ) {
-                    ForEach(recentUnlockedMemories) { memory in
-                        HomeMemoryTile(memory: memory)
+                    HomeLargePostCard(
+                        post: post,
+                        isLiked: likedPostIds.contains(post.id),
+                        onLike: { toggleLike(postId: post.id) }
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedPostForDetail = post
                     }
                 }
             }
         }
-    }
-}
-
-struct HomeMemoryTile: View {
-    let memory: QuestMemoryPhoto
-    @EnvironmentObject var memoryStore: QuestMemoryStore
-
-    private var spot: QuestSpot? {
-        mockQuestSpots.first { $0.id == memory.spotId }
-    }
-
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            if let spot, let image = memoryStore.image(for: spot) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(height: 118)
-                    .clipped()
-            } else if let spot {
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(MemoryVisualStyle.gradient(for: spot))
-                    .frame(height: 118)
-            } else {
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.white.opacity(0.07))
-                    .frame(height: 118)
-            }
-
-            LinearGradient(
-                colors: [
-                    .black.opacity(0),
-                    .black.opacity(0.55)
-                ],
-                startPoint: .center,
-                endPoint: .bottom
-            )
-
-            Text(spot?.name ?? "Spot")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .padding(9)
-        }
-        .frame(height: 118)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 
@@ -417,6 +309,8 @@ struct EmptyFeedCard: View {
 
 struct HomeLargePostCard: View {
     let post: QuestFeedPost
+    var isLiked: Bool
+    var onLike: () -> Void
 
     @EnvironmentObject var memoryStore: QuestMemoryStore
 
@@ -488,9 +382,14 @@ struct HomeLargePostCard: View {
 
             Spacer()
 
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(.white.opacity(0.45))
+            Button {
+                onLike()
+            } label: {
+                Image(systemName: isLiked ? "heart.fill" : "heart")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(isLiked ? .white : .white.opacity(0.42))
+                    .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isLiked)
+            }
         }
     }
 
@@ -856,6 +755,8 @@ struct JQRequestMiniRow: View {
 
 struct HomePostDetailSheet: View {
     let post: QuestFeedPost
+    var isLiked: Bool
+    var onLike: () -> Void
 
     @EnvironmentObject var memoryStore: QuestMemoryStore
     @Environment(\.dismiss) private var dismiss
@@ -872,7 +773,6 @@ struct HomePostDetailSheet: View {
                 VStack(alignment: .leading, spacing: 18) {
                     topBar
                     largePhoto
-                    postInfo
                     actionArea
 
                     Spacer(minLength: 40)
@@ -898,7 +798,7 @@ struct HomePostDetailSheet: View {
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.white)
 
-                Text("\(post.displayPlace) ・ \(daysLeftText)")
+                Text(post.displayPlace)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white.opacity(0.52))
             }
@@ -963,67 +863,22 @@ struct HomePostDetailSheet: View {
         }
     }
 
-    private var postInfo: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                infoBlock(title: "場所", value: spot?.name ?? post.displayPlace)
-                Spacer()
-                infoBlock(title: "エリア", value: spot?.areaName ?? "Japan")
-                Spacer()
-                infoBlock(title: "表示期限", value: daysLeftText)
-            }
-
-            Text("正確なGPS座標は公開されません。表示されるのはスポット名までです。")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white.opacity(0.42))
-                .lineSpacing(3)
-        }
-        .padding(16)
-        .background(.white.opacity(0.065))
-        .clipShape(RoundedRectangle(cornerRadius: 22))
-    }
-
-    private func infoBlock(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(title)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.white.opacity(0.42))
-
-            Text(value)
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-        }
-    }
-
     private var actionArea: some View {
-        HStack(spacing: 10) {
-            Button {} label: {
-                HStack(spacing: 7) {
-                    Image(systemName: "heart")
-                    Text("いいね")
-                }
-                .font(.system(size: 14, weight: .bold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
-                .background(.white.opacity(0.08))
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+        Button {
+            onLike()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isLiked ? "heart.fill" : "heart")
+                    .font(.system(size: 17, weight: .semibold))
+                Text(isLiked ? "いいね済み" : "いいね")
             }
-
-            Button {} label: {
-                HStack(spacing: 7) {
-                    Image(systemName: "paperplane")
-                    Text("送る")
-                }
-                .font(.system(size: 14, weight: .bold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
-                .background(.white.opacity(0.08))
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-            }
+            .font(.system(size: 15, weight: .bold))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(isLiked ? .white : .white.opacity(0.10))
+            .foregroundStyle(isLiked ? .black : .white)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isLiked)
         }
     }
 
@@ -1038,16 +893,4 @@ struct HomePostDetailSheet: View {
             endPoint: .bottom
         )
     }
-
-    private var daysLeftText: String {
-        let seconds = post.expiresAt.timeIntervalSince(Date())
-        let days = max(Int(ceil(seconds / 86400)), 0)
-
-        if days <= 0 {
-            return "まもなく消えます"
-        } else {
-            return "あと\(days)日"
-        }
-    }
 }
-
