@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — ピクトリ（Pictri）現在の実装状況
 
-最終更新: 2026-06-07（Memories Explore Stage 3 完了）
+最終更新: 2026-06-07（コアフロー実機確認 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— *picture trip* に由来  
 > **内部プロジェクト名:** JapanQuest（Xcode・Bundle ID・型名はそのまま）
@@ -124,11 +124,13 @@ f2efc66  Update project state after memories collect progress
 
 | フロー | 状態 |
 |-------|------|
-| Home → Map タブ遷移 | コード上確認済み（実機未確認） |
-| Map スポット選択 → SpotDetailView 遷移 | コード上確認済み（実機未確認） |
-| SpotDetailView → Camera へ activeCameraSpotId を渡す | コード上確認済み（実機未確認） |
-| Camera で2枚撮影 → QuestMemoryStore.save() | コード上確認済み（実機未確認） |
-| 保存後 Memories に自動反映 | コード上確認済み（実機未確認） |
+| Home → Map タブ遷移 | **実機確認済み** |
+| Map スポット選択 → SpotDetailView 遷移 | **実機確認済み** |
+| SpotDetailView → Camera へ activeCameraSpotId を渡す | **実機確認済み** |
+| Camera で2枚撮影 → QuestMemoryStore.save() | **実機確認済み** |
+| 保存後 Memories に自動反映（Collect + Explore） | **実機確認済み** |
+| Explore カードタップ → 詳細シート表示 | **実機確認済み** |
+| Home 進捗（スポット数）反映 | **実機確認済み** |
 | Home フィードにポストが表示 | 未確認 |
 | Account シートの開閉 | 未確認 |
 
@@ -138,5 +140,5 @@ f2efc66  Update project state after memories collect progress
 
 1. **カメラ権限なしのフォールバック未確認**（App Store 提出前に必須）
 2. **旧モデル型が QuestModels.swift に残存**（`RecentQuestPost` 等5型 — Step 1-B-7 候補）
-3. **コアフロー実機確認が未完了**（コード上は問題なし）
-4. **Map は神奈川のみ**（他県スポットデータはあるが Map 画面は kanagawa フィルタのみ）
+3. **Map は神奈川のみ**（他県スポットデータはあるが Map 画面は kanagawa フィルタのみ）
+4. **Home フィード・Account シートの実機確認が未完了**（コアフロー本線は確認済み）

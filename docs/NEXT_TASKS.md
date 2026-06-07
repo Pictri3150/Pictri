@@ -1,6 +1,6 @@
 # NEXT_TASKS.md — ピクトリ（Pictri）次のタスク一覧
 
-最終更新: 2026-06-07（Memories Explore Stage 3 完了）
+最終更新: 2026-06-07（コアフロー実機確認 完了）
 
 > **プロダクト名:** ピクトリ（Pictri）— UI 上の表示名。内部プロジェクト名 JapanQuest はコード・Xcode 設定に残存中。
 
@@ -30,6 +30,7 @@
 - ~~Memories Explore 日付フォーマット改善: `formattedDate` で `"M月d日"` 表示~~ → `730e530` 完了
 - ~~候補 B — Memories Collect 達成感強化: 進捗バー・達成テキスト・コンプリート演出~~ → `7b1e38b` 完了
 - ~~候補 A — Memories Explore Stage 3: Exploreカードタップで `ExplorePhotoDetailSheet` 表示~~ → `4d5b257` 完了
+- ~~候補 B — コアフロー実機テスト確認: Home / Map / Camera / Memories の end-to-end 動作~~ → 実機確認済み（コード変更なし）
 
 ---
 
@@ -55,30 +56,7 @@
 
 ---
 
-### 候補 B — コアフロー実機テスト確認
-
-**目的:** コード上の接続は確認済みだが、実機での end-to-end 動作が未確認。App Store 提出前に必須。
-
-**変更対象:** なし（実機テストのみ）
-
-**確認すべき項目:**
-1. Map でスポットタップ → SpotDetailView が開く
-2. `heroStatusChip` が正しい状態を表示
-3. 現地（または `developerUnlockMode = true`）で「この場所で撮る」が押せる
-4. Camera 遷移 → 2枚撮影 → 保存 → Memories に反映
-5. Home のスポット進捗が更新される
-
-**ユーザーに見える変化:** なし（品質保証）
-
-**リスク:** なし（実機テストのみ）
-
-**ピクトリ独自性:** 間接的。コアフローが壊れていないことを確認し、提出品質を担保する。
-
-**推奨度:** ★★（提出前に必須。今すぐでなくてもよいが先送り厳禁）
-
----
-
-### 候補 C — Home / Map / Camera UI 品質レビュー
+### 候補 B — Home / Map / Camera UI 品質レビュー
 
 **目的:** Memories に集中してきた改善を他画面にも波及させる。トッププロダクト品質を目指す上で残る粗さを洗い出す。
 
