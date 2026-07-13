@@ -28,7 +28,7 @@ struct QuestMapView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
-                Color.black.ignoresSafeArea()
+                AppBackground()
 
                 VStack(alignment: .leading, spacing: 18) {
                     mapHeader
@@ -152,7 +152,7 @@ struct QuestSpotDetailView: View {
     }
 
     // MARK: - SpotDetail theme colors
-    private var cardBackground: Color { .white.opacity(0.08) }
+    private var cardBackground: Color { PictriTheme.surface }
     private var primaryText: Color { .white }
     private var secondaryText: Color { .white.opacity(0.48) }
     private var dividerColor: Color { .white.opacity(0.10) }
@@ -329,19 +329,8 @@ struct QuestSpotDetailView: View {
                         .clipped()
                         .clipShape(RoundedRectangle(cornerRadius: 24))
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(currentDateText())
-                            .font(.system(size: 18, weight: .semibold, design: .monospaced))
-
-                        Text(spot.englishName.lowercased())
-                            .font(.system(size: 23, weight: .bold, design: .monospaced))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 9)
-                    .background(.white.opacity(0.16))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .padding(14)
+                    PictriGlassPill(text: spot.englishName.lowercased(), tone: .muted)
+                        .padding(14)
                 }
             } else {
                 ZStack {
@@ -363,10 +352,5 @@ struct QuestSpotDetailView: View {
         }
     }
 
-    private func currentDateText() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy/MM/dd"
-        return formatter.string(from: Date())
-    }
 }
 

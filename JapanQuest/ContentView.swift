@@ -9,18 +9,27 @@ struct ContentView: View {
     @StateObject private var friendStore = QuestFriendStore()
     @StateObject private var locationManager = QuestLocationManager()
 
+    /// Camera中はタブバーを没入型に隠す。閉じるボタンと保存後の自動遷移で
+    /// 操作性は維持したまま、下部でのタブバーとの衝突を構造的になくす。
+    private var isTabBarVisible: Bool {
+        selectedTab != .camera
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             activeScreen
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black.ignoresSafeArea())
-                .animation(.easeInOut(duration: 0.18), value: selectedTab)
+                .background(AppBackground())
 
-            JQFloatingTabBar(selectedTab: $selectedTab)
-                .padding(.horizontal, 18)
-                .padding(.bottom, 8)
+            if isTabBarVisible {
+                JQFloatingTabBar(selectedTab: $selectedTab)
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 8)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
-        .background(Color.black.ignoresSafeArea())
+        .animation(.easeInOut(duration: 0.22), value: selectedTab)
+        .background(AppBackground())
         .environmentObject(memoryStore)
         .environmentObject(friendStore)
         .environmentObject(locationManager)
@@ -98,28 +107,37 @@ struct JQFloatingTabItem: View {
     let tab: AppTab
     let isSelected: Bool
 
+    private var isCameraTab: Bool { tab == .camera }
+
     var body: some View {
         VStack(spacing: 5) {
             Image(systemName: tab.iconName)
-                .font(.system(size: 22, weight: .bold))
+                .font(.system(size: isCameraTab ? 24 : 22, weight: .bold))
                 .symbolRenderingMode(.hierarchical)
 
             Text(tab.title)
                 .font(.system(size: 10, weight: .bold))
         }
-        .foregroundStyle(isSelected ? .black : .white.opacity(0.78))
+        .foregroundStyle(foregroundStyle)
         .frame(maxWidth: .infinity)
         .frame(height: 62)
         .background {
             if isSelected {
                 RoundedRectangle(cornerRadius: 27, style: .continuous)
-                    .fill(.white)
-                    .shadow(color: .white.opacity(0.18), radius: 10, x: 0, y: 0)
+                    .fill(isCameraTab ? PictriTheme.accent : .white)
+                    .shadow(color: (isCameraTab ? PictriTheme.accent : .white).opacity(0.24), radius: 10, x: 0, y: 0)
             } else {
                 Color.clear
             }
         }
         .contentShape(Rectangle())
+    }
+
+    private var foregroundStyle: Color {
+        if isSelected {
+            return .black
+        }
+        return isCameraTab ? PictriTheme.accent.opacity(0.85) : .white.opacity(0.78)
     }
 }
 
@@ -170,8 +188,8 @@ struct AppBackground: View {
     var body: some View {
         LinearGradient(
             colors: [
-                Color(red: 0.02, green: 0.02, blue: 0.025),
-                Color(red: 0.07, green: 0.07, blue: 0.075)
+                PictriTheme.backgroundTop,
+                PictriTheme.backgroundBottom
             ],
             startPoint: .top,
             endPoint: .bottom

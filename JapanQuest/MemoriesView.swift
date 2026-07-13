@@ -353,7 +353,7 @@ struct PrefectureMemorySummaryCard: View {
             if completedCount > 0 {
                 GeometryReader { geo in
                     Capsule()
-                        .fill(isCompleted ? PictriTheme.accent : .white.opacity(0.6))
+                        .fill(isCompleted ? PictriTheme.teal : .white.opacity(0.6))
                         .frame(width: geo.size.width * progressRatio, height: 3)
                 }
                 .frame(height: 3)
@@ -408,10 +408,10 @@ struct PrefectureMemorySummaryCard: View {
 
             Text(achievementText)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(isCompleted ? PictriTheme.accent : .white.opacity(0.46))
+                .foregroundStyle(isCompleted ? PictriTheme.teal : .white.opacity(0.46))
         }
         .padding(14)
-        .background(.white.opacity(0.065))
+        .background(PictriTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .overlay {
             RoundedRectangle(cornerRadius: 24)
@@ -697,7 +697,7 @@ struct FixedEmptySpotCell: View {
                 .fill(
                     LinearGradient(
                         colors: [
-                            .white.opacity(glowOpacity),
+                            PictriTheme.accent.opacity(glowOpacity),
                             .white.opacity(0.02)
                         ],
                         startPoint: .topLeading,
@@ -707,7 +707,7 @@ struct FixedEmptySpotCell: View {
 
             Image(systemName: "mappin")
                 .font(.system(size: 20, weight: .light))
-                .foregroundStyle(.white.opacity(0.14))
+                .foregroundStyle(.white.opacity(0.18))
         }
         .frame(height: 132)
         .overlay {
@@ -715,7 +715,7 @@ struct FixedEmptySpotCell: View {
                 .strokeBorder(
                     style: StrokeStyle(lineWidth: 1, dash: [4, 5])
                 )
-                .foregroundStyle(.white.opacity(0.10))
+                .foregroundStyle(PictriTheme.accent.opacity(0.16))
         }
         .accessibilityLabel("未訪問のスポット")
         .accessibilityHint("現地で撮影すると、ここが写真で埋まります")

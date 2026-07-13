@@ -353,7 +353,7 @@ struct HomeLargePostCard: View {
             postFooter
         }
         .padding(12)
-        .background(.white.opacity(0.06))
+        .background(PictriTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 26))
     }
 
@@ -663,7 +663,7 @@ struct JQAccountSheetView: View {
             JQAccountSectionButton(title: "申請", section: .requests, selectedSection: $selectedSection)
         }
         .padding(5)
-        .background(.white.opacity(0.06))
+        .background(PictriTheme.surface)
         .clipShape(Capsule())
     }
 
@@ -715,7 +715,7 @@ struct JQAccountSheetView: View {
                 }
             }
             .padding(15)
-            .background(.white.opacity(0.06))
+            .background(PictriTheme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 22))
 
         case .requests:
@@ -781,7 +781,7 @@ struct JQAccountStat: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 13)
-        .background(.white.opacity(0.07))
+        .background(PictriTheme.surfaceStrong)
         .clipShape(RoundedRectangle(cornerRadius: 18))
     }
 }
@@ -802,7 +802,7 @@ struct JQAccountMenuRow: View {
         }
         .foregroundStyle(.white)
         .padding(16)
-        .background(.white.opacity(0.07))
+        .background(PictriTheme.surfaceStrong)
         .clipShape(RoundedRectangle(cornerRadius: 18))
     }
 }
@@ -842,7 +842,7 @@ struct JQFriendMiniRow: View {
                 .clipShape(Capsule())
         }
         .padding(13)
-        .background(.white.opacity(0.06))
+        .background(PictriTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 18))
     }
 }
@@ -903,7 +903,7 @@ struct JQRequestMiniRow: View {
             }
         }
         .padding(13)
-        .background(.white.opacity(0.06))
+        .background(PictriTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 18))
     }
 }

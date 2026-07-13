@@ -52,7 +52,8 @@ struct QuestCameraView: View {
     @State private var capturePhase: QuestDualCapturePhase = .idle
     @State private var captureRunID = UUID()
 
-    private let panelHeight: CGFloat = 540
+    /// タブバーを没入時に隠すぶん、Cameraはより背の高いプレビューを主役にできる。
+    private let panelHeight: CGFloat = 620
 
     private var sequenceText: String {
         switch capturePhase {
@@ -123,17 +124,18 @@ struct QuestCameraView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 16) {
                 cameraHeader
 
                 cameraPanel
 
                 cameraBottomArea
 
-                Spacer(minLength: JQUI.bottomBarReserve)
+                Spacer(minLength: 8)
             }
             .padding(.horizontal, JQUI.sidePadding)
-            .padding(.top, JQUI.screenTopPadding)
+            .padding(.top, 22)
+            .padding(.bottom, 14)
         }
         .onAppear {
             cameraService.requestAndConfigure()
@@ -196,7 +198,7 @@ struct QuestCameraView: View {
                 cameraPanelTopControls
             }
         }
-        .frame(height: JQUI.panelHeight)
+        .frame(height: panelHeight)
         .clipShape(
             RoundedRectangle(
                 cornerRadius: JQUI.panelCornerRadius,
@@ -225,11 +227,11 @@ struct QuestCameraView: View {
                 Image(uiImage: previewImage)
                     .resizable()
                     .scaledToFill()
-                    .frame(height: JQUI.panelHeight)
+                    .frame(height: panelHeight)
                     .clipped()
             } else if cameraService.isCameraAvailable && !cameraService.permissionDenied {
                 QuestCameraPreview(session: cameraService.session)
-                    .frame(height: JQUI.panelHeight)
+                    .frame(height: panelHeight)
                     .clipped()
             } else if !cameraService.isCameraAvailable {
                 demoCameraBackground
@@ -636,8 +638,9 @@ struct QuestCameraView: View {
                 startDualCapture()
             } label: {
                 Circle()
-                    .stroke(canCapture ? .white : .white.opacity(0.28), lineWidth: 6)
+                    .stroke(canCapture ? PictriTheme.accent : .white.opacity(0.28), lineWidth: 6)
                     .frame(width: 88, height: 88)
+                    .shadow(color: canCapture ? PictriTheme.accent.opacity(0.55) : .clear, radius: 14)
                     .overlay {
                         Circle()
                             .fill(canCapture ? .white : .white.opacity(0.22))

@@ -7,22 +7,31 @@ import SwiftUI
 // このファイルはその上に薄く積む形で追加する。
 
 enum PictriTheme {
-    // 背景・サーフェス
-    static let surface = Color.white.opacity(0.065)
-    static let surfaceStrong = Color.white.opacity(0.10)
+    // 背景(黒だが、わずかに青みを帯びたチャコール。純黒白からの脱却)
+    static let backgroundTop = Color(red: 0.035, green: 0.04, blue: 0.058)
+    static let backgroundBottom = Color(red: 0.065, green: 0.072, blue: 0.10)
+
+    // サーフェス(インディゴをわずかに混ぜたカード面。単調な白透過をやめる)
+    static let surface = Color(red: 0.42, green: 0.46, blue: 0.62).opacity(0.10)
+    static let surfaceStrong = Color(red: 0.44, green: 0.48, blue: 0.64).opacity(0.16)
     static let surfaceBorder = Color.white.opacity(0.10)
 
     // テキスト
     static let textPrimary = Color.white
-    static let textSecondary = Color.white.opacity(0.52)
-    static let textFaint = Color.white.opacity(0.34)
+    static let textSecondary = Color.white.opacity(0.55)
+    static let textFaint = Color.white.opacity(0.36)
 
-    // アクセント(控えめなシアン。派手なネオンにはしない)
-    static let accent = Color(red: 0.53, green: 0.86, blue: 0.90)
-    static let accentSoft = Color(red: 0.53, green: 0.86, blue: 0.90).opacity(0.16)
+    // アクセント(soft indigo-blue。主要インタラクション・現在地感・選択状態に使う)
+    static let accent = Color(red: 0.46, green: 0.62, blue: 0.98)
+    static let accentSoft = Color(red: 0.46, green: 0.62, blue: 0.98).opacity(0.18)
 
-    // 状態色
-    static let warm = Color(red: 0.93, green: 0.70, blue: 0.46)
+    // Memories / 達成・完了に使うteal
+    static let teal = Color(red: 0.34, green: 0.80, blue: 0.74)
+    static let tealSoft = Color(red: 0.34, green: 0.80, blue: 0.74).opacity(0.16)
+
+    // いいね・温かみに使うcoral-amber
+    static let warm = Color(red: 0.98, green: 0.62, blue: 0.44)
+    static let warmSoft = Color(red: 0.98, green: 0.62, blue: 0.44).opacity(0.16)
 
     // 角丸
     static let cornerLarge: CGFloat = 28
@@ -234,6 +243,49 @@ struct PictriCompactMetric: View {
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(.white.opacity(0.75))
         }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Accent Chip
+
+/// 白黒だけに頼らない状態表示チップ。用途に応じてPictriThemeの差し色を使う。
+enum PictriAccentColor {
+    case indigo
+    case teal
+    case warm
+    case neutral
+
+    var color: Color {
+        switch self {
+        case .indigo: return PictriTheme.accent
+        case .teal: return PictriTheme.teal
+        case .warm: return PictriTheme.warm
+        case .neutral: return .white
+        }
+    }
+}
+
+struct PictriAccentChip: View {
+    let text: String
+    var systemImage: String?
+    var accent: PictriAccentColor = .indigo
+    var isFilled: Bool = true
+
+    var body: some View {
+        Group {
+            if let systemImage {
+                Label(text, systemImage: systemImage)
+            } else {
+                Text(text)
+            }
+        }
+        .font(.system(size: 13, weight: .bold))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(isFilled ? accent.color : accent.color.opacity(0.16))
+        .foregroundStyle(isFilled ? Color.black : accent.color)
+        .clipShape(Capsule())
         .accessibilityElement(children: .combine)
     }
 }
