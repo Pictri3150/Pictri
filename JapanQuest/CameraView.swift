@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import AVFoundation
+import CoreLocation
 
 // MARK: - Camera
 
@@ -86,6 +87,22 @@ struct QuestCameraView: View {
         developerUnlockMode || locationManager.isNear(selectedSpot)
     }
 
+    /// 実機でカメラのハードウェアはあるのに、権限だけが拒否されている状態。
+    /// この状態ではシャッターを完全に止め、デモ画像へのフォールバックもさせない。
+    private var isCameraPermissionBlocking: Bool {
+        cameraService.isCameraAvailable && cameraService.permissionDenied
+    }
+
+    /// 位置情報の権限そのものが拒否/制限されている状態(距離が遠いのとは別問題)。
+    private var isLocationPermissionBlocking: Bool {
+        locationManager.authorizationStatus == .denied
+            || locationManager.authorizationStatus == .restricted
+    }
+
+    private var canCapture: Bool {
+        isUnlocked && !isCameraPermissionBlocking
+    }
+
     private var currentProofStatus: QuestVerificationStatus {
         if developerUnlockMode {
             return .developer
@@ -132,6 +149,10 @@ struct QuestCameraView: View {
         }
         .onAppear {
             cameraService.requestAndConfigure()
+
+            if locationManager.authorizationStatus == .notDetermined {
+                locationManager.requestPermission()
+            }
         }
         .onDisappear {
             cameraService.stopSession()
@@ -165,6 +186,7 @@ struct QuestCameraView: View {
                     .clipShape(Circle())
             }
             .padding(.top, 4)
+            .accessibilityLabel("カメラを閉じてホームへ戻る")
         }
     }
 
@@ -172,13 +194,23 @@ struct QuestCameraView: View {
         ZStack {
             cameraLayer
 
-            liveLocationOverlay
+            if !isCameraPermissionBlocking {
+                liveLocationOverlay
 
-            if let frontImage, previewImage == nil {
-                frontMiniPreview(image: frontImage)
+                if let frontImage, previewImage == nil {
+                    frontMiniPreview(image: frontImage)
+                }
             }
 
-            if !isUnlocked {
+            if isCameraPermissionBlocking {
+                PictriPermissionBlock(kind: .cameraDenied)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.black.opacity(0.62))
+            } else if isLocationPermissionBlocking {
+                PictriPermissionBlock(kind: .locationDenied)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.black.opacity(0.58))
+            } else if !isUnlocked {
                 lockedOverlay
             }
 
@@ -186,7 +218,9 @@ struct QuestCameraView: View {
                 countdownOverlay(number: countdownNumber)
             }
 
-            cameraPanelTopControls
+            if !isCameraPermissionBlocking && !isLocationPermissionBlocking {
+                cameraPanelTopControls
+            }
         }
         .frame(height: JQUI.panelHeight)
         .clipShape(
@@ -223,6 +257,11 @@ struct QuestCameraView: View {
                 QuestCameraPreview(session: cameraService.session)
                     .frame(height: JQUI.panelHeight)
                     .clipped()
+            } else if !cameraService.isCameraAvailable {
+                demoCameraBackground
+                    .overlay(alignment: .center) {
+                        PictriPermissionBlock(kind: .cameraUnavailable, isCompact: true)
+                    }
             } else {
                 demoCameraBackground
             }
@@ -236,6 +275,7 @@ struct QuestCameraView: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
+            .allowsHitTesting(false)
         }
     }
 
@@ -310,6 +350,7 @@ struct QuestCameraView: View {
                 Toggle("", isOn: $developerUnlockMode)
                     .labelsHidden()
                     .scaleEffect(0.68)
+                    .accessibilityLabel("開発用: 位置認証を無視して撮影を解放")
                 #endif
             }
             .padding(.horizontal, 13)
@@ -372,18 +413,12 @@ struct QuestCameraView: View {
     private var lockedOverlay: some View {
         Color.black.opacity(0.58)
             .overlay {
-                VStack(spacing: 13) {
-                    Image(systemName: "location.slash")
-                        .font(.system(size: 42, weight: .bold))
-
-                    Text("ここではまだ撮れません")
-                        .font(.system(size: 21, weight: .bold))
-
-                    Text("\(selectedSpot.name)の近くで解放されます")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.58))
-                }
-                .foregroundStyle(.white)
+                PictriPermissionBlock(
+                    kind: .outOfRange(
+                        spotName: selectedSpot.name,
+                        distanceText: locationManager.distanceText(to: selectedSpot)
+                    )
+                )
             }
     }
 
@@ -400,7 +435,7 @@ struct QuestCameraView: View {
     }
 
     private func startDualCapture() {
-        guard isUnlocked, !isCapturingSequence else {
+        guard canCapture, !isCapturingSequence else {
             return
         }
 
@@ -631,7 +666,7 @@ struct QuestCameraView: View {
 
             Text(hasSaved
                 ? "メモリーに保存しました"
-                : "選択中のカメラから撮影し、続けて反対側を撮ります"
+                : "外の景色と、あなたの表情を一緒に残します"
             )
             .font(.system(size: 12, weight: .semibold))
             .foregroundStyle(.white.opacity(0.42))
@@ -662,17 +697,18 @@ struct QuestCameraView: View {
                     .clipShape(Circle())
                 }
                 .disabled(isCapturingSequence)
+                .accessibilityLabel(cameraService.currentPosition == .front ? "外カメラに切り替え" : "内カメラに切り替え")
             }
 
             Button {
                 startDualCapture()
             } label: {
                 Circle()
-                    .stroke(isUnlocked ? .white : .white.opacity(0.28), lineWidth: 6)
+                    .stroke(canCapture ? .white : .white.opacity(0.28), lineWidth: 6)
                     .frame(width: 88, height: 88)
                     .overlay {
                         Circle()
-                            .fill(isUnlocked ? .white : .white.opacity(0.22))
+                            .fill(canCapture ? .white : .white.opacity(0.22))
                             .frame(width: 68, height: 68)
                             .overlay {
                                 if isCapturingSequence {
@@ -682,7 +718,9 @@ struct QuestCameraView: View {
                             }
                     }
             }
-            .disabled(!isUnlocked || isCapturingSequence)
+            .disabled(!canCapture || isCapturingSequence)
+            .accessibilityLabel("外カメラと内カメラで2枚撮影する")
+            .accessibilityHint(canCapture ? "" : "現在は撮影できません")
         }
         .frame(height: 96)
     }

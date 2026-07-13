@@ -57,7 +57,7 @@ struct QuestMapView: View {
                     .font(.system(size: 44, weight: .black))
                     .foregroundStyle(.white)
 
-                Text("県を開くと、すべてのスポットが現れる")
+                Text("いまは神奈川から。県を開くとスポットが現れる")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.46))
             }
@@ -282,10 +282,15 @@ struct QuestSpotDetailView: View {
                     value: isCompleted ? "保存済み" : "未撮影"
                 )
             }
+
+            Text("現地に着くとシャッターが解放されます。正確な住所は表示されません。")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(secondaryText)
         }
         .padding(16)
         .background(cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 24))
+        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
@@ -303,7 +308,7 @@ struct QuestSpotDetailView: View {
                 .font(.system(size: 13, weight: .bold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
-                .background(.white.opacity(0.88))
+                .background(PictriTheme.accent)
                 .foregroundStyle(.black)
                 .clipShape(Capsule())
         } else {
@@ -352,6 +357,7 @@ struct QuestSpotDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 22))
         }
         .disabled(!isUnlocked)
+        .accessibilityLabel(isUnlocked ? "\(spot.name)でカメラを起動" : "\(spot.name)は現地に行くと撮影できます")
     }
 
     private var memoryPreview: some View {

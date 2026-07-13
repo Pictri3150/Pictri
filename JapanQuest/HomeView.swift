@@ -32,6 +32,35 @@ struct HomeView: View {
             .map { $0 }
     }
 
+    /// フレンドの最新の旅の記録から、Heroカードの一言を作る。
+    /// 正確な場所は出さず、displayPlace(表示用の地名テキスト)だけを使う。
+    private var latestFriendActivityText: String? {
+        guard let latest = visiblePosts.first(where: { !$0.isMine }) else {
+            return nil
+        }
+        return "\(latest.username)が\(latest.displayPlace)で新しい記録を残したよ"
+    }
+
+    private var heroHeadline: String {
+        if completedSpotCount == 0 {
+            return "最初の一枚を、現地で残そう"
+        }
+        if let nextSpot = unvisitedKanagawaSpots.first {
+            return "次は\(nextSpot.name)へ行ってみる?"
+        }
+        return "次のスポットを地図で探す"
+    }
+
+    private var heroSubcopy: String {
+        if completedSpotCount == 0 {
+            if let latestFriendActivityText {
+                return latestFriendActivityText
+            }
+            return "まず1箇所、現地で写真を残してみよう。"
+        }
+        return "神奈川 \(completedSpotCount) / \(kanagawaTotalSpotCount) スポット"
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -112,6 +141,8 @@ struct HomeView: View {
                     }
                 }
             }
+            .accessibilityLabel("アカウント")
+            .accessibilityValue(friendStore.incomingRequests.isEmpty ? "" : "フレンド申請\(friendStore.incomingRequests.count)件")
         }
     }
 
@@ -134,16 +165,17 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("次のスポットを地図で探す")
+                        Text(heroHeadline)
                             .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(.white)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
 
-                        Text(completedSpotCount == 0
-                            ? "まず1箇所、現地で写真を残してみよう。"
-                            : "神奈川 \(completedSpotCount) / \(kanagawaTotalSpotCount) スポット")
+                        Text(heroSubcopy)
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(.white.opacity(0.52))
                             .lineSpacing(3)
+                            .lineLimit(2)
                     }
 
                     Spacer()
@@ -181,12 +213,7 @@ struct HomeView: View {
 
     private var nextSpotSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("気になるスポット")
-                    .font(.system(size: 20, weight: .bold))
-
-                Spacer()
-
+            PictriSectionHeader("気になるスポット") {
                 Button {
                     selectedTab = .map
                 } label: {
@@ -209,21 +236,24 @@ struct HomeView: View {
                     selectedTab = .map
                 } label: {
                     HStack(spacing: 14) {
-                        Image(systemName: "mappin.and.ellipse")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.75))
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(MemoryVisualStyle.gradient(for: spot))
                             .frame(width: 42, height: 42)
-                            .background(.white.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay {
+                                Image(systemName: "mappin.and.ellipse")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.92))
+                            }
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text(spot.name)
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundStyle(.white)
 
-                            Text(spot.areaName)
+                            Text("次はここに行ってみる? ・ \(spot.areaName)")
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundStyle(.white.opacity(0.52))
+                                .lineLimit(1)
                         }
 
                         Spacer()
@@ -241,18 +271,14 @@ struct HomeView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("\(spot.name)、\(spot.areaName)。地図で見る")
             }
         }
     }
 
     private var recentShareSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("フレンドの旅の記録")
-                    .font(.system(size: 20, weight: .bold))
-
-                Spacer()
-
+            PictriSectionHeader("フレンドの旅の記録") {
                 Text("7日間")
                     .font(.system(size: 12, weight: .bold))
                     .padding(.horizontal, 11)
@@ -263,7 +289,14 @@ struct HomeView: View {
             }
 
             if visiblePosts.isEmpty {
-                EmptyFeedCard()
+                PictriEmptyState(
+                    systemImage: "mappin.and.ellipse",
+                    title: "まだフレンドの記録がありません",
+                    message: "フレンドが旅先で記録を残すと、ここに表示されます。\nまずはあなたが最初の一枚を残してみよう。",
+                    actionTitle: "地図でスポットを探す"
+                ) {
+                    selectedTab = .map
+                }
             } else {
                 ForEach(visiblePosts.prefix(4)) { post in
                     HomeLargePostCard(
@@ -279,28 +312,6 @@ struct HomeView: View {
 }
 
 // MARK: - Feed Cards
-
-struct EmptyFeedCard: View {
-    var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "mappin.and.ellipse")
-                .font(.system(size: 44, weight: .regular))
-                .foregroundStyle(.white.opacity(0.42))
-
-            Text("まだフレンドの記録がありません")
-                .font(.system(size: 17, weight: .bold))
-
-            Text("フレンドが旅先で記録を残すと、ここに表示されます。")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.white.opacity(0.45))
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 36)
-        .background(.white.opacity(0.055))
-        .clipShape(RoundedRectangle(cornerRadius: 24))
-    }
-}
 
 struct HomeLargePostCard: View {
     let post: QuestFeedPost
@@ -363,18 +374,36 @@ struct HomeLargePostCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 26))
     }
 
+    /// 友達ごとに一定の色味を持たせて「誰の記録か」が一目で分かるようにする。
+    /// Swiftの String.hashValue はプロセスごとにランダム化されるため使わず、
+    /// UTF8バイトの単純な合計で、再起動しても同じユーザーには同じ色が付くようにする。
+    private var avatarAccent: Color {
+        let palette: [Color] = [
+            PictriTheme.accent,
+            PictriTheme.warm,
+            .white.opacity(0.7)
+        ]
+        let stableSeed = post.username.utf8.reduce(0) { $0 + Int($1) }
+        let index = stableSeed % palette.count
+        return palette[index]
+    }
+
     private var postHeader: some View {
         Button {
             onProfileTap()
         } label: {
             HStack(spacing: 10) {
                 Circle()
-                    .fill(.white.opacity(0.14))
+                    .fill(avatarAccent.opacity(0.20))
                     .frame(width: 34, height: 34)
                     .overlay {
                         Text(String(post.username.prefix(1)).uppercased())
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(.white)
+                    }
+                    .overlay {
+                        Circle()
+                            .stroke(avatarAccent.opacity(0.55), lineWidth: 1.5)
                     }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -382,15 +411,20 @@ struct HomeLargePostCard: View {
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.white)
 
-                    Text(post.displayPlace)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.5))
+                    HStack(spacing: 4) {
+                        Image(systemName: "mappin")
+                            .font(.system(size: 9, weight: .bold))
+                        Text(post.displayPlace)
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
                 }
 
                 Spacer()
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(post.username)のプロフィールを見る")
     }
 
     private var postFooter: some View {
@@ -408,17 +442,23 @@ struct HomeLargePostCard: View {
 
             HStack(spacing: 18) {
                 Button {
-                    onLike()
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.45)) {
+                        onLike()
+                    }
                 } label: {
                     HStack(spacing: 5) {
                         Image(systemName: isLiked ? "heart.fill" : "heart")
                             .font(.system(size: 15, weight: .semibold))
+                            .scaleEffect(isLiked ? 1.08 : 1.0)
                         Text("\(displayLikeCount)")
                             .font(.system(size: 13, weight: .semibold))
                     }
-                    .foregroundStyle(isLiked ? .white : .white.opacity(0.45))
-                    .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isLiked)
+                    .foregroundStyle(isLiked ? PictriTheme.warm : .white.opacity(0.45))
                 }
+                .frame(minWidth: 44, minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
+                .accessibilityLabel(isLiked ? "いいねを取り消す" : "いいねする")
+                .accessibilityValue("\(displayLikeCount)件")
 
                 Button {
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
@@ -433,6 +473,10 @@ struct HomeLargePostCard: View {
                     }
                     .foregroundStyle(.white.opacity(0.45))
                 }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+                .accessibilityLabel("コメント欄を開く")
+                .accessibilityValue(comments.isEmpty ? "コメントなし" : "\(comments.count)件のコメント")
 
                 Spacer()
             }
@@ -447,27 +491,32 @@ struct HomeLargePostCard: View {
                         .padding(.vertical, 9)
                         .background(.white.opacity(0.08))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .accessibilityLabel("コメントを入力")
+                        .onSubmit(submitComment)
 
-                    Button {
-                        let trimmed = commentDraft.trimmingCharacters(in: .whitespaces)
-                        guard !trimmed.isEmpty else { return }
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                            comments.append(trimmed)
-                            commentDraft = ""
-                            isCommentVisible = false
-                        }
-                    } label: {
+                    Button(action: submitComment) {
                         Text("送信")
                             .font(.system(size: 13, weight: .bold))
                             .padding(.horizontal, 14)
-                            .padding(.vertical, 9)
+                            .frame(minHeight: 44)
                             .background(.white)
                             .foregroundStyle(.black)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
+                    .accessibilityLabel("コメントを送信")
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
+        }
+    }
+
+    private func submitComment() {
+        let trimmed = commentDraft.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+            comments.append(trimmed)
+            commentDraft = ""
+            isCommentVisible = false
         }
     }
 

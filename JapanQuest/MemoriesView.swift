@@ -20,6 +20,7 @@ struct MemoriesView: View {
     @EnvironmentObject var memoryStore: QuestMemoryStore
     @State private var viewMode: MemoriesViewMode = .collect
     @State private var selectedExploreItem: ExploreItem?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         NavigationStack {
@@ -88,6 +89,7 @@ struct MemoriesView: View {
         let cardHeight: CGFloat = 390
         let screenWidth = UIScreen.main.bounds.width
         let sidePadding = (screenWidth - cardWidth) / 2
+        let isMotionReduced = reduceMotion
 
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 14) {
@@ -102,6 +104,12 @@ struct MemoriesView: View {
                     .scrollTransition(.animated(.spring(response: 0.3, dampingFraction: 0.82))) { content, phase in
                         content
                             .scaleEffect(phase.isIdentity ? 1.0 : 0.82)
+                            .rotation3DEffect(
+                                .degrees(isMotionReduced ? 0 : Double(phase.value) * -10),
+                                axis: (x: 0, y: 1, z: 0),
+                                perspective: 0.4
+                            )
+                            .opacity(phase.isIdentity ? 1.0 : 0.72)
                     }
                 }
             }
@@ -329,19 +337,33 @@ struct PrefectureMemorySummaryCard: View {
         completedCount > 0 && completedCount >= prefecture.totalSpotCount
     }
 
+    private var remainingSpotCount: Int {
+        max(prefecture.totalSpotCount - completedCount, 0)
+    }
+
+    private var achievementText: String {
+        if isCompleted {
+            return "コンプリート"
+        }
+        if completedCount == 0 {
+            return "まだ余白ばかり。最初の一枚を残そう"
+        }
+        return "あと\(remainingSpotCount)スポットで埋まる"
+    }
+
     private var progressBar: some View {
         ZStack(alignment: .leading) {
             Capsule()
                 .fill(.white.opacity(0.10))
-                .frame(height: 2)
+                .frame(height: 3)
 
             if completedCount > 0 {
                 GeometryReader { geo in
                     Capsule()
-                        .fill(.white.opacity(isCompleted ? 0.90 : 0.55))
-                        .frame(width: geo.size.width * progressRatio, height: 2)
+                        .fill(isCompleted ? PictriTheme.accent : .white.opacity(0.6))
+                        .frame(width: geo.size.width * progressRatio, height: 3)
                 }
-                .frame(height: 2)
+                .frame(height: 3)
             }
         }
     }
@@ -390,6 +412,10 @@ struct PrefectureMemorySummaryCard: View {
             }
 
             progressBar
+
+            Text(achievementText)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(isCompleted ? PictriTheme.accent : .white.opacity(0.46))
         }
         .padding(14)
         .background(.white.opacity(0.065))
@@ -398,6 +424,8 @@ struct PrefectureMemorySummaryCard: View {
             RoundedRectangle(cornerRadius: 24)
                 .stroke(prefecture.id == "kanagawa" ? .white.opacity(0.65) : .white.opacity(0.06), lineWidth: 1)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(prefecture.name)。\(completedCount)/\(prefecture.totalSpotCount)スポット。\(achievementText)")
     }
 }
 
@@ -597,6 +625,8 @@ struct FixedMemorySpotCell: View {
         }
         .frame(height: 132)
         .clipShape(RoundedRectangle(cornerRadius: 14))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(isUnlocked ? "\(spot.name)、撮影済み" : "\(spot.name)、未訪問")
     }
 
     @ViewBuilder
@@ -663,14 +693,19 @@ struct FixedMemorySpotCell: View {
 struct FixedEmptySpotCell: View {
     let index: Int
 
+    /// 余白セルの濃淡をわずかに変えて、単調な繰り返しに見えないようにする。
+    private var glowOpacity: Double {
+        index % 3 == 0 ? 0.07 : 0.045
+    }
+
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [
-                            .white.opacity(0.055),
-                            .white.opacity(0.03)
+                            .white.opacity(glowOpacity),
+                            .white.opacity(0.02)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -678,14 +713,19 @@ struct FixedEmptySpotCell: View {
                 )
 
             Image(systemName: "mappin")
-                .font(.system(size: 22, weight: .regular))
-                .foregroundStyle(.white.opacity(0.10))
+                .font(.system(size: 20, weight: .light))
+                .foregroundStyle(.white.opacity(0.14))
         }
         .frame(height: 132)
         .overlay {
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(.white.opacity(0.045), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(
+                    style: StrokeStyle(lineWidth: 1, dash: [4, 5])
+                )
+                .foregroundStyle(.white.opacity(0.10))
         }
+        .accessibilityLabel("未訪問のスポット")
+        .accessibilityHint("現地で撮影すると、ここが写真で埋まります")
     }
 }
 
