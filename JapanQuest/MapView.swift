@@ -51,33 +51,14 @@ struct QuestMapView: View {
     }
 
     private var mapHeader: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Map")
-                    .font(.system(size: 44, weight: .black))
-                    .foregroundStyle(.white)
-
-                Text("いまは神奈川から。県を開くとスポットが現れる")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.46))
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 8) {
-                Text(mapZoomLevel.label)
-                    .font(.system(size: 15, weight: .black))
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 12)
-                    .background(.white)
-                    .clipShape(Capsule())
-
-                Text("\(completedCount) / 24")
-                    .font(.system(size: 17, weight: .black))
-                    .foregroundStyle(.white.opacity(0.52))
-            }
-            .padding(.top, 4)
+        PictriScreenHeader(eyebrow: "MAP", title: "スポットを探す") {
+            Text(mapZoomLevel.label)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.black)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .background(.white)
+                .clipShape(Capsule())
         }
     }
 
@@ -118,25 +99,25 @@ struct QuestMapView: View {
     }
 
     private var mapPanelBadge: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Kanagawa")
-                .font(.system(size: 23, weight: .black))
+        VStack(alignment: .leading, spacing: 4) {
+            Text("神奈川")
+                .font(.system(size: 19, weight: .bold))
                 .foregroundStyle(.black)
 
-            Text("\(completedCount) / 24 spots")
-                .font(.system(size: 16, weight: .black))
-                .foregroundStyle(.black.opacity(0.52))
+            Text("\(completedCount) / 24 スポット撮影済み")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.black.opacity(0.5))
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(.white.opacity(0.94))
         .clipShape(
             RoundedRectangle(
-                cornerRadius: 22,
+                cornerRadius: 18,
                 style: .continuous
             )
         )
-        .shadow(color: .black.opacity(0.14), radius: 18, x: 0, y: 8)
+        .shadow(color: .black.opacity(0.14), radius: 14, x: 0, y: 6)
     }
 }
 
@@ -261,29 +242,16 @@ struct QuestSpotDetailView: View {
             Rectangle()
                 .fill(dividerColor)
                 .frame(height: 1)
-            
+
             HStack {
-                statusItem(
-                    title: "現在地から",
-                    value: locationManager.distanceText(to: spot)
-                )
+                PictriCompactMetric(label: "現在地から", value: locationManager.distanceText(to: spot))
 
                 Spacer()
 
-                statusItem(
-                    title: "解放範囲",
-                    value: "\(Int(spot.unlockRadiusMeters))m"
-                )
-
-                Spacer()
-
-                statusItem(
-                    title: "メモリー",
-                    value: isCompleted ? "保存済み" : "未撮影"
-                )
+                PictriCompactMetric(label: "メモリー", value: isCompleted ? "保存済み" : "未撮影")
             }
 
-            Text("現地に着くとシャッターが解放されます。正確な住所は表示されません。")
+            Text("現地に着くと解放。正確な住所は表示されません。")
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(secondaryText)
         }
@@ -319,20 +287,6 @@ struct QuestSpotDetailView: View {
                 .background(.white.opacity(0.13))
                 .foregroundStyle(.white.opacity(0.70))
                 .clipShape(Capsule())
-        }
-    }
-
-    private func statusItem(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(title)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(secondaryText)
-
-            Text(value)
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(primaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
         }
     }
 

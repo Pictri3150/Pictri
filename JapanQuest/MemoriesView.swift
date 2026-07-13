@@ -289,16 +289,9 @@ struct ExplorePhotoCard: View {
                 .foregroundStyle(.white)
                 .lineLimit(1)
 
-            if let areaName = spot?.areaName {
-                Text(areaName)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.62))
-            }
-
-            Text(formattedDate)
-                .font(.system(size: 11, weight: .regular))
-                .foregroundStyle(.white.opacity(0.42))
-                .padding(.top, 2)
+            Text([spot?.areaName, formattedDate].compactMap { $0 }.joined(separator: " ・ "))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white.opacity(0.52))
         }
         .padding(16)
     }

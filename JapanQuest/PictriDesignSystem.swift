@@ -116,7 +116,7 @@ extension ButtonStyle where Self == PictriSecondaryButtonStyle {
 
 // MARK: - Status Badge
 
-enum PictriStatusTone {
+enum PictriStatusTone: Equatable {
     case strong
     case neutral
     case muted
@@ -177,6 +177,90 @@ struct PictriSectionHeader: View {
 
             trailing
         }
+    }
+}
+
+// MARK: - Screen Header
+
+/// Map / Camera など「英字見出しだけで普通すぎる」問題を解消するための共通ヘッダー。
+/// 小さな英字eyebrow + 短い日本語タイトルで、画面の主役を静かに示す。
+struct PictriScreenHeader: View {
+    let eyebrow: String
+    let title: String
+    var trailing: AnyView?
+
+    init(eyebrow: String, title: String, @ViewBuilder trailing: () -> some View = { EmptyView() }) {
+        self.eyebrow = eyebrow
+        self.title = title
+        self.trailing = AnyView(trailing())
+    }
+
+    var body: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(eyebrow)
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(1.6)
+                    .foregroundStyle(.white.opacity(0.38))
+
+                Text(title)
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+
+            Spacer()
+
+            trailing
+        }
+    }
+}
+
+// MARK: - Compact Metric
+
+/// 距離・件数などの補助情報を、主役にせず静かに添えるための小さな数値表示。
+struct PictriCompactMetric: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white.opacity(0.42))
+
+            Text(value)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(.white.opacity(0.75))
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Glass Pill
+
+/// カメラモード表示やMapバッジなど、プレビュー上に浮かせる小さな半透明ピル。
+struct PictriGlassPill: View {
+    let text: String
+    var systemImage: String?
+    var tone: PictriStatusTone = .strong
+
+    var body: some View {
+        Group {
+            if let systemImage {
+                Label(text, systemImage: systemImage)
+            } else {
+                Text(text)
+            }
+        }
+        .font(.system(size: 12, weight: .bold))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial, in: Capsule())
+        .background(tone.background.opacity(tone == .strong ? 0.82 : 1), in: Capsule())
+        .foregroundStyle(tone.foreground)
+        .environment(\.colorScheme, .dark)
     }
 }
 

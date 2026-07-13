@@ -148,7 +148,7 @@ struct HomeView: View {
 
     private var questHeroCard: some View {
         ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: 30)
+            RoundedRectangle(cornerRadius: PictriTheme.cornerLarge)
                 .fill(
                     LinearGradient(
                         colors: [
@@ -206,7 +206,7 @@ struct HomeView: View {
             .padding(20)
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 30)
+            RoundedRectangle(cornerRadius: PictriTheme.cornerLarge)
                 .stroke(.white.opacity(0.08), lineWidth: 1)
         }
     }
@@ -336,28 +336,11 @@ struct HomeLargePostCard: View {
             ZStack(alignment: .bottomLeading) {
                 postVisual
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(post.displayDate)
-                        .font(.system(size: 18, weight: .semibold, design: .monospaced))
-
-                    Text(post.displayPlace)
-                        .font(.system(size: 25, weight: .bold, design: .monospaced))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(.white.opacity(0.16))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .padding(16)
+                PictriGlassPill(text: "\(post.displayPlace) ・ \(post.displayDate)")
+                    .padding(16)
 
                 if post.isMine {
-                    Text("you")
-                        .font(.system(size: 12, weight: .bold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.white)
-                        .foregroundStyle(.black)
-                        .clipShape(Capsule())
+                    PictriGlassPill(text: "you", tone: .strong)
                         .padding(14)
                         .frame(
                             maxWidth: .infinity,

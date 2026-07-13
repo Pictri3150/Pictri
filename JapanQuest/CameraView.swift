@@ -119,18 +119,6 @@ struct QuestCameraView: View {
         locationManager.distance(to: selectedSpot)
     }
 
-    private var unlockStatusText: String {
-        if developerUnlockMode {
-            return "開発モード"
-        }
-
-        if locationManager.isNear(selectedSpot) {
-            return "撮影できます"
-        }
-
-        return "近づくと解放"
-    }
-
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -160,32 +148,18 @@ struct QuestCameraView: View {
     }
 
     private var cameraHeader: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Camera")
-                    .font(.system(size: 44, weight: .black))
-                    .foregroundStyle(.white)
-
-                Text("\(selectedSpot.name)で撮影")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.46))
-                    .lineLimit(1)
-            }
-
-            Spacer()
-
+        PictriScreenHeader(eyebrow: "CAMERA", title: selectedSpot.name) {
             Button {
                 resetCapture()
                 selectedTab = .home
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 22, weight: .black))
-                    .foregroundStyle(.black)
-                    .frame(width: 56, height: 56)
-                    .background(.white)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .frame(width: 40, height: 40)
+                    .background(.white.opacity(0.10))
                     .clipShape(Circle())
             }
-            .padding(.top, 4)
             .accessibilityLabel("カメラを閉じてホームへ戻る")
         }
     }
@@ -314,74 +288,32 @@ struct QuestCameraView: View {
     }
 
     private var cameraPanelTopControls: some View {
-        VStack(spacing: 10) {
-            HStack {
-                Text(cameraModeText)
-                    .font(.system(size: 14, weight: .black))
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(.white)
-                    .clipShape(Capsule())
+        HStack(alignment: .top) {
+            PictriGlassPill(text: cameraModeText)
 
-                Spacer()
+            Spacer()
 
-                if isCapturingSequence {
-                    Text(sequenceText)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 9)
-                        .background(.black.opacity(0.32))
-                        .clipShape(Capsule())
-                }
+            if isCapturingSequence {
+                PictriGlassPill(text: sequenceText, tone: .muted)
             }
 
-            HStack {
-                Text("\(unlockStatusText) ・ \(locationManager.distanceText(to: selectedSpot))")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.70))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-
-                Spacer()
-
-                #if DEBUG
-                Toggle("", isOn: $developerUnlockMode)
-                    .labelsHidden()
-                    .scaleEffect(0.68)
-                    .accessibilityLabel("開発用: 位置認証を無視して撮影を解放")
-                #endif
-            }
-            .padding(.horizontal, 13)
-            .padding(.vertical, 10)
-            .background(.black.opacity(0.25))
-            .clipShape(
-                RoundedRectangle(
-                    cornerRadius: 16,
-                    style: .continuous
-                )
-            )
+            #if DEBUG
+            Toggle("", isOn: $developerUnlockMode)
+                .labelsHidden()
+                .scaleEffect(0.55)
+                .padding(.horizontal, 2)
+                .background(.black.opacity(0.25), in: Capsule())
+                .accessibilityLabel("開発用: 位置認証を無視して撮影を解放")
+            #endif
         }
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var liveLocationOverlay: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(currentDateText())
-                .font(.system(size: 24, weight: .semibold, design: .monospaced))
-
-            Text(selectedSpot.englishName.lowercased())
-                .font(.system(size: 31, weight: .black, design: .monospaced))
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 11)
-        .background(.white.opacity(0.17))
-        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
-        .padding(22)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        PictriGlassPill(text: selectedSpot.englishName.lowercased(), tone: .muted)
+            .padding(18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
     }
 
     private func frontMiniPreview(image: UIImage) -> some View {
