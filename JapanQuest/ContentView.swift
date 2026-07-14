@@ -21,14 +21,15 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(AppBackground())
 
+            // Camera中は即座に消す。アニメーションを付けると、消えかけのタブバーと
+            // 切り替わった直後のCamera UIが一瞬重なって「崩れ」に見えるため、
+            // 表示・非表示そのものはアニメーションさせない(中身の押下演出は別途維持)。
             if isTabBarVisible {
                 JQFloatingTabBar(selectedTab: $selectedTab)
                     .padding(.horizontal, 18)
                     .padding(.bottom, 8)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.22), value: selectedTab)
         .background(AppBackground())
         .environmentObject(memoryStore)
         .environmentObject(friendStore)

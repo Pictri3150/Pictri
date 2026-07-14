@@ -180,7 +180,7 @@ struct MemoriesView: View {
                 .font(.system(size: 13, weight: .bold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
-                .background(viewMode == mode ? .white : .clear)
+                .background(viewMode == mode ? PictriTheme.teal : .clear)
                 .foregroundStyle(viewMode == mode ? .black : .white.opacity(0.55))
                 .clipShape(Capsule())
         }

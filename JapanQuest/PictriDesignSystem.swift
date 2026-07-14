@@ -290,6 +290,55 @@ struct PictriAccentChip: View {
     }
 }
 
+// MARK: - Status Card
+
+/// 「今どういう状態か」を1枚・1メッセージだけで伝えるカード。
+/// Camera画面で複数の説明文が重なる問題を解消するために、状態表示はここに一本化する。
+struct PictriStatusCard: View {
+    let systemImage: String
+    let title: String
+    var detail: String?
+    var accent: PictriAccentColor = .indigo
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(accent.color)
+                .frame(width: 34, height: 34)
+                .background(accent.color.opacity(0.16))
+                .clipShape(Circle())
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+
+                if let detail {
+                    Text(detail)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.44))
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(PictriTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous)
+                .stroke(.white.opacity(0.08), lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
 // MARK: - Glass Pill
 
 /// カメラモード表示やMapバッジなど、プレビュー上に浮かせる小さな半透明ピル。

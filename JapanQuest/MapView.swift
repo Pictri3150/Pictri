@@ -100,9 +100,15 @@ struct QuestMapView: View {
 
     private var mapPanelBadge: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("神奈川")
-                .font(.system(size: 19, weight: .bold))
-                .foregroundStyle(.black)
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(PictriTheme.accent)
+                    .frame(width: 7, height: 7)
+
+                Text("神奈川")
+                    .font(.system(size: 19, weight: .bold))
+                    .foregroundStyle(.black)
+            }
 
             Text("\(completedCount) / 24 スポット撮影済み")
                 .font(.system(size: 12, weight: .semibold))

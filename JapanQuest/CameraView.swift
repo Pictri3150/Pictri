@@ -120,14 +120,86 @@ struct QuestCameraView: View {
         locationManager.distance(to: selectedSpot)
     }
 
+    /// プレビュー全体を覆う「決定的な」ブロック状態。この2つだけは全画面で強く見せる。
+    /// それ以外(範囲外・シミュレーター・準備完了・保存済み)は下のstatusCard 1枚に集約する。
+    private enum BlockingState: Equatable {
+        case cameraDenied
+        case locationDenied
+        case none
+    }
+
+    private var blockingState: BlockingState {
+        if isCameraPermissionBlocking { return .cameraDenied }
+        if isLocationPermissionBlocking { return .locationDenied }
+        return .none
+    }
+
+    private enum StatusMessage {
+        case reviewing
+        case saved
+        case outOfRange(distanceText: String)
+        case cameraUnavailable
+        case ready
+    }
+
+    private var statusMessage: StatusMessage {
+        if hasSaved { return .saved }
+        if previewImage != nil { return .reviewing }
+        if !isUnlocked { return .outOfRange(distanceText: locationManager.distanceText(to: selectedSpot)) }
+        if !cameraService.isCameraAvailable { return .cameraUnavailable }
+        return .ready
+    }
+
+    @ViewBuilder
+    private var statusCard: some View {
+        switch statusMessage {
+        case .reviewing:
+            PictriStatusCard(
+                systemImage: "photo.on.rectangle.angled",
+                title: "この2枚で残す?",
+                accent: .indigo
+            )
+        case .saved:
+            PictriStatusCard(
+                systemImage: "checkmark.circle.fill",
+                title: "メモリーに保存しました",
+                accent: .teal
+            )
+        case .outOfRange(let distanceText):
+            PictriStatusCard(
+                systemImage: "figure.walk",
+                title: "近づくと撮れる",
+                detail: "現在地から \(distanceText)",
+                accent: .indigo
+            )
+        case .cameraUnavailable:
+            PictriStatusCard(
+                systemImage: "sparkles",
+                title: "外の景色と、あなたの表情を一緒に残します",
+                detail: "シミュレーターでは見本で撮影します",
+                accent: .indigo
+            )
+        case .ready:
+            PictriStatusCard(
+                systemImage: "camera.aperture",
+                title: "外の景色と、あなたの表情を一緒に残します",
+                accent: .indigo
+            )
+        }
+    }
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 14) {
                 cameraHeader
 
                 cameraPanel
+
+                if blockingState == .none {
+                    statusCard
+                }
 
                 cameraBottomArea
 
@@ -170,32 +242,31 @@ struct QuestCameraView: View {
         ZStack {
             cameraLayer
 
-            if !isCameraPermissionBlocking {
+            if blockingState == .none {
                 liveLocationOverlay
 
                 if let frontImage, previewImage == nil {
                     frontMiniPreview(image: frontImage)
                 }
+
+                cameraPanelTopControls
             }
 
-            if isCameraPermissionBlocking {
+            switch blockingState {
+            case .cameraDenied:
                 PictriPermissionBlock(kind: .cameraDenied)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(.black.opacity(0.62))
-            } else if isLocationPermissionBlocking {
+            case .locationDenied:
                 PictriPermissionBlock(kind: .locationDenied)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(.black.opacity(0.58))
-            } else if !isUnlocked {
-                lockedOverlay
+            case .none:
+                EmptyView()
             }
 
             if let countdownNumber {
                 countdownOverlay(number: countdownNumber)
-            }
-
-            if !isCameraPermissionBlocking && !isLocationPermissionBlocking {
-                cameraPanelTopControls
             }
         }
         .frame(height: panelHeight)
@@ -233,13 +304,19 @@ struct QuestCameraView: View {
                 QuestCameraPreview(session: cameraService.session)
                     .frame(height: panelHeight)
                     .clipped()
-            } else if !cameraService.isCameraAvailable {
-                demoCameraBackground
-                    .overlay(alignment: .center) {
-                        PictriPermissionBlock(kind: .cameraUnavailable, isCompact: true)
-                    }
             } else {
                 demoCameraBackground
+            }
+
+            if !cameraService.isCameraAvailable && previewImage == nil {
+                VStack {
+                    HStack {
+                        Spacer()
+                        PictriGlassPill(text: "サンプル表示", systemImage: "sparkles", tone: .muted)
+                    }
+                    Spacer()
+                }
+                .padding(18)
             }
 
             LinearGradient(
@@ -342,18 +419,6 @@ struct QuestCameraView: View {
             .padding(.top, 76)
             .padding(.leading, 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private var lockedOverlay: some View {
-        Color.black.opacity(0.58)
-            .overlay {
-                PictriPermissionBlock(
-                    kind: .outOfRange(
-                        spotName: selectedSpot.name,
-                        distanceText: locationManager.distanceText(to: selectedSpot)
-                    )
-                )
-            }
     }
 
     private func countdownOverlay(number: Int) -> some View {
@@ -597,16 +662,8 @@ struct QuestCameraView: View {
                 }
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
-
-            Text(hasSaved
-                ? "メモリーに保存しました"
-                : "外の景色と、あなたの表情を一緒に残します"
-            )
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(.white.opacity(0.42))
-            .frame(maxWidth: .infinity, alignment: .center)
-            .animation(.easeInOut(duration: 0.22), value: hasSaved)
         }
+        .animation(.easeInOut(duration: 0.22), value: hasSaved)
     }
 
     private var captureControls: some View {
@@ -629,6 +686,10 @@ struct QuestCameraView: View {
                     .frame(width: 68, height: 68)
                     .background(.white.opacity(0.13))
                     .clipShape(Circle())
+                    .overlay {
+                        Circle()
+                            .stroke(PictriTheme.accent.opacity(0.35), lineWidth: 1.5)
+                    }
                 }
                 .disabled(isCapturingSequence)
                 .accessibilityLabel(cameraService.currentPosition == .front ? "外カメラに切り替え" : "内カメラに切り替え")

@@ -186,6 +186,7 @@ struct HomeView: View {
                         .frame(width: 48, height: 48)
                         .background(.white)
                         .clipShape(Circle())
+                        .shadow(color: PictriTheme.accent.opacity(0.35), radius: 10)
                 }
 
                 Button {
