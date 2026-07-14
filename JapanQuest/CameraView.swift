@@ -642,6 +642,7 @@ struct QuestCameraView: View {
             if let previewImage {
                 previewActions(previewImage: previewImage)
             } else {
+                twoStepIndicator
                 captureControls
             }
 
@@ -664,6 +665,36 @@ struct QuestCameraView: View {
             }
         }
         .animation(.easeInOut(duration: 0.22), value: hasSaved)
+    }
+
+    /// 「外カメ+内カメで2枚残す」という体験を、文章ではなく2つのステップとして見せる。
+    private var twoStepIndicator: some View {
+        HStack(spacing: 10) {
+            stepPill(label: "景色", systemImage: "mountain.2.fill", isDone: backImage != nil)
+
+            Image(systemName: "arrow.right")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white.opacity(0.28))
+
+            stepPill(label: "表情", systemImage: "face.smiling.fill", isDone: frontImage != nil)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private func stepPill(label: String, systemImage: String, isDone: Bool) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: isDone ? "checkmark.circle.fill" : systemImage)
+                .font(.system(size: 11, weight: .bold))
+
+            Text(label)
+                .font(.system(size: 11, weight: .bold))
+        }
+        .foregroundStyle(isDone ? PictriTheme.teal : .white.opacity(0.42))
+        .padding(.horizontal, 11)
+        .padding(.vertical, 6)
+        .background(isDone ? PictriTheme.tealSoft : .white.opacity(0.06))
+        .clipShape(Capsule())
+        .animation(.easeOut(duration: 0.18), value: isDone)
     }
 
     private var captureControls: some View {

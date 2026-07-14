@@ -25,15 +25,26 @@ struct QuestMapView: View {
         memoryStore.completedCount(prefectureId: "kanagawa")
     }
 
+    private var nextSpotsToCapture: [QuestSpot] {
+        kanagawaSpots
+            .filter { !completedSpotIds.contains($0.id) }
+            .prefix(6)
+            .map { $0 }
+    }
+
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
                 AppBackground()
 
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 16) {
                     mapHeader
 
                     mapPanel
+
+                    if !nextSpotsToCapture.isEmpty {
+                        discoverySpotsSection
+                    }
 
                     Spacer(minLength: JQUI.bottomBarReserve)
                 }
@@ -96,6 +107,55 @@ struct QuestMapView: View {
             )
             .stroke(.white.opacity(0.10), lineWidth: 1)
         }
+    }
+
+    /// 地図を「貼っただけ」に見せないための、Pictri独自の発見パネル。
+    /// 数字ではなく「次に残せる場所」を主役にする。
+    private var discoverySpotsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("次に残せるスポット")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(.white.opacity(0.85))
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(nextSpotsToCapture) { spot in
+                        Button {
+                            path.append(spot)
+                        } label: {
+                            discoverySpotCard(spot)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(spot.name)、\(spot.areaName)。スポット詳細を開く")
+                    }
+                }
+            }
+        }
+    }
+
+    private func discoverySpotCard(_ spot: QuestSpot) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(MemoryVisualStyle.gradient(for: spot))
+                .frame(width: 128, height: 72)
+                .overlay {
+                    Image(systemName: "mappin.and.ellipse")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.92))
+                }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(spot.name)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+
+                Text(spot.areaName)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+        }
+        .frame(width: 128, alignment: .leading)
     }
 
     private var mapPanelBadge: some View {

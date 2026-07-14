@@ -42,6 +42,8 @@ struct ContentView: View {
     /// Releaseビルドでは常にhomeから始まる(このstatic funcごと存在しない)。
     private static func resolveInitialTab() -> AppTab {
         #if DEBUG
+        configureDevUnlockFromLaunchArguments()
+
         let arguments = ProcessInfo.processInfo.arguments
         guard let flagIndex = arguments.firstIndex(of: "-pictriStartTab"),
               arguments.indices.contains(flagIndex + 1) else {
@@ -59,6 +61,23 @@ struct ContentView: View {
         return .home
         #endif
     }
+
+    #if DEBUG
+    /// `-pictriDevUnlock true` でCameraの「撮影可能」状態を自動スクショ確認できるようにする。
+    /// 既存のCamera内DEBUGトグルと同じ `@AppStorage("developerUnlockMode")` キーに書き込むだけなので、
+    /// 挙動は「起動時に手動トグルを事前にオンにしておく」のと完全に同じ(=QA後は手動でオフにする想定)。
+    private static func configureDevUnlockFromLaunchArguments() {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let flagIndex = arguments.firstIndex(of: "-pictriDevUnlock"),
+              arguments.indices.contains(flagIndex + 1) else {
+            return
+        }
+
+        if arguments[flagIndex + 1].lowercased() == "true" {
+            UserDefaults.standard.set(true, forKey: "developerUnlockMode")
+        }
+    }
+    #endif
 
     @ViewBuilder
     private var activeScreen: some View {
@@ -202,7 +221,7 @@ enum AppTab: Hashable, CaseIterable {
 enum JQUI {
     static let sidePadding: CGFloat = 18
     static let screenTopPadding: CGFloat = 70
-    static let panelHeight: CGFloat = 540
+    static let panelHeight: CGFloat = 430
     static let panelCornerRadius: CGFloat = 34
     static let bottomBarReserve: CGFloat = 116
 }

@@ -244,6 +244,22 @@ struct ExplorePhotoCard: View {
             )
 
             cardCaption
+
+            // 「外カメ+内カメで残した記憶」であることを、Exploreでも静かに思い出させる。
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(.black.opacity(0.30))
+                .frame(width: 30, height: 40)
+                .overlay {
+                    Image(systemName: "person.crop.rectangle")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .stroke(PictriTheme.accent.opacity(0.5), lineWidth: 1)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         }
         .clipShape(RoundedRectangle(cornerRadius: 22))
         .overlay {

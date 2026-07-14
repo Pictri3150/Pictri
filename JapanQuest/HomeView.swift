@@ -41,6 +41,19 @@ struct HomeView: View {
         return "\(latest.username)が\(latest.displayPlace)で新しい記録を残したよ"
     }
 
+    /// 直近7日で旅を残した友達(自分は除く)。Heroに「友達が生きている」感を出すための最小情報。
+    private var recentFriendUsernames: [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for post in visiblePosts where !post.isMine {
+            guard !seen.contains(post.username) else { continue }
+            seen.insert(post.username)
+            result.append(post.username)
+            if result.count == 3 { break }
+        }
+        return result
+    }
+
     private var heroHeadline: String {
         if completedSpotCount == 0 {
             return "最初の一枚を、現地で残そう"
@@ -165,6 +178,10 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     VStack(alignment: .leading, spacing: 5) {
+                        if !recentFriendUsernames.isEmpty {
+                            friendActivityRow
+                        }
+
                         Text(heroHeadline)
                             .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(.white)
@@ -210,6 +227,33 @@ struct HomeView: View {
             RoundedRectangle(cornerRadius: PictriTheme.cornerLarge)
                 .stroke(.white.opacity(0.08), lineWidth: 1)
         }
+    }
+
+    /// 「友達の旅が生きている」ことを、文章より先に色とイニシャルで一目で伝える小さな列。
+    private var friendActivityRow: some View {
+        HStack(spacing: -8) {
+            ForEach(Array(recentFriendUsernames.enumerated()), id: \.offset) { index, username in
+                Circle()
+                    .fill(HomeFriendColor.accent(for: username).opacity(0.85))
+                    .frame(width: 22, height: 22)
+                    .overlay {
+                        Text(String(username.prefix(1)).uppercased())
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.black)
+                    }
+                    .overlay {
+                        Circle().stroke(PictriTheme.backgroundTop, lineWidth: 2)
+                    }
+                    .zIndex(Double(3 - index))
+            }
+
+            Text("友達の旅が動いてる")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white.opacity(0.55))
+                .padding(.leading, 12)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("友達の旅が動いています")
     }
 
     private var nextSpotSection: some View {
@@ -312,6 +356,19 @@ struct HomeView: View {
     }
 }
 
+// MARK: - Friend Color
+
+/// 友達ごとに一定の色味を持たせるための共有ヘルパー。
+/// Swiftの String.hashValue はプロセスごとにランダム化されるため使わず、
+/// UTF8バイトの単純な合計で、再起動しても同じユーザーには同じ色が付くようにする。
+enum HomeFriendColor {
+    static func accent(for username: String) -> Color {
+        let palette: [Color] = [PictriTheme.accent, PictriTheme.warm, .white.opacity(0.7)]
+        let stableSeed = username.utf8.reduce(0) { $0 + Int($1) }
+        return palette[stableSeed % palette.count]
+    }
+}
+
 // MARK: - Feed Cards
 
 struct HomeLargePostCard: View {
@@ -330,9 +387,28 @@ struct HomeLargePostCard: View {
         mockQuestSpots.first { $0.id == post.spotId }
     }
 
+    /// 投稿一覧っぽさを減らすための、短い旅の空気感コピー。
+    /// 投稿ごとに固定(再起動しても同じ投稿には同じ文が付く)。
+    private var travelMoodCaption: String {
+        let phrases = [
+            "この景色を、そのまま残した",
+            "現地の空気ごと持ち帰った1枚",
+            "ここでしか撮れない瞬間",
+            "旅の途中で見つけた景色",
+            "少し歩いて、たどり着いた場所"
+        ]
+        let stableSeed = post.id.utf8.reduce(0) { $0 + Int($1) }
+        return phrases[stableSeed % phrases.count]
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
             postHeader
+
+            Text(travelMoodCaption)
+                .font(.system(size: 12, weight: .medium))
+                .italic()
+                .foregroundStyle(.white.opacity(0.42))
 
             ZStack(alignment: .bottomLeading) {
                 postVisual
@@ -358,18 +434,8 @@ struct HomeLargePostCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 26))
     }
 
-    /// 友達ごとに一定の色味を持たせて「誰の記録か」が一目で分かるようにする。
-    /// Swiftの String.hashValue はプロセスごとにランダム化されるため使わず、
-    /// UTF8バイトの単純な合計で、再起動しても同じユーザーには同じ色が付くようにする。
     private var avatarAccent: Color {
-        let palette: [Color] = [
-            PictriTheme.accent,
-            PictriTheme.warm,
-            .white.opacity(0.7)
-        ]
-        let stableSeed = post.username.utf8.reduce(0) { $0 + Int($1) }
-        let index = stableSeed % palette.count
-        return palette[index]
+        HomeFriendColor.accent(for: post.username)
     }
 
     private var postHeader: some View {
