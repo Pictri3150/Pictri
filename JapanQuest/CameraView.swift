@@ -206,7 +206,7 @@ struct QuestCameraView: View {
                 Spacer(minLength: 8)
             }
             .padding(.horizontal, JQUI.sidePadding)
-            .padding(.top, 22)
+            .padding(.top, JQUI.screenTopPadding)
             .padding(.bottom, 14)
         }
         .onAppear {
@@ -335,8 +335,8 @@ struct QuestCameraView: View {
     private var demoCameraBackground: some View {
         LinearGradient(
             colors: [
-                Color(red: 0.54, green: 0.53, blue: 0.49),
-                Color(red: 0.20, green: 0.22, blue: 0.23),
+                PictriTheme.accent.opacity(0.34),
+                Color(red: 0.30, green: 0.24, blue: 0.30),
                 Color.black
             ],
             startPoint: .topLeading,

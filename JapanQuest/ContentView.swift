@@ -3,7 +3,7 @@ import CoreLocation
 import Combine
 
 struct ContentView: View {
-    @State private var selectedTab: AppTab = .home
+    @State private var selectedTab: AppTab = ContentView.resolveInitialTab()
     @State private var activeCameraSpotId: String = "enoshima_coast"
     @StateObject private var memoryStore = QuestMemoryStore()
     @StateObject private var friendStore = QuestFriendStore()
@@ -34,6 +34,30 @@ struct ContentView: View {
         .environmentObject(memoryStore)
         .environmentObject(friendStore)
         .environmentObject(locationManager)
+    }
+
+    /// DEBUGビルド限定・目視QA専用の起動引数対応。
+    /// `-pictriStartTab home|map|camera|memories` でSimulator起動時に
+    /// 直接そのタブを開けるようにし、自動タップに頼らずスクリーンショットを取得できるようにする。
+    /// Releaseビルドでは常にhomeから始まる(このstatic funcごと存在しない)。
+    private static func resolveInitialTab() -> AppTab {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let flagIndex = arguments.firstIndex(of: "-pictriStartTab"),
+              arguments.indices.contains(flagIndex + 1) else {
+            return .home
+        }
+
+        switch arguments[flagIndex + 1] {
+        case "home": return .home
+        case "map": return .map
+        case "camera": return .camera
+        case "memories": return .memories
+        default: return .home
+        }
+        #else
+        return .home
+        #endif
     }
 
     @ViewBuilder
