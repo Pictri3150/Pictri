@@ -215,6 +215,8 @@ struct QuestCameraView: View {
             if locationManager.authorizationStatus == .notDetermined {
                 locationManager.requestPermission()
             }
+
+            applyDebugScenarioIfRequested()
         }
         .onDisappear {
             cameraService.stopSession()
@@ -242,10 +244,12 @@ struct QuestCameraView: View {
         ZStack {
             cameraLayer
 
-            if blockingState == .none {
+            // 撮影済みプレビュー(previewImage)には、日付+地名が既に画像へ焼き込み済みで、
+            // 写真そのものが主役になるべきなので、ライブ中のオーバーレイ類は撮影前だけに限定する。
+            if blockingState == .none && previewImage == nil {
                 liveLocationOverlay
 
-                if let frontImage, previewImage == nil {
+                if let frontImage {
                     frontMiniPreview(image: frontImage)
                 }
 
@@ -308,17 +312,6 @@ struct QuestCameraView: View {
                 demoCameraBackground
             }
 
-            if !cameraService.isCameraAvailable && previewImage == nil {
-                VStack {
-                    HStack {
-                        Spacer()
-                        PictriGlassPill(text: "サンプル表示", systemImage: "sparkles", tone: .muted)
-                    }
-                    Spacer()
-                }
-                .padding(18)
-            }
-
             LinearGradient(
                 colors: [
                     .black.opacity(0.34),
@@ -374,6 +367,10 @@ struct QuestCameraView: View {
 
             if isCapturingSequence {
                 PictriGlassPill(text: sequenceText, tone: .muted)
+            } else if !cameraService.isCameraAvailable {
+                // 実機カメラが使えない(主にSimulator)場合のみ表示。撮影シーケンス中は
+                // sequenceTextと同じ位置を取り合うため、片方だけを出す。
+                PictriGlassPill(text: "サンプル表示", systemImage: "sparkles", tone: .muted)
             }
 
             #if DEBUG
@@ -629,6 +626,34 @@ struct QuestCameraView: View {
         isCapturingSequence = false
         countdownNumber = nil
         capturePhase = .idle
+    }
+
+    /// `-pictriCameraScenario ready|review|saved` で撮影前後の主要な見た目を直接スクショ確認できるようにする。
+    /// DEBUG限定。実際のカメラセッションや `memoryStore.save()`(UserDefaults/Documents書き込み)には
+    /// 一切触れず、既存のデモ画像生成(`QuestDemoPhotoMaker`)を使って画面の状態だけを再現する。
+    private func applyDebugScenarioIfRequested() {
+        #if DEBUG
+        guard let scenario = PictriVisualReview.cameraScenario else { return }
+
+        switch scenario {
+        case .ready:
+            break
+
+        case .review, .saved:
+            let demoBack = QuestDemoPhotoMaker.makePhoto(spot: selectedSpot, isFrontCamera: false)
+            let demoFront = QuestDemoPhotoMaker.makePhoto(spot: selectedSpot, isFrontCamera: true)
+
+            backImage = demoBack
+            frontImage = demoFront
+            previewImage = QuestDualPhotoComposer.compose(
+                backImage: demoBack,
+                frontImage: demoFront,
+                spot: selectedSpot
+            )
+            capturePhase = .preview
+            hasSaved = (scenario == .saved)
+        }
+        #endif
     }
 
     private func currentDateText() -> String {
@@ -892,7 +917,13 @@ enum QuestDemoPhotoMaker {
             )
         )
 
-        let title = isFrontCamera ? "front camera" : spot.englishName.lowercased()
+        // 外カメ(isFrontCamera: false)側の画像は最終的に合成写真の全面背景になり、
+        // QuestDualPhotoComposer.drawLocationText が同じ左下エリアに日付+地名のラベルを
+        // 別途描くため、ここでも地名を焼き込むと文字が二重に重なってしまう。
+        // 内カメ側は小さなインセット枠にしか使われず他のラベルと競合しないため、そのまま残す。
+        guard isFrontCamera else { return }
+
+        let title = "front camera"
         let attributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.monospacedSystemFont(ofSize: 42, weight: .semibold),
             .foregroundColor: UIColor.white.withAlphaComponent(0.28)

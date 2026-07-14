@@ -51,6 +51,9 @@ struct QuestMapView: View {
                 .padding(.horizontal, JQUI.sidePadding)
                 .padding(.top, JQUI.screenTopPadding)
             }
+            .onAppear {
+                openDebugSpotIfRequested()
+            }
             .navigationDestination(for: QuestSpot.self) { spot in
                 QuestSpotDetailView(
                     spot: spot,
@@ -59,6 +62,19 @@ struct QuestMapView: View {
                 )
             }
         }
+    }
+
+    /// `-pictriMapSpot <spotId>` でSpotDetailを直接スクショ確認できるようにする。DEBUG限定。
+    /// 不正なspotIdの場合は何もしない(通常のMap表示のまま)。既存のnavigationDestination構造は無変更。
+    private func openDebugSpotIfRequested() {
+        #if DEBUG
+        guard path.isEmpty,
+              let spotId = PictriVisualReview.mapSpotId,
+              let spot = mockQuestSpots.first(where: { $0.id == spotId }) else {
+            return
+        }
+        path.append(spot)
+        #endif
     }
 
     private var mapHeader: some View {

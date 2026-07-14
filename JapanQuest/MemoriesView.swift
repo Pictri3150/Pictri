@@ -18,9 +18,19 @@ private struct ExploreItem: Identifiable {
 
 struct MemoriesView: View {
     @EnvironmentObject var memoryStore: QuestMemoryStore
-    @State private var viewMode: MemoriesViewMode = .collect
+    @State private var viewMode: MemoriesViewMode = MemoriesView.resolveInitialMode()
     @State private var selectedExploreItem: ExploreItem?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// `-pictriMemoriesMode collect|explore` でExploreを直接スクショ確認できるようにする。
+    /// DEBUG限定。Releaseでは常にcollectから始まる(既存の通常操作は無変更)。
+    private static func resolveInitialMode() -> MemoriesViewMode {
+        #if DEBUG
+        return PictriVisualReview.memoriesMode ?? .collect
+        #else
+        return .collect
+        #endif
+    }
 
     var body: some View {
         NavigationStack {

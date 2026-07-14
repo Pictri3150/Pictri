@@ -2,6 +2,65 @@ import SwiftUI
 import CoreLocation
 import Combine
 
+#if DEBUG
+/// DEBUGビルド限定・目視QA専用の起動引数を1箇所にまとめたもの。
+/// 各画面(Map / Camera / Memories)はここだけを見ればよく、
+/// `ProcessInfo.processInfo.arguments` を各ファイルで個別にパースしない。
+/// Releaseビルドではこの型ごと存在しないため、本番機能として誤って残る心配がない。
+enum PictriVisualReview {
+    private static var arguments: [String] { ProcessInfo.processInfo.arguments }
+
+    private static func value(for flag: String) -> String? {
+        guard let index = arguments.firstIndex(of: flag),
+              arguments.indices.contains(index + 1) else {
+            return nil
+        }
+        return arguments[index + 1]
+    }
+
+    static var startTab: AppTab? {
+        switch value(for: "-pictriStartTab") {
+        case "home": return .home
+        case "map": return .map
+        case "camera": return .camera
+        case "memories": return .memories
+        default: return nil
+        }
+    }
+
+    static var devUnlockRequested: Bool {
+        value(for: "-pictriDevUnlock")?.lowercased() == "true"
+    }
+
+    static var memoriesMode: MemoriesViewMode? {
+        switch value(for: "-pictriMemoriesMode") {
+        case "explore": return .explore
+        case "collect": return .collect
+        default: return nil
+        }
+    }
+
+    static var mapSpotId: String? {
+        value(for: "-pictriMapSpot")
+    }
+
+    static var cameraScenario: PictriCameraVisualScenario? {
+        switch value(for: "-pictriCameraScenario") {
+        case "ready": return .ready
+        case "review": return .review
+        case "saved": return .saved
+        default: return nil
+        }
+    }
+}
+
+enum PictriCameraVisualScenario: Equatable {
+    case ready
+    case review
+    case saved
+}
+#endif
+
 struct ContentView: View {
     @State private var selectedTab: AppTab = ContentView.resolveInitialTab()
     @State private var activeCameraSpotId: String = "enoshima_coast"
@@ -42,42 +101,14 @@ struct ContentView: View {
     /// Releaseビルドでは常にhomeから始まる(このstatic funcごと存在しない)。
     private static func resolveInitialTab() -> AppTab {
         #if DEBUG
-        configureDevUnlockFromLaunchArguments()
-
-        let arguments = ProcessInfo.processInfo.arguments
-        guard let flagIndex = arguments.firstIndex(of: "-pictriStartTab"),
-              arguments.indices.contains(flagIndex + 1) else {
-            return .home
+        if PictriVisualReview.devUnlockRequested {
+            UserDefaults.standard.set(true, forKey: "developerUnlockMode")
         }
-
-        switch arguments[flagIndex + 1] {
-        case "home": return .home
-        case "map": return .map
-        case "camera": return .camera
-        case "memories": return .memories
-        default: return .home
-        }
+        return PictriVisualReview.startTab ?? .home
         #else
         return .home
         #endif
     }
-
-    #if DEBUG
-    /// `-pictriDevUnlock true` でCameraの「撮影可能」状態を自動スクショ確認できるようにする。
-    /// 既存のCamera内DEBUGトグルと同じ `@AppStorage("developerUnlockMode")` キーに書き込むだけなので、
-    /// 挙動は「起動時に手動トグルを事前にオンにしておく」のと完全に同じ(=QA後は手動でオフにする想定)。
-    private static func configureDevUnlockFromLaunchArguments() {
-        let arguments = ProcessInfo.processInfo.arguments
-        guard let flagIndex = arguments.firstIndex(of: "-pictriDevUnlock"),
-              arguments.indices.contains(flagIndex + 1) else {
-            return
-        }
-
-        if arguments[flagIndex + 1].lowercased() == "true" {
-            UserDefaults.standard.set(true, forKey: "developerUnlockMode")
-        }
-    }
-    #endif
 
     @ViewBuilder
     private var activeScreen: some View {
