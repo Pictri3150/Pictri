@@ -670,26 +670,7 @@ struct QuestCameraView: View {
                 twoStepIndicator
                 captureControls
             }
-
-            if hasSaved {
-                Button {
-                    selectedTab = .memories
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "square.grid.2x2.fill")
-                        Text("メモリーで確認する")
-                    }
-                    .font(.system(size: 15, weight: .bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(.white)
-                    .foregroundStyle(.black)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                }
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-            }
         }
-        .animation(.easeInOut(duration: 0.22), value: hasSaved)
     }
 
     /// 「外カメ+内カメで2枚残す」という体験を、文章ではなく2つのステップとして見せる。
@@ -800,26 +781,32 @@ struct QuestCameraView: View {
             }
 
             Button {
-                memoryStore.save(
-                    image: previewImage,
-                    for: selectedSpot,
-                    verificationStatus: currentProofStatus,
-                    verifiedDistanceMeters: currentDistanceMeters
-                )
+                if hasSaved {
+                    // 保存後は同じボタンをMemoriesへの導線として使い、
+                    // 3つ目のボタンを別枠で追加しない(画面下部がはみ出るため)。
+                    selectedTab = .memories
+                } else {
+                    memoryStore.save(
+                        image: previewImage,
+                        for: selectedSpot,
+                        verificationStatus: currentProofStatus,
+                        verifiedDistanceMeters: currentDistanceMeters
+                    )
 
-                withAnimation(.easeInOut(duration: 0.22)) {
-                    hasSaved = true
+                    withAnimation(.easeInOut(duration: 0.22)) {
+                        hasSaved = true
+                    }
                 }
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: hasSaved ? "checkmark.circle.fill" : "bookmark.fill")
-                    Text(hasSaved ? "保存済み" : "メモリーに保存")
+                    Image(systemName: hasSaved ? "square.grid.2x2.fill" : "bookmark.fill")
+                    Text(hasSaved ? "メモリーで確認する" : "メモリーに保存")
                 }
                 .font(.system(size: 15, weight: .black))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 15)
-                .background(hasSaved ? .white.opacity(0.14) : .white)
-                .foregroundStyle(hasSaved ? .white.opacity(0.88) : .black)
+                .background(.white)
+                .foregroundStyle(.black)
                 .clipShape(
                     RoundedRectangle(
                         cornerRadius: 18,
@@ -827,7 +814,6 @@ struct QuestCameraView: View {
                     )
                 )
             }
-            .disabled(hasSaved)
         }
     }
 }

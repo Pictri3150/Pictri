@@ -67,20 +67,44 @@ struct MemoriesView: View {
     // MARK: - Explore
 
     private var exploreBody: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            memoriesHeader
-                .padding(.horizontal, 16)
-                .padding(.top, 18)
+        // GeometryReaderで実測した高さをVStackへ明示frameで渡す。こうしないと
+        // 内部のSpacerがVStackの「内容に応じた高さ」基準で解決され、意図した
+        // 余白配分にならず、下部がタブバーに潜り込むことがあるため。
+        GeometryReader { proxy in
+            VStack(alignment: .leading, spacing: 0) {
+                memoriesHeader
+                    .padding(.horizontal, 16)
+                    .padding(.top, 18)
 
-            if exploreItems.isEmpty {
-                Spacer()
-                exploreEmptyState
-                Spacer()
-            } else {
-                Spacer()
-                exploreCarousel
-                Spacer(minLength: 90)
+                if exploreItems.isEmpty {
+                    Spacer()
+                    exploreEmptyState
+                    Spacer()
+                } else {
+                    exploreCaption
+                        .padding(.horizontal, 16)
+                        .padding(.top, 26)
+                        .padding(.bottom, 22)
+
+                    exploreCarousel(cardWidth: 288, cardHeight: 424)
+                    Spacer(minLength: JQUI.bottomBarReserve)
+                }
             }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+        }
+    }
+
+    /// カルーセル上の大きな空白を、意味のある一言(記憶の枚数)で埋める。
+    /// 単なる横スクロール写真一覧ではなく「記憶をめくる」体験だと伝える役割も兼ねる。
+    private var exploreCaption: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "hand.draw.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(PictriTheme.teal)
+
+            Text("スワイプして記憶をめくる ・ \(exploreItems.count)枚")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.55))
         }
     }
 
@@ -94,9 +118,7 @@ struct MemoriesView: View {
         }
     }
 
-    private var exploreCarousel: some View {
-        let cardWidth: CGFloat = 264
-        let cardHeight: CGFloat = 390
+    private func exploreCarousel(cardWidth: CGFloat, cardHeight: CGFloat) -> some View {
         let screenWidth = UIScreen.main.bounds.width
         let sidePadding = (screenWidth - cardWidth) / 2
         let isMotionReduced = reduceMotion

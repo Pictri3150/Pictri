@@ -28,8 +28,14 @@ enum PictriVisualReview {
         }
     }
 
-    static var devUnlockRequested: Bool {
-        value(for: "-pictriDevUnlock")?.lowercased() == "true"
+    /// `-pictriDevUnlock true|false` で developerUnlockMode を明示的に上書きする。
+    /// 引数なし(nil)の場合は既存値をそのまま維持する。
+    static var devUnlockOverride: Bool? {
+        switch value(for: "-pictriDevUnlock")?.lowercased() {
+        case "true": return true
+        case "false": return false
+        default: return nil
+        }
     }
 
     static var memoriesMode: MemoriesViewMode? {
@@ -101,8 +107,8 @@ struct ContentView: View {
     /// Releaseビルドでは常にhomeから始まる(このstatic funcごと存在しない)。
     private static func resolveInitialTab() -> AppTab {
         #if DEBUG
-        if PictriVisualReview.devUnlockRequested {
-            UserDefaults.standard.set(true, forKey: "developerUnlockMode")
+        if let devUnlockOverride = PictriVisualReview.devUnlockOverride {
+            UserDefaults.standard.set(devUnlockOverride, forKey: "developerUnlockMode")
         }
         return PictriVisualReview.startTab ?? .home
         #else

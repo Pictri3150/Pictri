@@ -249,7 +249,7 @@ struct QuestSpotDetailView: View {
                     statusCard
                     actionButton
                     memoryPreview
-                    Spacer(minLength: 80)
+                    Spacer(minLength: JQUI.bottomBarReserve)
                 }
                 .padding(16)
             }

@@ -50,7 +50,13 @@ final class QuestLocationManager: NSObject, ObservableObject, CLLocationManagerD
         }
 
         if distance >= 1000 {
-            return String(format: "%.1fkm", distance / 1000)
+            let kilometers = distance / 1000
+            // Simulatorの既定位置など遠方では小数点が無意味に精密に見えるため、
+            // 100km以上は整数に丸める(isNear/canCaptureの判定ロジックには無関係)。
+            if kilometers >= 100 {
+                return String(format: "%.0fkm", kilometers)
+            }
+            return String(format: "%.1fkm", kilometers)
         } else {
             return "\(Int(distance))m"
         }
