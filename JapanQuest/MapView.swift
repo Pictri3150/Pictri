@@ -372,6 +372,13 @@ struct QuestSpotDetailView: View {
         }
     }
 
+    /// 撮影済みスポットへ戻ってきた時は「もう一枚残す」、初めてのスポットは
+    /// 「この場所で撮る」と分けることで、Pictriの「現地で残す」体験を強調する。
+    private var actionButtonLabel: String {
+        guard isUnlocked else { return "現地に行くと撮れます" }
+        return isCompleted ? "もう一枚、ここで残す" : "この場所で撮る"
+    }
+
     private var actionButton: some View {
         Button {
             guard isUnlocked else {
@@ -383,7 +390,7 @@ struct QuestSpotDetailView: View {
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: isUnlocked ? "camera.fill" : "location.fill")
-                Text(isUnlocked ? "この場所で撮る" : "現地に行くと撮れます")
+                Text(actionButtonLabel)
             }
             .font(.system(size: 17, weight: .bold))
             .frame(maxWidth: .infinity)
