@@ -790,12 +790,53 @@ struct FixedEmptySpotCell: View {
 
 // MARK: - Explore Photo Detail Sheet
 
+/// QuestDualPhotoComposer.compose が内カメラ写真を焼き込む位置
+/// (x:58, y:78, w:286, h:382 / canvas 1080x1920)を同じ比率で切り出す。
+/// 保存された写真は必ずこのcomposer経由(CameraViewの保存ボタンのみがmemoryStore.saveを呼ぶ)
+/// なので、別途内カメラ画像を保存しなくても実際に撮影された表情をそのまま表示できる。
+private extension UIImage {
+    var pictriInnerCameraCrop: UIImage? {
+        guard let cgImage else { return nil }
+        let width = CGFloat(cgImage.width)
+        let height = CGFloat(cgImage.height)
+        let cropRect = CGRect(
+            x: width * (58.0 / 1080.0),
+            y: height * (78.0 / 1920.0),
+            width: width * (286.0 / 1080.0),
+            height: height * (382.0 / 1920.0)
+        ).integral
+        guard cropRect.width > 0, cropRect.height > 0,
+              let cropped = cgImage.cropping(to: cropRect) else {
+            return nil
+        }
+        return UIImage(cgImage: cropped, scale: scale, orientation: imageOrientation)
+    }
+}
+
 private struct ExplorePhotoDetailSheet: View {
     let item: ExploreItem
     @Binding var viewMode: MemoriesViewMode
     @EnvironmentObject var memoryStore: QuestMemoryStore
     @Environment(\.dismiss) private var dismiss
     @State private var captionVisible = false
+
+    #if DEBUG
+    /// 実写真が無いデモ/シードデータでも内カメラサムネイルの見た目を確認できるように、
+    /// DEBUGビルド限定でその場限りの合成画像を作る。memoryStore/UserDefaults/Documentsには
+    /// 一切書き込まない(CameraViewのapplyDebugScenarioIfRequestedと同じ「表示専用」方針)。
+    @State private var debugDemoImage: UIImage?
+    #endif
+
+    private var displayImage: UIImage? {
+        if let spot = item.spot, let real = memoryStore.image(for: spot) {
+            return real
+        }
+        #if DEBUG
+        return debugDemoImage
+        #else
+        return nil
+        #endif
+    }
 
     private var formattedDate: String {
         let input = DateFormatter()
@@ -853,6 +894,13 @@ private struct ExplorePhotoDetailSheet: View {
             withAnimation(.easeIn(duration: 0.28).delay(0.08)) {
                 captionVisible = true
             }
+            #if DEBUG
+            if debugDemoImage == nil, let spot = item.spot, memoryStore.image(for: spot) == nil {
+                let back = QuestDemoPhotoMaker.makePhoto(spot: spot, isFrontCamera: false)
+                let front = QuestDemoPhotoMaker.makePhoto(spot: spot, isFrontCamera: true)
+                debugDemoImage = QuestDualPhotoComposer.compose(backImage: back, frontImage: front, spot: spot)
+            }
+            #endif
         }
     }
 
@@ -879,7 +927,7 @@ private struct ExplorePhotoDetailSheet: View {
 
     @ViewBuilder
     private var photoLayer: some View {
-        if let spot = item.spot, let image = memoryStore.image(for: spot) {
+        if let image = displayImage {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()
@@ -899,7 +947,59 @@ private struct ExplorePhotoDetailSheet: View {
         }
     }
 
+    /// 外カメ写真に焼き込み済みの内カメ画像を、同じ比率でそのまま切り出して見せる。
+    /// BeRealの「写真上に浮かぶ大きな自撮りバブル」を避けるため、写真面には浮かせず、
+    /// 暗転済みキャプション領域の右端に検証バッジ等と同格の小さなカードとして置く。
+    @ViewBuilder
+    private var innerCameraThumbnail: some View {
+        Group {
+            if let crop = displayImage?.pictriInnerCameraCrop {
+                Image(uiImage: crop)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                LinearGradient(
+                    colors: [PictriTheme.accent.opacity(0.28), .black.opacity(0.55)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .overlay {
+                    VStack(spacing: 5) {
+                        Image(systemName: "face.smiling")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.65))
+
+                        Text("この時の表情")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.50))
+                    }
+                }
+            }
+        }
+        .frame(width: 64, height: 84)
+        .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerSmall, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: PictriTheme.cornerSmall, style: .continuous)
+                .stroke(PictriTheme.accent.opacity(0.40), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
+    }
+
     private var captionLayer: some View {
+        HStack(alignment: .top, spacing: 12) {
+            captionTextColumn
+
+            if item.spot != nil {
+                Spacer(minLength: 12)
+                innerCameraThumbnail
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 24)
+        .padding(.bottom, 52)
+    }
+
+    private var captionTextColumn: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("MEMORY")
                 .font(.system(size: 11, weight: .bold))
@@ -952,8 +1052,6 @@ private struct ExplorePhotoDetailSheet: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 24)
-        .padding(.bottom, 52)
     }
 }
 
