@@ -47,6 +47,24 @@ struct MemoriesView: View {
         .sheet(item: $selectedExploreItem) { item in
             ExplorePhotoDetailSheet(item: item, viewMode: $viewMode)
         }
+        .onAppear {
+            openDebugExploreDetailIfRequested()
+        }
+    }
+
+    /// `-pictriExploreDetail <spotId>` でExplore detail sheetを直接スクショ確認できるようにする。
+    /// DEBUG限定。該当するmemory itemが無ければ何もしない(通常のExplore表示のまま)。
+    /// 既存のカードタップ(selectedExploreItemへの代入)と同じ経路を使うため、
+    /// Explore側の操作・シートのpresentation構造は一切変更しない。
+    private func openDebugExploreDetailIfRequested() {
+        #if DEBUG
+        guard selectedExploreItem == nil,
+              let spotId = PictriVisualReview.exploreDetailSpotId,
+              let match = exploreItems.first(where: { $0.spot?.id == spotId }) else {
+            return
+        }
+        selectedExploreItem = match
+        #endif
     }
 
     // MARK: - Collect
@@ -783,9 +801,22 @@ private struct ExplorePhotoDetailSheet: View {
         let input = DateFormatter()
         input.dateFormat = "yyyy/MM/dd HH:mm"
         let output = DateFormatter()
-        output.dateFormat = "M月d日"
+        output.dateFormat = "yyyy年M月d日"
         return input.date(from: item.photo.createdAtText)
             .map { output.string(from: $0) } ?? item.photo.createdAtText
+    }
+
+    /// 「日付だけ」より「記憶感」を出すための相対表現。
+    private var relativeDateText: String? {
+        let input = DateFormatter()
+        input.dateFormat = "yyyy/MM/dd HH:mm"
+        guard let date = input.date(from: item.photo.createdAtText) else { return nil }
+        let days = Calendar.current.dateComponents([.day], from: date, to: Date()).day ?? 0
+        switch days {
+        case ..<1: return "今日の記憶"
+        case 1: return "1日前の記憶"
+        default: return "\(days)日前の記憶"
+        }
     }
 
     var body: some View {
@@ -795,10 +826,15 @@ private struct ExplorePhotoDetailSheet: View {
             photoLayer
 
             LinearGradient(
+                // 写真自体に焼き込み済みの日付/地名ラベル(下部左寄り)が、
+                // ここで重ねるキャプション(MEMORYラベル+ボタン)と衝突しないよう、
+                // 画面下部を早めに・より濃く暗転させて完全に覆い隠す。
                 stops: [
                     .init(color: .clear, location: 0),
-                    .init(color: .clear, location: 0.40),
-                    .init(color: .black.opacity(0.90), location: 1.0)
+                    .init(color: .clear, location: 0.36),
+                    .init(color: .black.opacity(0.60), location: 0.58),
+                    .init(color: .black.opacity(0.97), location: 0.80),
+                    .init(color: .black, location: 1.0)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -834,7 +870,7 @@ private struct ExplorePhotoDetailSheet: View {
                         .background(.black.opacity(0.30))
                         .clipShape(Circle())
                 }
-                .padding(.top, 60)
+                .padding(.top, 12)
                 .padding(.trailing, 20)
             }
             Spacer()
@@ -865,33 +901,55 @@ private struct ExplorePhotoDetailSheet: View {
 
     private var captionLayer: some View {
         VStack(alignment: .leading, spacing: 0) {
+            Text("MEMORY")
+                .font(.system(size: 11, weight: .bold))
+                .tracking(1.6)
+                .foregroundStyle(.white.opacity(0.44))
+
             Text(item.spot?.name ?? "—")
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(.white)
                 .lineLimit(2)
+                .padding(.top, 6)
 
             if let areaName = item.spot?.areaName {
                 Text(areaName)
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(.white.opacity(0.58))
-                    .padding(.top, 5)
+                    .padding(.top, 4)
             }
+
+            HStack(spacing: 8) {
+                QuestProofBadge(
+                    status: item.photo.proofStatus,
+                    distanceMeters: item.photo.verifiedDistanceMeters,
+                    style: .dark
+                )
+
+                if let relativeDateText {
+                    Text(relativeDateText)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.52))
+                }
+            }
+            .padding(.top, 12)
 
             Text(formattedDate)
-                .font(.system(size: 13, weight: .regular))
-                .foregroundStyle(.white.opacity(0.42))
+                .font(.system(size: 12, weight: .regular))
+                .foregroundStyle(.white.opacity(0.36))
                 .padding(.top, 6)
 
-            Button {
-                viewMode = .collect
-                dismiss()
-            } label: {
-                Text("コレクトで見る")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.50))
-                    .underline()
+            if item.spot != nil {
+                Button {
+                    viewMode = .collect
+                    dismiss()
+                } label: {
+                    Text("この県のコレクトで見る")
+                }
+                .buttonStyle(.pictriSecondary)
+                .frame(maxWidth: 220)
+                .padding(.top, 18)
             }
-            .padding(.top, 18)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 24)
@@ -909,27 +967,54 @@ private struct ExploreCardButtonStyle: ButtonStyle {
     }
 }
 
+/// スポットごとの写真プレースホルダー配色。以前はシステム標準色(.blue/.green/.red等)を
+/// そのまま使っており、PictriThemeのindigo/teal/warmと無関係な「サンプルアプリ」的な
+/// 見た目になっていたため、全パターンをブランドカラーの組み合わせへ差し替えた。
 enum MemoryVisualStyle {
     static func gradient(for spot: QuestSpot) -> LinearGradient {
         switch spot.gridIndex % 9 {
         case 0:
-            return LinearGradient(colors: [.blue.opacity(0.55), .black], startPoint: .top, endPoint: .bottom)
+            return LinearGradient(colors: [PictriTheme.accent.opacity(0.62), .black], startPoint: .top, endPoint: .bottom)
         case 1:
-            return LinearGradient(colors: [.green.opacity(0.55), .black], startPoint: .top, endPoint: .bottom)
+            return LinearGradient(colors: [PictriTheme.teal.opacity(0.58), .black], startPoint: .top, endPoint: .bottom)
         case 2:
-            return LinearGradient(colors: [.red.opacity(0.52), .black], startPoint: .top, endPoint: .bottom)
+            return LinearGradient(colors: [PictriTheme.warm.opacity(0.58), .black], startPoint: .top, endPoint: .bottom)
         case 3:
-            return LinearGradient(colors: [.purple.opacity(0.55), .black], startPoint: .topLeading, endPoint: .bottomTrailing)
+            return LinearGradient(
+                colors: [PictriTheme.accent.opacity(0.55), Color(red: 0.28, green: 0.19, blue: 0.42), .black],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         case 4:
-            return LinearGradient(colors: [.brown.opacity(0.65), .black], startPoint: .top, endPoint: .bottom)
+            return LinearGradient(
+                colors: [PictriTheme.teal.opacity(0.46), Color(red: 0.09, green: 0.26, blue: 0.24), .black],
+                startPoint: .top,
+                endPoint: .bottom
+            )
         case 5:
-            return LinearGradient(colors: [.cyan.opacity(0.48), .black], startPoint: .top, endPoint: .bottom)
+            return LinearGradient(
+                colors: [PictriTheme.warm.opacity(0.5), Color(red: 0.40, green: 0.17, blue: 0.19), .black],
+                startPoint: .top,
+                endPoint: .bottom
+            )
         case 6:
-            return LinearGradient(colors: [.orange.opacity(0.55), .black], startPoint: .topLeading, endPoint: .bottomTrailing)
+            return LinearGradient(
+                colors: [PictriTheme.accent.opacity(0.48), PictriTheme.teal.opacity(0.32), .black],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         case 7:
-            return LinearGradient(colors: [.mint.opacity(0.52), .black], startPoint: .top, endPoint: .bottom)
+            return LinearGradient(
+                colors: [PictriTheme.warm.opacity(0.46), PictriTheme.accent.opacity(0.28), .black],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         default:
-            return LinearGradient(colors: [.gray.opacity(0.55), .black], startPoint: .top, endPoint: .bottom)
+            return LinearGradient(
+                colors: [Color(red: 0.28, green: 0.32, blue: 0.44), .black],
+                startPoint: .top,
+                endPoint: .bottom
+            )
         }
     }
 }

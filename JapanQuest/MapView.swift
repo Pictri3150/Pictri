@@ -317,7 +317,7 @@ struct QuestSpotDetailView: View {
                     .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(isUnlocked ? .black : .white.opacity(0.40))
                     .frame(width: 46, height: 46)
-                    .background(isUnlocked ? .white : .white.opacity(0.10))
+                    .background(isUnlocked ? PictriTheme.teal : .white.opacity(0.10))
                     .clipShape(Circle())
             }
 
@@ -341,6 +341,34 @@ struct QuestSpotDetailView: View {
         .background(cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .accessibilityElement(children: .combine)
+        .animation(.easeInOut(duration: 0.3), value: isUnlocked)
+    }
+
+    /// Cameraの2ステップ("景色→表情")を撮影前に予告する小さなプレビュー。
+    /// SpotDetailが「地図の詳細ページ」ではなく「撮影の入口」だと視覚的につなげる役割。
+    private var captureStepsPreview: some View {
+        HStack(spacing: 8) {
+            capturePreviewPill(label: "景色", systemImage: "mountain.2.fill")
+            Image(systemName: "arrow.right")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white.opacity(0.28))
+            capturePreviewPill(label: "表情", systemImage: "face.smiling.fill")
+        }
+        .opacity(isUnlocked ? 1 : 0.4)
+    }
+
+    private func capturePreviewPill(label: String, systemImage: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .bold))
+            Text(label)
+                .font(.system(size: 11, weight: .bold))
+        }
+        .foregroundStyle(isUnlocked ? PictriTheme.teal : .white.opacity(0.42))
+        .padding(.horizontal, 11)
+        .padding(.vertical, 6)
+        .background(isUnlocked ? PictriTheme.tealSoft : .white.opacity(0.06))
+        .clipShape(Capsule())
     }
 
     @ViewBuilder
@@ -379,28 +407,44 @@ struct QuestSpotDetailView: View {
         return isCompleted ? "もう一枚、ここで残す" : "この場所で撮る"
     }
 
-    private var actionButton: some View {
-        Button {
-            guard isUnlocked else {
-                return
-            }
+    private var actionButtonBackground: AnyShapeStyle {
+        guard isUnlocked else { return AnyShapeStyle(.white.opacity(0.10)) }
+        return AnyShapeStyle(
+            LinearGradient(
+                colors: [PictriTheme.teal, PictriTheme.accent],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        )
+    }
 
-            activeCameraSpotId = spot.id
-            selectedTab = .camera
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: isUnlocked ? "camera.fill" : "location.fill")
-                Text(actionButtonLabel)
+    private var actionButton: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            captureStepsPreview
+
+            Button {
+                guard isUnlocked else {
+                    return
+                }
+
+                activeCameraSpotId = spot.id
+                selectedTab = .camera
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: isUnlocked ? "camera.fill" : "location.fill")
+                    Text(actionButtonLabel)
+                }
+                .font(.system(size: 17, weight: .bold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(actionButtonBackground)
+                .foregroundStyle(isUnlocked ? .black : .white.opacity(0.38))
+                .clipShape(RoundedRectangle(cornerRadius: 22))
             }
-            .font(.system(size: 17, weight: .bold))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(isUnlocked ? .white : .white.opacity(0.10))
-            .foregroundStyle(isUnlocked ? .black : .white.opacity(0.38))
-            .clipShape(RoundedRectangle(cornerRadius: 22))
+            .disabled(!isUnlocked)
+            .accessibilityLabel(isUnlocked ? "\(spot.name)でカメラを起動" : "\(spot.name)は現地に行くと撮影できます")
+            .animation(.easeInOut(duration: 0.3), value: isUnlocked)
         }
-        .disabled(!isUnlocked)
-        .accessibilityLabel(isUnlocked ? "\(spot.name)でカメラを起動" : "\(spot.name)は現地に行くと撮影できます")
     }
 
     private var memoryPreview: some View {

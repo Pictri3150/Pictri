@@ -101,7 +101,7 @@ struct HomeView: View {
             }
             .sheet(item: $profilePost) { post in
                 FriendProfileSheet(post: post)
-                    .presentationDetents([.medium])
+                    .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
         }
@@ -371,6 +371,12 @@ enum HomeFriendColor {
 
 // MARK: - Feed Cards
 
+private struct HomeComment: Identifiable {
+    let id = UUID()
+    let username: String
+    let text: String
+}
+
 struct HomeLargePostCard: View {
     let post: QuestFeedPost
     var isLiked: Bool
@@ -381,21 +387,46 @@ struct HomeLargePostCard: View {
 
     @State private var isCommentVisible = false
     @State private var commentDraft = ""
-    @State private var comments: [String] = []
+    @State private var comments: [HomeComment]
+
+    init(post: QuestFeedPost, isLiked: Bool, onLike: @escaping () -> Void, onProfileTap: @escaping () -> Void) {
+        self.post = post
+        self.isLiked = isLiked
+        self.onLike = onLike
+        self.onProfileTap = onProfileTap
+        _comments = State(initialValue: HomeLargePostCard.seedComment(for: post).map { [$0] } ?? [])
+    }
+
+    /// フィードが無言に見えないよう、投稿ごとに固定の最初のコメントを1件だけ入れておく。
+    /// stableSeedで決定論的に選ぶため、再起動しても同じ投稿には同じコメントが付く。
+    private static func seedComment(for post: QuestFeedPost) -> HomeComment? {
+        guard !post.isMine else { return nil }
+        let samples: [(String, String)] = [
+            ("haruka", "ここ気になってた、今度行ってみる"),
+            ("sora", "写真だけで空気感が伝わってくる"),
+            ("mio", "いいな、私も残しに行きたい"),
+            ("kai", "この時間帯のここ、好き")
+        ]
+        let stableSeed = post.id.utf8.reduce(0) { $0 + Int($1) }
+        let (name, text) = samples[stableSeed % samples.count]
+        return HomeComment(username: name, text: text)
+    }
 
     private var spot: QuestSpot? {
         mockQuestSpots.first { $0.id == post.spotId }
     }
 
     /// 投稿一覧っぽさを減らすための、短い旅の空気感コピー。
-    /// 投稿ごとに固定(再起動しても同じ投稿には同じ文が付く)。
+    /// 投稿ごとに固定(再起動しても同じ投稿には同じ文が付く)。スポットのエリア名を
+    /// 織り込むことで、使い回しの定型文ではなく投稿固有の一言に見せる。
     private var travelMoodCaption: String {
+        let place = spot?.areaName ?? post.displayPlace
         let phrases = [
-            "この景色を、そのまま残した",
-            "現地の空気ごと持ち帰った1枚",
-            "ここでしか撮れない瞬間",
-            "旅の途中で見つけた景色",
-            "少し歩いて、たどり着いた場所"
+            "\(place)の景色を、そのまま残した",
+            "\(place)の空気ごと持ち帰った1枚",
+            "\(place)でしか撮れない瞬間",
+            "旅の途中、\(place)で見つけた景色",
+            "少し歩いて、\(place)にたどり着いた"
         ]
         let stableSeed = post.id.utf8.reduce(0) { $0 + Int($1) }
         return phrases[stableSeed % phrases.count]
@@ -480,12 +511,24 @@ struct HomeLargePostCard: View {
     private var postFooter: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !comments.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(comments.prefix(3), id: \.self) { comment in
-                        Text(comment)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.82))
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(comments.prefix(3)) { comment in
+                        HStack(alignment: .top, spacing: 6) {
+                            Circle()
+                                .fill(HomeFriendColor.accent(for: comment.username))
+                                .frame(width: 6, height: 6)
+                                .padding(.top, 5)
+
+                            (
+                                Text(comment.username)
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(.white.opacity(0.88))
+                                + Text("  \(comment.text)")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.70))
+                            )
                             .lineLimit(2)
+                        }
                     }
                 }
             }
@@ -564,7 +607,7 @@ struct HomeLargePostCard: View {
         let trimmed = commentDraft.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
         withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-            comments.append(trimmed)
+            comments.append(HomeComment(username: "you", text: trimmed))
             commentDraft = ""
             isCommentVisible = false
         }
@@ -602,8 +645,12 @@ struct HomeLargePostCard: View {
         )
     }
 
+    /// Swiftの String.hashValue はプロセスごとにランダム化されるため、
+    /// 以前はアプリを起動するたびにいいね数が変わってしまっていた。
+    /// HomeFriendColor.accent と同じUTF8バイト和方式に揃え、常に同じ投稿には同じ数を表示する。
     private var baseLikeCount: Int {
-        abs(post.id.hashValue % 17) + 3
+        let stableSeed = post.id.utf8.reduce(0) { $0 + Int($1) }
+        return (stableSeed % 17) + 3
     }
 
     private var displayLikeCount: Int {
@@ -616,50 +663,109 @@ struct HomeLargePostCard: View {
 struct FriendProfileSheet: View {
     let post: QuestFeedPost
 
+    @EnvironmentObject var memoryStore: QuestMemoryStore
     @Environment(\.dismiss) private var dismiss
+
+    private var avatarAccent: Color {
+        HomeFriendColor.accent(for: post.username)
+    }
+
+    /// このフレンドの直近投稿(自分を含む全フィードから絞り込む)。
+    /// ランキング的な比較を避けるため、件数はあくまで「本人の記録数」としてのみ使う。
+    private var friendPosts: [QuestFeedPost] {
+        memoryStore.visibleFeedPosts().filter { $0.username == post.username }
+    }
+
+    private var recentPlaces: [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for place in friendPosts.map(\.displayPlace) {
+            guard !seen.contains(place) else { continue }
+            seen.insert(place)
+            result.append(place)
+            if result.count == 4 { break }
+        }
+        return result
+    }
 
     var body: some View {
         ZStack {
             AppBackground()
 
-            VStack(spacing: 22) {
-                HStack {
-                    Spacer()
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 22) {
+                    HStack {
+                        Spacer()
 
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.72))
-                            .frame(width: 32, height: 32)
-                            .background(.white.opacity(0.08))
-                            .clipShape(Circle())
+                        Button {
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.72))
+                                .frame(width: 32, height: 32)
+                                .background(.white.opacity(0.08))
+                                .clipShape(Circle())
+                        }
                     }
-                }
 
-                Circle()
-                    .fill(.white.opacity(0.12))
-                    .frame(width: 76, height: 76)
-                    .overlay {
-                        Text(String(post.username.prefix(1)).uppercased())
-                            .font(.system(size: 30, weight: .bold))
+                    Circle()
+                        .fill(avatarAccent.opacity(0.20))
+                        .frame(width: 84, height: 84)
+                        .overlay {
+                            Text(String(post.username.prefix(1)).uppercased())
+                                .font(.system(size: 32, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                        .overlay {
+                            Circle().stroke(avatarAccent.opacity(0.6), lineWidth: 2)
+                        }
+
+                    VStack(spacing: 6) {
+                        Text(post.username)
+                            .font(.system(size: 22, weight: .bold))
                             .foregroundStyle(.white)
+
+                        Text("最近の記録: \(post.displayPlace)")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.46))
                     }
 
-                VStack(spacing: 6) {
-                    Text(post.username)
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(.white)
+                    HStack(spacing: 22) {
+                        PictriCompactMetric(label: "記録", value: "\(friendPosts.count)件")
+                        PictriCompactMetric(label: "最近", value: post.displayPlace)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .pictriSurface(cornerRadius: PictriTheme.cornerMedium)
 
-                    Text("最近の記録: \(post.displayPlace)")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.46))
+                    if !recentPlaces.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("最近の旅先")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.55))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(recentPlaces, id: \.self) { place in
+                                        Text(place)
+                                            .font(.system(size: 12, weight: .bold))
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 7)
+                                            .background(avatarAccent.opacity(0.16))
+                                            .foregroundStyle(avatarAccent)
+                                            .clipShape(Capsule())
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(minLength: 12)
                 }
-
-                Spacer()
+                .padding(20)
             }
-            .padding(20)
         }
     }
 }

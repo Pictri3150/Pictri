@@ -50,6 +50,11 @@ enum PictriVisualReview {
         value(for: "-pictriMapSpot")
     }
 
+    /// `-pictriExploreDetail <spotId>` でExplore detail sheetを直接開けるようにする。DEBUG限定。
+    static var exploreDetailSpotId: String? {
+        value(for: "-pictriExploreDetail")
+    }
+
     static var cameraScenario: PictriCameraVisualScenario? {
         switch value(for: "-pictriCameraScenario") {
         case "ready": return .ready
