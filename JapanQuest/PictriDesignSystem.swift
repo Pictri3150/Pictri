@@ -42,6 +42,16 @@ enum PictriTheme {
     static let spacingLarge: CGFloat = 22
     static let spacingMedium: CGFloat = 14
     static let spacingSmall: CGFloat = 8
+
+    /// まだ行っていないスポットのアイコン面などに使う、暗い余白トーン。
+    /// MemoriesのPrefecturePreviewTile(空セル)と同じ配色に揃えることで、
+    /// 「未訪問=暗い余白、訪問済み=色がつく」という思想をMap/Home/Memories全体で一貫させる。
+    /// MemoryVisualStyle.gradient(訪問済みスポット用の色)とは意図的に別物として扱う。
+    static let unvisitedSpotGradient = LinearGradient(
+        colors: [Color.white.opacity(0.08), Color.white.opacity(0.04)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 }
 
 // MARK: - Surface

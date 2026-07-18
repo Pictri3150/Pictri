@@ -151,13 +151,15 @@ struct QuestMapView: View {
 
     private func discoverySpotCard(_ spot: QuestSpot) -> some View {
         VStack(alignment: .leading, spacing: 8) {
+            // まだ行っていないスポットなので、訪問済みスポット用の色(MemoryVisualStyle)ではなく
+            // 暗い余白トーンを使う。「次に色がつく場所」であることをピンの淡いaccentだけで示す。
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(MemoryVisualStyle.gradient(for: spot))
+                .fill(PictriTheme.unvisitedSpotGradient)
                 .frame(width: 128, height: 72)
                 .overlay {
                     Image(systemName: "mappin.and.ellipse")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.92))
+                        .foregroundStyle(PictriTheme.accent.opacity(0.75))
                 }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -177,8 +179,10 @@ struct QuestMapView: View {
     private var mapPanelBadge: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
+                // 1スポットでも訪問済みなら「訪問=teal」に切り替え、未訪問はaccentのまま。
+                // Map側でも「行けた場所に色がつく」思想をMemoriesと同じ色で一貫させる。
                 Circle()
-                    .fill(PictriTheme.accent)
+                    .fill(completedCount > 0 ? PictriTheme.teal : PictriTheme.accent)
                     .frame(width: 7, height: 7)
 
                 Text("神奈川")

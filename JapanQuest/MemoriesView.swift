@@ -242,8 +242,18 @@ struct MemoriesView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
                 ForEach(mockQuestPrefectures) { prefecture in
-                    Text(prefecture.name)
-                        .font(.system(size: 14, weight: .bold))
+                    HStack(spacing: 6) {
+                        // 1つでも訪れたスポットがある県には、小さなtealのドットで
+                        // 「そこはもう色づいている」ことを地図に頼らず一目で示す。
+                        if memoryStore.completedCount(prefectureId: prefecture.id) > 0 {
+                            Circle()
+                                .fill(PictriTheme.teal.opacity(0.7))
+                                .frame(width: 5, height: 5)
+                        }
+
+                        Text(prefecture.name)
+                            .font(.system(size: 14, weight: .bold))
+                    }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                         .background(prefecture.id == "kanagawa" ? .white : .white.opacity(0.08))
@@ -400,31 +410,36 @@ struct PrefectureMemorySummaryCard: View {
         max(prefecture.totalSpotCount - completedCount, 0)
     }
 
+    /// 「達成率」ではなく「自分の旅がじわっと染まっていく」感覚を出すための一言。
+    /// 数字やパーセンテージではなく、県の色づき具合を言葉にする。
     private var achievementText: String {
-        if isCompleted {
-            return "コンプリート"
-        }
         if completedCount == 0 {
             return "まだ余白ばかり。最初の一枚を残そう"
         }
-        return "あと\(remainingSpotCount)スポットで埋まる"
+        if isCompleted {
+            return "\(prefecture.name)が色で満ちた"
+        }
+        if progressRatio >= 0.5 {
+            return "\(prefecture.name)の色が濃くなってきた"
+        }
+        return "\(prefecture.name)が少し色づいてきた"
     }
 
-    private var progressBar: some View {
-        ZStack(alignment: .leading) {
-            Capsule()
-                .fill(.white.opacity(0.10))
-                .frame(height: 3)
+    private var achievementTextColor: Color {
+        guard completedCount > 0 else { return .white.opacity(0.46) }
+        return isCompleted ? PictriTheme.teal : PictriTheme.teal.opacity(0.75)
+    }
 
-            if completedCount > 0 {
-                GeometryReader { geo in
-                    Capsule()
-                        .fill(isCompleted ? PictriTheme.teal : .white.opacity(0.6))
-                        .frame(width: geo.size.width * progressRatio, height: 3)
-                }
-                .frame(height: 3)
-            }
-        }
+    /// 訪問スポットが増えるほど、カード面にteal(Pictriの「達成・完了」色)がじわっと重なる。
+    /// 達成率バーのような数値表現ではなく、色の濃さそのものを進捗として使う。
+    private var visitedTintOpacity: Double {
+        guard completedCount > 0 else { return 0 }
+        return 0.04 + 0.06 * progressRatio
+    }
+
+    private var borderColor: Color {
+        if isCompleted { return PictriTheme.teal.opacity(0.45) }
+        return prefecture.id == "kanagawa" ? .white.opacity(0.65) : .white.opacity(0.06)
     }
 
     var body: some View {
@@ -439,17 +454,17 @@ struct PrefectureMemorySummaryCard: View {
                         if isCompleted {
                             Text("all visited")
                                 .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.75))
+                                .foregroundStyle(PictriTheme.teal)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(.white.opacity(0.12))
+                                .background(PictriTheme.tealSoft)
                                 .clipShape(Capsule())
                         }
                     }
 
                     Text("\(completedCount) / \(prefecture.totalSpotCount) スポット")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.55))
+                        .foregroundStyle(PictriTheme.textFaint)
                 }
 
                 Spacer()
@@ -470,18 +485,21 @@ struct PrefectureMemorySummaryCard: View {
                 }
             }
 
-            progressBar
-
             Text(achievementText)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(isCompleted ? PictriTheme.teal : .white.opacity(0.46))
+                .foregroundStyle(achievementTextColor)
         }
         .padding(14)
-        .background(PictriTheme.surface)
+        .background {
+            ZStack {
+                PictriTheme.surface
+                PictriTheme.teal.opacity(visitedTintOpacity)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .overlay {
             RoundedRectangle(cornerRadius: 24)
-                .stroke(prefecture.id == "kanagawa" ? .white.opacity(0.65) : .white.opacity(0.06), lineWidth: 1)
+                .stroke(borderColor, lineWidth: 1)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(prefecture.name)。\(completedCount)/\(prefecture.totalSpotCount)スポット。\(achievementText)")

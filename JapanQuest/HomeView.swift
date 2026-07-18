@@ -333,13 +333,14 @@ struct HomeView: View {
                     selectedTab = .map
                 } label: {
                     HStack(spacing: 14) {
+                        // 未訪問スポットなので、訪問済み用の色ではなく暗い余白トーンを使う。
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(MemoryVisualStyle.gradient(for: spot))
+                            .fill(PictriTheme.unvisitedSpotGradient)
                             .frame(width: 42, height: 42)
                             .overlay {
                                 Image(systemName: "mappin.and.ellipse")
                                     .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.92))
+                                    .foregroundStyle(PictriTheme.accent.opacity(0.75))
                             }
 
                         VStack(alignment: .leading, spacing: 4) {
@@ -799,6 +800,16 @@ struct FriendProfileSheet: View {
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(.white)
 
+                    // フォロワー数ではなく、「友達追加済みで、ここだけに共有されている」という
+                    // 身内の安心感を短く伝える。公開SNS感を出さないための最小限の一言。
+                    HStack(spacing: 5) {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 10, weight: .bold))
+                        Text("友達・ここだけで共有")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundStyle(.white.opacity(0.42))
+
                     VStack(alignment: .leading, spacing: 14) {
                         PictriCompactMetric(label: "旅の記録", value: "\(friendPosts.count)件")
 
@@ -879,6 +890,12 @@ struct JQAccountSheetView: View {
     @State private var selectedSection: JQAccountSection = .profile
     @State private var addFriendText = ""
 
+    /// 「フォロワー数」のような公開SNS的な数字ではなく、
+    /// 自分の旅がどれだけ色づいたかを示す指標として使う。
+    private var visitedPrefectureCount: Int {
+        mockQuestPrefectures.filter { memoryStore.completedCount(prefectureId: $0.id) > 0 }.count
+    }
+
     var body: some View {
         ZStack {
             AppBackground()
@@ -922,8 +939,8 @@ struct JQAccountSheetView: View {
 
     private var stats: some View {
         HStack(spacing: 10) {
-            JQAccountStat(title: "フォロー中", value: "\(friendStore.friends.count)")
-            JQAccountStat(title: "フォロワー", value: "12")
+            JQAccountStat(title: "友達", value: "\(friendStore.friends.count)")
+            JQAccountStat(title: "訪れた県", value: "\(visitedPrefectureCount)")
             JQAccountStat(title: "スポット", value: "\(memoryStore.memoryPhotos.count)")
         }
     }
@@ -931,7 +948,7 @@ struct JQAccountSheetView: View {
     private var sectionTabs: some View {
         HStack(spacing: 8) {
             JQAccountSectionButton(title: "概要", section: .profile, selectedSection: $selectedSection)
-            JQAccountSectionButton(title: "フォロー", section: .following, selectedSection: $selectedSection)
+            JQAccountSectionButton(title: "友達", section: .friends, selectedSection: $selectedSection)
             JQAccountSectionButton(title: "追加", section: .add, selectedSection: $selectedSection)
             JQAccountSectionButton(title: "申請", section: .requests, selectedSection: $selectedSection)
         }
@@ -946,12 +963,12 @@ struct JQAccountSheetView: View {
         case .profile:
             VStack(spacing: 12) {
                 JQAccountMenuRow(icon: "person.crop.circle", title: "プロフィール編集")
-                JQAccountMenuRow(icon: "lock.fill", title: "公開範囲")
+                JQAccountMenuRow(icon: "lock.fill", title: "友達の見え方")
                 JQAccountMenuRow(icon: "bell.fill", title: "通知")
                 JQAccountMenuRow(icon: "gearshape.fill", title: "設定")
             }
 
-        case .following:
+        case .friends:
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(friendStore.friends) { friend in
                     JQFriendMiniRow(friend: friend)
@@ -960,7 +977,7 @@ struct JQAccountSheetView: View {
 
         case .add:
             VStack(alignment: .leading, spacing: 14) {
-                Text("ユーザー名で追加")
+                Text("ユーザー名で友達に追加")
                     .font(.system(size: 19, weight: .bold))
                     .foregroundStyle(.white)
 
@@ -976,9 +993,9 @@ struct JQAccountSheetView: View {
                 Button {
                     friendStore.addFriend(username: addFriendText)
                     addFriendText = ""
-                    selectedSection = .following
+                    selectedSection = .friends
                 } label: {
-                    Text("フォローする")
+                    Text("友達に追加")
                         .font(.system(size: 16, weight: .bold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 15)
@@ -1013,7 +1030,7 @@ struct JQAccountSheetView: View {
 
 enum JQAccountSection {
     case profile
-    case following
+    case friends
     case add
     case requests
 }
@@ -1106,7 +1123,7 @@ struct JQFriendMiniRow: View {
 
             Spacer()
 
-            Text("フォロー中")
+            Text("友達")
                 .font(.system(size: 12, weight: .bold))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
