@@ -128,6 +128,10 @@ enum PictriCameraVisualScenario: Equatable {
 struct ContentView: View {
     @State private var selectedTab: AppTab = ContentView.resolveInitialTab()
     @State private var activeCameraSpotId: String = "enoshima_coast"
+    /// Camera保存直後に「メモリーで確認する」から遷移した時だけ使う一時的な受け渡し。
+    /// MemoriesViewはこれを見て、保存した記憶をExplore Detailで直接開く。
+    /// 通常のタブバー操作では常にnilのままなので、既存のCollect/Explore遷移には影響しない。
+    @State private var pendingExploreSpotId: String?
     @StateObject private var memoryStore = QuestMemoryStore()
     @StateObject private var friendStore = QuestFriendStore()
     @StateObject private var locationManager = QuestLocationManager()
@@ -189,11 +193,12 @@ struct ContentView: View {
         case .camera:
             QuestCameraView(
                 selectedTab: $selectedTab,
-                selectedSpotId: $activeCameraSpotId
+                selectedSpotId: $activeCameraSpotId,
+                pendingExploreSpotId: $pendingExploreSpotId
             )
 
         case .memories:
-            MemoriesView()
+            MemoriesView(pendingExploreSpotId: $pendingExploreSpotId)
         }
     }
 }

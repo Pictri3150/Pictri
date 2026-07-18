@@ -34,6 +34,7 @@ enum QuestDualCapturePhase {
 struct QuestCameraView: View {
     @Binding var selectedTab: AppTab
     @Binding var selectedSpotId: String
+    @Binding var pendingExploreSpotId: String?
 
     @EnvironmentObject var memoryStore: QuestMemoryStore
     @EnvironmentObject var locationManager: QuestLocationManager
@@ -810,6 +811,9 @@ struct QuestCameraView: View {
                 if hasSaved {
                     // 保存後は同じボタンをMemoriesへの導線として使い、
                     // 3つ目のボタンを別枠で追加しない(画面下部がはみ出るため)。
+                    // どのスポットを保存したかをMemoriesへ渡し、Collectの一覧経由ではなく
+                    // 今撮った記憶をExplore Detailで直接開けるようにする。
+                    pendingExploreSpotId = selectedSpot.id
                     selectedTab = .memories
                 } else {
                     memoryStore.save(
@@ -867,12 +871,15 @@ enum QuestDemoPhotoMaker {
     /// 外カメ(旅先の景色)側のplaceholder。斜めのライン/ドット格子は
     /// スケルトンローディングのような「壊れている画面」に見えるという指摘があったため廃止し、
     /// 砂浜〜空へ抜ける落ち着いたグラデーションと淡い水平線1本だけの写真風の見た目にした。
+    /// 上部を明るい砂浜色にしていた当初案は、Camera内の小さいパネルでは目立たなかったが、
+    /// Explore Detailのほぼ全画面表示では上半分が明るい暖色ブロブのように見えてしまい、
+    /// Camera側と印象がズレていたため、全体を暗めで均一なトーンに寄せた。
     private static func drawBackDemoScene(in context: CGContext, size: CGSize) {
         let colorSpace = CGColorSpaceCreateDeviceRGB()
 
         let skyColors = [
-            UIColor(red: 0.62, green: 0.58, blue: 0.50, alpha: 1).cgColor,
-            UIColor(red: 0.22, green: 0.26, blue: 0.32, alpha: 1).cgColor,
+            UIColor(red: 0.32, green: 0.31, blue: 0.30, alpha: 1).cgColor,
+            UIColor(red: 0.16, green: 0.20, blue: 0.25, alpha: 1).cgColor,
             UIColor(red: 0.04, green: 0.05, blue: 0.08, alpha: 1).cgColor
         ]
 

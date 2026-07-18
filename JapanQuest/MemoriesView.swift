@@ -18,6 +18,7 @@ private struct ExploreItem: Identifiable {
 
 struct MemoriesView: View {
     @EnvironmentObject var memoryStore: QuestMemoryStore
+    @Binding var pendingExploreSpotId: String?
     @State private var viewMode: MemoriesViewMode = MemoriesView.resolveInitialMode()
     @State private var selectedExploreItem: ExploreItem?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -48,8 +49,22 @@ struct MemoriesView: View {
             ExplorePhotoDetailSheet(item: item, viewMode: $viewMode)
         }
         .onAppear {
+            openPendingExploreEntryIfNeeded()
             openDebugExploreDetailIfRequested()
         }
+    }
+
+    /// Camera保存直後の「メモリーで確認する」から来た時だけ、Collectの一覧を経由させず
+    /// 今保存した記憶をExplore Detailで直接開く。DEBUG限定ではなく通常のユーザー導線。
+    /// 一度開いたら`pendingExploreSpotId`をnilに戻し、以後のタブバー操作に影響させない。
+    private func openPendingExploreEntryIfNeeded() {
+        guard let spotId = pendingExploreSpotId else { return }
+        pendingExploreSpotId = nil
+
+        guard let match = exploreItems.first(where: { $0.spot?.id == spotId }) else { return }
+
+        viewMode = .explore
+        selectedExploreItem = match
     }
 
     /// `-pictriExploreDetail <spotId>` でExplore detail sheetを直接スクショ確認できるようにする。
