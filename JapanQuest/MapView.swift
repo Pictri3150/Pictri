@@ -22,7 +22,12 @@ struct QuestMapView: View {
     }
 
     private var completedCount: Int {
-        memoryStore.completedCount(prefectureId: "kanagawa")
+        #if DEBUG
+        if let override = PictriVisualReview.prefectureCountOverride(for: "kanagawa") {
+            return override
+        }
+        #endif
+        return memoryStore.completedCount(prefectureId: "kanagawa")
     }
 
     private var nextSpotsToCapture: [QuestSpot] {
@@ -319,9 +324,9 @@ struct QuestSpotDetailView: View {
 
                 Image(systemName: isUnlocked ? "camera.fill" : "lock.fill")
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(isUnlocked ? .black : .white.opacity(0.40))
+                    .foregroundStyle((isCompleted || isUnlocked) ? .black : .white.opacity(0.40))
                     .frame(width: 46, height: 46)
-                    .background(isUnlocked ? PictriTheme.teal : .white.opacity(0.10))
+                    .background(statusIconColor)
                     .clipShape(Circle())
             }
 
@@ -348,6 +353,16 @@ struct QuestSpotDetailView: View {
         .animation(.easeInOut(duration: 0.3), value: isUnlocked)
     }
 
+    /// teal=「記憶がある(isCompleted)」、accent=「今できる行動(isUnlocked)」で役割を分離する。
+    /// 現在地に関わらず、一度でも撮ったスポットは常にtealのまま。
+    /// 撮影可能だが未訪問のスポットをtealにすると「訪問済み」に見えてしまうため、
+    /// その場合はaccentを使う(Memories側のteal=訪問済みという意味と衝突させない)。
+    private var statusIconColor: Color {
+        if isCompleted { return PictriTheme.teal }
+        if isUnlocked { return PictriTheme.accent }
+        return .white.opacity(0.10)
+    }
+
     /// Cameraの2ステップ("景色→表情")を撮影前に予告する小さなプレビュー。
     /// SpotDetailが「地図の詳細ページ」ではなく「撮影の入口」だと視覚的につなげる役割。
     private var captureStepsPreview: some View {
@@ -361,6 +376,16 @@ struct QuestSpotDetailView: View {
         .opacity(isUnlocked ? 1 : 0.4)
     }
 
+    private var capturePillForeground: Color {
+        guard isUnlocked else { return .white.opacity(0.42) }
+        return isCompleted ? PictriTheme.teal : PictriTheme.accent
+    }
+
+    private var capturePillBackground: Color {
+        guard isUnlocked else { return .white.opacity(0.06) }
+        return isCompleted ? PictriTheme.tealSoft : PictriTheme.accentSoft
+    }
+
     private func capturePreviewPill(label: String, systemImage: String) -> some View {
         HStack(spacing: 5) {
             Image(systemName: systemImage)
@@ -368,10 +393,10 @@ struct QuestSpotDetailView: View {
             Text(label)
                 .font(.system(size: 11, weight: .bold))
         }
-        .foregroundStyle(isUnlocked ? PictriTheme.teal : .white.opacity(0.42))
+        .foregroundStyle(capturePillForeground)
         .padding(.horizontal, 11)
         .padding(.vertical, 6)
-        .background(isUnlocked ? PictriTheme.tealSoft : .white.opacity(0.06))
+        .background(capturePillBackground)
         .clipShape(Capsule())
     }
 
@@ -411,8 +436,12 @@ struct QuestSpotDetailView: View {
         return isCompleted ? "もう一枚、ここで残す" : "この場所で撮る"
     }
 
+    /// 訪問済み(teal)でもう一枚残す場合は「記憶(teal)→次の一枚(accent)」のグラデーションのまま。
+    /// 初めて訪れる場所は記憶がまだ無いので、teal無しの単色accentにする
+    /// (accentだけの単色でも「訪問済みに見える」ほど強い印象を残さないため)。
     private var actionButtonBackground: AnyShapeStyle {
         guard isUnlocked else { return AnyShapeStyle(.white.opacity(0.10)) }
+        guard isCompleted else { return AnyShapeStyle(PictriTheme.accent) }
         return AnyShapeStyle(
             LinearGradient(
                 colors: [PictriTheme.teal, PictriTheme.accent],

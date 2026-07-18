@@ -238,6 +238,18 @@ struct MemoriesView: View {
 
     // MARK: - Collect subviews
 
+    /// `-pictriColorScenario multiPrefecture` のDEBUGプレビュー値があればそれを優先する。
+    /// PrefectureMemorySummaryCard.completedCountと同じ注入点に揃えることで、
+    /// チップのドットとカードの色づきが常に同じ状態を指すようにする。
+    private func visibleCompletedCount(for prefecture: QuestPrefecture) -> Int {
+        #if DEBUG
+        if let override = PictriVisualReview.prefectureCountOverride(for: prefecture.id) {
+            return override
+        }
+        #endif
+        return memoryStore.completedCount(prefectureId: prefecture.id)
+    }
+
     private var prefectureChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
@@ -245,7 +257,7 @@ struct MemoriesView: View {
                     HStack(spacing: 6) {
                         // 1つでも訪れたスポットがある県には、小さなtealのドットで
                         // 「そこはもう色づいている」ことを地図に頼らず一目で示す。
-                        if memoryStore.completedCount(prefectureId: prefecture.id) > 0 {
+                        if visibleCompletedCount(for: prefecture) > 0 {
                             Circle()
                                 .fill(PictriTheme.teal.opacity(0.7))
                                 .frame(width: 5, height: 5)
@@ -390,7 +402,12 @@ struct PrefectureMemorySummaryCard: View {
     }
 
     private var completedCount: Int {
-        memoryPhotos.count
+        #if DEBUG
+        if let override = PictriVisualReview.prefectureCountOverride(for: prefecture.id) {
+            return override
+        }
+        #endif
+        return memoryPhotos.count
     }
 
     private var remainingPreviewCount: Int {

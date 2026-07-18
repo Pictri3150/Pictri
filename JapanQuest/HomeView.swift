@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Home
 
@@ -747,6 +748,17 @@ struct FriendProfileSheet: View {
         memoryStore.visibleFeedPosts().filter { $0.username == post.username }
     }
 
+    /// 「N件」という集計だけでなく、「この人はいまも旅している」という時間の気配を
+    /// 1行だけ添える。数字の競い合いではなく、直近の記憶をそのまま短く伝える。
+    private var recentMomentText: String? {
+        guard let latest = friendPosts.first else { return nil }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.unitsStyle = .full
+        let relative = formatter.localizedString(for: latest.createdAt, relativeTo: Date())
+        return "\(relative)、\(latest.displayPlace)で記憶をひとつ"
+    }
+
     private var recentPlaces: [String] {
         var seen = Set<String>()
         var result: [String] = []
@@ -809,6 +821,16 @@ struct FriendProfileSheet: View {
                             .font(.system(size: 11, weight: .semibold))
                     }
                     .foregroundStyle(.white.opacity(0.42))
+
+                    if let recentMomentText {
+                        HStack(spacing: 6) {
+                            Image(systemName: "sparkle")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text(recentMomentText)
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                        .foregroundStyle(PictriTheme.warm.opacity(0.85))
+                    }
 
                     VStack(alignment: .leading, spacing: 14) {
                         PictriCompactMetric(label: "旅の記録", value: "\(friendPosts.count)件")
@@ -889,6 +911,55 @@ struct JQAccountSheetView: View {
 
     @State private var selectedSection: JQAccountSection = .profile
     @State private var addFriendText = ""
+    @State private var didCopyFriendCode = false
+
+    /// 「友達コード」カード。QRコード生成等は不要で、身内共有の雰囲気をUIだけで示す。
+    private var friendCodeCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("あなたの友達コード")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.white.opacity(0.55))
+
+            HStack {
+                Text("@keita_travel")
+                    .font(.system(size: 17, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.white)
+
+                Spacer()
+
+                Button {
+                    UIPasteboard.general.string = "@keita_travel"
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        didCopyFriendCode = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            didCopyFriendCode = false
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: didCopyFriendCode ? "checkmark" : "doc.on.doc")
+                        Text(didCopyFriendCode ? "コピー済み" : "コピー")
+                    }
+                    .font(.system(size: 12, weight: .bold))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(didCopyFriendCode ? PictriTheme.tealSoft : .white.opacity(0.12))
+                    .foregroundStyle(didCopyFriendCode ? PictriTheme.teal : .white)
+                    .clipShape(Capsule())
+                }
+                .accessibilityLabel("友達コードをコピー")
+            }
+
+            Text("このコードを知っている人だけが、あなたの旅を見られます")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white.opacity(0.4))
+        }
+        .padding(15)
+        .background(PictriTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
 
     /// 「フォロワー数」のような公開SNS的な数字ではなく、
     /// 自分の旅がどれだけ色づいたかを示す指標として使う。
@@ -977,6 +1048,8 @@ struct JQAccountSheetView: View {
 
         case .add:
             VStack(alignment: .leading, spacing: 14) {
+                friendCodeCard
+
                 Text("ユーザー名で友達に追加")
                     .font(.system(size: 19, weight: .bold))
                     .foregroundStyle(.white)

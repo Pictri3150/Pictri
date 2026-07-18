@@ -67,6 +67,25 @@ enum PictriVisualReview {
         value(for: "-pictriHomeProfile")
     }
 
+    /// `-pictriColorScenario multiPrefecture` で、未訪問/一部訪問/全達成の3状態を
+    /// 複数県で同時にプレビューできるようにする。DEBUG限定。
+    /// memoryStore/UserDefaultsへは一切書き込まず、表示上のcompletedCountだけを
+    /// 差し替える(PrefectureMemorySummaryCard / prefectureChipsの2箇所のみが参照)。
+    /// 数値は各県のtotalSpotCount(kanagawa:24 / tokyo:30 / kyoto:28)の範囲内で
+    /// 安全に選んでいる。kyotoはtotalSpotCountと一致させ「全達成」状態を再現する。
+    static var prefectureCountOverrides: [String: Int]? {
+        guard value(for: "-pictriColorScenario") == "multiPrefecture" else { return nil }
+        return [
+            "kanagawa": 9,
+            "tokyo": 3,
+            "kyoto": 28
+        ]
+    }
+
+    static func prefectureCountOverride(for prefectureId: String) -> Int? {
+        prefectureCountOverrides?[prefectureId]
+    }
+
     static var cameraScenario: PictriCameraVisualScenario? {
         switch value(for: "-pictriCameraScenario") {
         case "ready": return .ready
