@@ -122,8 +122,22 @@ struct HomeView: View {
             }
             .onAppear {
                 openDebugProfileIfRequested()
+                openDebugAccountSheetIfRequested()
             }
         }
+    }
+
+    /// `-pictriAccountSection <section>` でJQAccountSheetViewを直接開く。
+    /// 実際にどのタブが最初に開くかはJQAccountSheetView.resolveInitialSection()が
+    /// 同じ起動引数を見て自分で決める(ContentView.resolveInitialTabと同じパターン)。
+    /// DEBUG限定。既存のアカウントアイコンタップ導線(showAccountMenu = true)と同じ経路。
+    private func openDebugAccountSheetIfRequested() {
+        #if DEBUG
+        guard !showAccountMenu, PictriVisualReview.homeAccountSection != nil else {
+            return
+        }
+        showAccountMenu = true
+        #endif
     }
 
     /// `-pictriHomeProfile <username>` でFriendProfileSheetを直接開けるようにする。
@@ -909,9 +923,19 @@ struct JQAccountSheetView: View {
     @EnvironmentObject var friendStore: QuestFriendStore
     @EnvironmentObject var memoryStore: QuestMemoryStore
 
-    @State private var selectedSection: JQAccountSection = .profile
+    @State private var selectedSection: JQAccountSection = JQAccountSheetView.resolveInitialSection()
     @State private var addFriendText = ""
     @State private var didCopyFriendCode = false
+
+    /// `-pictriAccountSection profile|friends|add|requests` で直接開くタブを指定できる。
+    /// DEBUG限定。ContentView.resolveInitialTab / MemoriesView.resolveInitialModeと同じパターン。
+    private static func resolveInitialSection() -> JQAccountSection {
+        #if DEBUG
+        return PictriVisualReview.homeAccountSection ?? .profile
+        #else
+        return .profile
+        #endif
+    }
 
     /// 「友達コード」カード。QRコード生成等は不要で、身内共有の雰囲気をUIだけで示す。
     private var friendCodeCard: some View {

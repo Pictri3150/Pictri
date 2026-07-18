@@ -86,6 +86,20 @@ enum PictriVisualReview {
         prefectureCountOverrides?[prefectureId]
     }
 
+    /// `-pictriAccountSection profile|friends|add|requests` でJQAccountSheetViewを
+    /// 指定タブを開いた状態で直接起動できるようにする。DEBUG限定。
+    /// 「友達コード」カード(addタブ)など、通常操作では複数タップが必要な領域を
+    /// スクショ確認するために追加した。既存のアカウントアイコンタップ導線は無変更。
+    static var homeAccountSection: JQAccountSection? {
+        switch value(for: "-pictriAccountSection") {
+        case "profile": return .profile
+        case "friends": return .friends
+        case "add": return .add
+        case "requests": return .requests
+        default: return nil
+        }
+    }
+
     static var cameraScenario: PictriCameraVisualScenario? {
         switch value(for: "-pictriCameraScenario") {
         case "ready": return .ready
