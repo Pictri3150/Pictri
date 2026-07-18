@@ -1,6 +1,20 @@
 import SwiftUI
 
-// MARK: - Map
+// MARK: - Navigation Routes
+//
+// NavigationPathは型ごとにdestinationを振り分けるため、県詳細とエリア探索を
+// 同じQuestPrefectureのまま2回pushすると区別できない。専用のRoute型で包むことで、
+// 「県詳細へ行く」と「エリア探索へ行く」を別の画面として積めるようにしている。
+
+struct PrefectureDetailRoute: Hashable {
+    let prefecture: QuestPrefecture
+}
+
+struct AreaExploreRoute: Hashable {
+    let prefecture: QuestPrefecture
+}
+
+// MARK: - Map Root
 
 struct QuestMapView: View {
     @Binding var selectedTab: AppTab
@@ -8,56 +22,46 @@ struct QuestMapView: View {
 
     @EnvironmentObject var memoryStore: QuestMemoryStore
 
-    @State private var mapZoomLevel: QuestMapZoomLevel = .prefecture
     @State private var path = NavigationPath()
 
-    private var kanagawaSpots: [QuestSpot] {
-        mockQuestSpots
-            .filter { $0.prefectureId == "kanagawa" }
-            .sorted { $0.gridIndex < $1.gridIndex }
-    }
-
-    private var completedSpotIds: Set<String> {
-        Set(memoryStore.memoryPhotos.map { $0.spotId })
-    }
-
-    private var completedCount: Int {
+    /// 訪問済み都道府県は「実際にメモリーが1枚でもある県」を基準にする。
+    /// 今のところ実スポットデータは神奈川しか無いため、実際の利用では{"kanagawa"}
+    /// のみになるが、将来スポットが増えればそのまま自動的に広がる。
+    /// DEBUG限定でプレビュー用に追加の県を「訪問済みに見せる」ことができる
+    /// (memoryStoreへは一切書き込まない、表示専用の上乗せ)。
+    private var visitedPrefectureIds: Set<String> {
+        var ids = Set(memoryStore.memoryPhotos.map { $0.prefectureId })
         #if DEBUG
-        if let override = PictriVisualReview.prefectureCountOverride(for: "kanagawa") {
-            return override
+        if let preview = PictriVisualReview.mapPreviewVisitedPrefectureIds {
+            ids.formUnion(preview)
         }
         #endif
-        return memoryStore.completedCount(prefectureId: "kanagawa")
-    }
-
-    private var nextSpotsToCapture: [QuestSpot] {
-        kanagawaSpots
-            .filter { !completedSpotIds.contains($0.id) }
-            .prefix(6)
-            .map { $0 }
+        return ids
     }
 
     var body: some View {
         NavigationStack(path: $path) {
-            ZStack {
-                AppBackground()
-
-                VStack(alignment: .leading, spacing: 16) {
-                    mapHeader
-
-                    mapPanel
-
-                    if !nextSpotsToCapture.isEmpty {
-                        discoverySpotsSection
-                    }
-
-                    Spacer(minLength: JQUI.bottomBarReserve)
+            QuestJapanOverviewScreen(
+                visitedPrefectureIds: visitedPrefectureIds,
+                onSelectPrefecture: { prefecture in
+                    path.append(PrefectureDetailRoute(prefecture: prefecture))
                 }
-                .padding(.horizontal, JQUI.sidePadding)
-                .padding(.top, JQUI.screenTopPadding)
-            }
+            )
             .onAppear {
                 openDebugSpotIfRequested()
+            }
+            .navigationDestination(for: PrefectureDetailRoute.self) { route in
+                QuestPrefectureDetailScreen(
+                    prefecture: route.prefecture,
+                    isVisited: visitedPrefectureIds.contains(route.prefecture.id),
+                    path: $path
+                )
+            }
+            .navigationDestination(for: AreaExploreRoute.self) { route in
+                QuestAreaExploreScreen(
+                    prefecture: route.prefecture,
+                    path: $path
+                )
             }
             .navigationDestination(for: QuestSpot.self) { spot in
                 QuestSpotDetailView(
@@ -69,148 +73,721 @@ struct QuestMapView: View {
         }
     }
 
-    /// `-pictriMapSpot <spotId>` でSpotDetailを直接スクショ確認できるようにする。DEBUG限定。
-    /// 不正なspotIdの場合は何もしない(通常のMap表示のまま)。既存のnavigationDestination構造は無変更。
+    /// `-pictriMapSpot <spotId>` / `-pictriMapArea <prefectureId>` / `-pictriMapPrefecture <prefectureId>`
+    /// で、日本全体Map→県詳細→エリア探索→スポット詳細のうち任意の深さを直接スクショ確認できるようにする。
+    /// DEBUG限定。実際の導線と同じ積み上がり方のnavigation stackを再現する
+    /// (戻るボタンの挙動も本番と同じにするため、途中の階層を必ず経由してpushする)。
     private func openDebugSpotIfRequested() {
         #if DEBUG
-        guard path.isEmpty,
-              let spotId = PictriVisualReview.mapSpotId,
-              let spot = mockQuestSpots.first(where: { $0.id == spotId }) else {
+        guard path.isEmpty else { return }
+
+        func prefecture(for id: String) -> QuestPrefecture? {
+            mockQuestPrefectures.first { $0.id == id }
+        }
+
+        if let spotId = PictriVisualReview.mapSpotId,
+           let spot = mockQuestSpots.first(where: { $0.id == spotId }),
+           let matchedPrefecture = prefecture(for: spot.prefectureId) {
+            path.append(PrefectureDetailRoute(prefecture: matchedPrefecture))
+            path.append(AreaExploreRoute(prefecture: matchedPrefecture))
+            path.append(spot)
             return
         }
-        path.append(spot)
+
+        if let prefectureId = PictriVisualReview.mapAreaPrefectureId,
+           let matchedPrefecture = prefecture(for: prefectureId) {
+            path.append(PrefectureDetailRoute(prefecture: matchedPrefecture))
+            path.append(AreaExploreRoute(prefecture: matchedPrefecture))
+            return
+        }
+
+        if let prefectureId = PictriVisualReview.mapPrefectureId,
+           let matchedPrefecture = prefecture(for: prefectureId) {
+            path.append(PrefectureDetailRoute(prefecture: matchedPrefecture))
+            return
+        }
         #endif
     }
+}
 
-    private var mapHeader: some View {
-        PictriScreenHeader(eyebrow: "MAP", title: "スポットを探す") {
-            Text(mapZoomLevel.label)
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(.black)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 9)
-                .background(.white)
-                .clipShape(Capsule())
+// MARK: - Shared shape rendering
+
+/// questPrefectureShapesの座標(共有キャンバス基準の絶対値)を、任意のscale/offsetで
+/// 変換してから描画するPath。日本全体Mapと県詳細のズームしたサブMapの両方で使う。
+private struct QuestScaledShapePath: Shape {
+    let points: [CGPoint]
+    var scale: CGFloat
+    var offsetX: CGFloat = 0
+    var offsetY: CGFloat = 0
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        guard let first = points.first else { return path }
+
+        func transformed(_ point: CGPoint) -> CGPoint {
+            CGPoint(x: point.x * scale + offsetX, y: point.y * scale + offsetY)
         }
-    }
 
-    private var mapPanel: some View {
-        ZStack(alignment: .bottomLeading) {
-            QuestMapKitView(
-                spots: kanagawaSpots,
-                completedSpotIds: completedSpotIds,
-                zoomLevel: $mapZoomLevel
-            ) { spot in
-                path.append(spot)
+        path.move(to: transformed(first))
+        for point in points.dropFirst() {
+            path.addLine(to: transformed(point))
+        }
+        path.closeSubpath()
+        return path
+    }
+}
+
+// MARK: - Japan Overview Screen (日本全体Map)
+
+private struct QuestJapanOverviewScreen: View {
+    let visitedPrefectureIds: Set<String>
+    let onSelectPrefecture: (QuestPrefecture) -> Void
+
+    @State private var showRegionList = false
+
+    private var visitedCount: Int { visitedPrefectureIds.count }
+
+    var body: some View {
+        ZStack {
+            PictriLightTheme.background.ignoresSafeArea()
+
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 16) {
+                    header
+
+                    PictriLightProgressCard(
+                        icon: "mappin.circle.fill",
+                        label: "訪れた都道府県",
+                        current: visitedCount,
+                        total: 47
+                    )
+
+                    japanMapPanel
+
+                    PictriLightShareCard(
+                        shareText: "ピクトリで訪れた都道府県 \(visitedCount)/47 を記録中!"
+                    )
+
+                    Spacer(minLength: JQUI.bottomBarReserve)
+                }
+                .padding(.horizontal, JQUI.sidePadding)
+                .padding(.top, 14)
             }
-            .clipShape(
-                RoundedRectangle(
-                    cornerRadius: JQUI.panelCornerRadius,
-                    style: .continuous
-                )
-            )
-
-            mapPanelBadge
-                .padding(18)
         }
-        .frame(height: JQUI.panelHeight)
-        .background {
-            RoundedRectangle(
-                cornerRadius: JQUI.panelCornerRadius + 4,
-                style: .continuous
+        .sheet(isPresented: $showRegionList) {
+            QuestRegionListSheet(
+                visitedPrefectureIds: visitedPrefectureIds,
+                onSelect: { prefecture in
+                    showRegionList = false
+                    onSelectPrefecture(prefecture)
+                }
             )
-            .fill(.white.opacity(0.055))
-        }
-        .overlay {
-            RoundedRectangle(
-                cornerRadius: JQUI.panelCornerRadius + 4,
-                style: .continuous
-            )
-            .stroke(.white.opacity(0.10), lineWidth: 1)
         }
     }
 
-    /// 地図を「貼っただけ」に見せないための、Pictri独自の発見パネル。
-    /// 数字ではなく「次に残せる場所」を主役にする。
-    private var discoverySpotsSection: some View {
+    private var header: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "mappin.and.ellipse.circle.fill")
+                .font(.system(size: 21, weight: .bold))
+                .foregroundStyle(PictriLightTheme.accent)
+
+            Text("ピクトリ")
+                .font(.system(size: 21, weight: .heavy))
+                .foregroundStyle(PictriLightTheme.textPrimary)
+
+            Spacer()
+        }
+    }
+
+    private var japanMapPanel: some View {
+        ZStack(alignment: .bottomTrailing) {
+            QuestJapanMapView(
+                visitedPrefectureIds: visitedPrefectureIds,
+                onSelect: onSelectPrefecture
+            )
+            .padding(.vertical, 10)
+
+            Button {
+                showRegionList = true
+            } label: {
+                PictriLightFloatingPill(text: "地域一覧", systemImage: "list.bullet")
+            }
+            .padding(16)
+        }
+        .background(PictriLightTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .shadow(color: PictriLightTheme.shadow, radius: 18, x: 0, y: 8)
+    }
+}
+
+/// 47都道府県を1枚の日本地図として描画する。訪問済みは淡いteal/mint/sky blue、
+/// 未訪問はlight grayで塗り分け、タップで県詳細へ遷移する。
+private struct QuestJapanMapView: View {
+    let visitedPrefectureIds: Set<String>
+    let onSelect: (QuestPrefecture) -> Void
+
+    var body: some View {
+        GeometryReader { proxy in
+            let scale = proxy.size.width / QuestJapanMapMetrics.canvasWidth
+
+            ZStack(alignment: .topLeading) {
+                decorations(scale: scale)
+
+                ForEach(questPrefectureShapes) { shape in
+                    let isVisited = visitedPrefectureIds.contains(shape.id)
+                    let fillColor = isVisited
+                        ? PictriLightTheme.visitedPrefectureColor(id: shape.id)
+                        : PictriLightTheme.unvisitedFill
+
+                    ZStack {
+                        QuestScaledShapePath(points: shape.points, scale: scale)
+                            .fill(fillColor)
+
+                        QuestScaledShapePath(points: shape.points, scale: scale)
+                            .stroke(PictriLightTheme.unvisitedStroke, lineWidth: 1)
+                    }
+                    .contentShape(QuestScaledShapePath(points: shape.points, scale: scale))
+                    .onTapGesture {
+                        let prefecture = mockQuestPrefectures.first(where: { $0.id == shape.id })
+                            ?? QuestPrefecture(id: shape.id, name: shape.name, englishName: shape.id, totalSpotCount: 0)
+                        onSelect(prefecture)
+                    }
+                    .accessibilityLabel("\(shape.name)、\(isVisited ? "訪問済み" : "未訪問")")
+                }
+            }
+            .frame(width: proxy.size.width, height: QuestJapanMapMetrics.canvasHeight * scale)
+        }
+        .aspectRatio(QuestJapanMapMetrics.canvasWidth / QuestJapanMapMetrics.canvasHeight, contentMode: .fit)
+    }
+
+    /// 海や余白に控えめに置く木・波のモチーフ。以前Cameraのプレースホルダーで
+    /// 「灰色の矩形が壊れて見える」問題が起きた反省から、極薄い不透明度に留めている。
+    private func decorations(scale: CGFloat) -> some View {
+        ZStack {
+            PictriPineTreeMotif().position(x: 34 * scale, y: 96 * scale)
+            PictriPineTreeMotif().position(x: 50 * scale, y: 132 * scale)
+            PictriWaveMotif(width: 30).position(x: 290 * scale, y: 160 * scale)
+            PictriWaveMotif(width: 26).position(x: 290 * scale, y: 260 * scale)
+            PictriWaveMotif(width: 22).position(x: 232 * scale, y: 355 * scale)
+        }
+        .opacity(0.32)
+        .allowsHitTesting(false)
+    }
+}
+
+/// 「地域一覧」から一括で都道府県を見て選べる、日本地図の代替となるリスト表示。
+private struct QuestRegionListSheet: View {
+    let visitedPrefectureIds: Set<String>
+    let onSelect: (QuestPrefecture) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List(questPrefectureShapes) { shape in
+                let isVisited = visitedPrefectureIds.contains(shape.id)
+
+                Button {
+                    let prefecture = mockQuestPrefectures.first(where: { $0.id == shape.id })
+                        ?? QuestPrefecture(id: shape.id, name: shape.name, englishName: shape.id, totalSpotCount: 0)
+                    onSelect(prefecture)
+                } label: {
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(isVisited ? PictriLightTheme.visitedPrefectureColor(id: shape.id) : PictriLightTheme.unvisitedFill)
+                            .frame(width: 10, height: 10)
+
+                        Text(shape.name)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(PictriLightTheme.textPrimary)
+
+                        Spacer()
+
+                        if isVisited {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(PictriLightTheme.teal)
+                        }
+                    }
+                }
+            }
+            .listStyle(.plain)
+            .navigationTitle("地域一覧")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("閉じる") { dismiss() }
+                        .foregroundStyle(PictriLightTheme.accent)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Prefecture Detail Screen (都道府県詳細)
+
+private struct QuestPrefectureDetailScreen: View {
+    let prefecture: QuestPrefecture
+    let isVisited: Bool
+    @Binding var path: NavigationPath
+
+    @EnvironmentObject var memoryStore: QuestMemoryStore
+    @Environment(\.dismiss) private var dismiss
+
+    /// 実スポットデータ(緯度経度・カテゴリ等)があるのは今のところ神奈川のみ。
+    /// それ以外の県は形と訪問可否だけ見せ、「準備中」として無理にデータを捏造しない。
+    private var hasRealSpotData: Bool {
+        prefecture.id == "kanagawa"
+    }
+
+    private var spots: [QuestSpot] {
+        mockQuestSpots
+            .filter { $0.prefectureId == prefecture.id }
+            .sorted { $0.gridIndex < $1.gridIndex }
+    }
+
+    private var completedSpotIds: Set<String> {
+        Set(
+            memoryStore.memoryPhotos
+                .filter { $0.prefectureId == prefecture.id }
+                .map { $0.spotId }
+        )
+    }
+
+    private var completedCount: Int {
+        #if DEBUG
+        if let override = PictriVisualReview.prefectureCountOverride(for: prefecture.id) {
+            return override
+        }
+        #endif
+        return completedSpotIds.count
+    }
+
+    private var totalCount: Int {
+        max(prefecture.totalSpotCount, spots.count)
+    }
+
+    private var achievementRatio: Double {
+        guard totalCount > 0 else { return 0 }
+        return Double(completedCount) / Double(totalCount)
+    }
+
+    private var nextSpots: [QuestSpot] {
+        Array(spots.filter { !completedSpotIds.contains($0.id) }.prefix(4))
+    }
+
+    private var shape: QuestPrefectureShape? {
+        questPrefectureShapes.first { $0.id == prefecture.id }
+    }
+
+    var body: some View {
+        ZStack {
+            PictriLightTheme.background.ignoresSafeArea()
+
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 16) {
+                    backLink
+                    titleRow
+
+                    if hasRealSpotData {
+                        PictriLightProgressCard(
+                            icon: "camera.fill",
+                            label: "訪問スポット",
+                            current: completedCount,
+                            total: totalCount
+                        )
+                    } else {
+                        comingSoonCard
+                    }
+
+                    if let shape {
+                        prefectureSubMap(shape: shape)
+                    }
+
+                    if hasRealSpotData, completedCount > 0, achievementRatio < 1 {
+                        PictriLightNudgeCard(
+                            title: "あと少しで達成!",
+                            detail: "\(prefecture.name)の訪問率 \(Int((achievementRatio * 100).rounded()))%",
+                            accentColor: PictriLightTheme.teal
+                        )
+                    }
+
+                    if hasRealSpotData, !nextSpots.isEmpty {
+                        nextSpotsSection
+                    }
+
+                    collectionCTACard
+
+                    Spacer(minLength: JQUI.bottomBarReserve)
+                }
+                .padding(.horizontal, JQUI.sidePadding)
+                .padding(.top, 14)
+            }
+        }
+        .navigationBarBackButtonHidden(true)
+    }
+
+    private var backLink: some View {
+        Button {
+            dismiss()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.left")
+                Text("都道府県一覧に戻る")
+            }
+            .font(.system(size: 13, weight: .bold))
+            .foregroundStyle(PictriLightTheme.textSecondary)
+        }
+        .accessibilityLabel("都道府県一覧に戻る")
+    }
+
+    private var titleRow: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("次に残せるスポット")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(.white.opacity(0.85))
+            Text(prefecture.name)
+                .font(.system(size: 30, weight: .heavy))
+                .foregroundStyle(PictriLightTheme.textPrimary)
+
+            if hasRealSpotData {
+                Button {
+                    path.append(AreaExploreRoute(prefecture: prefecture))
+                } label: {
+                    Label("エリアを探索する", systemImage: "map.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(PictriLightTheme.accent)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(PictriLightTheme.accentSoft)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var comingSoonCard: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "hourglass")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(PictriLightTheme.textFaint)
+                .frame(width: 40, height: 40)
+                .background(PictriLightTheme.unvisitedFill)
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("この県はまだ準備中です")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(PictriLightTheme.textPrimary)
+
+                Text("スポットは近日追加予定です")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(PictriLightTheme.textSecondary)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .background(PictriLightTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: PictriLightTheme.shadow, radius: 12, x: 0, y: 4)
+    }
+
+    private func prefectureSubMap(shape: QuestPrefectureShape) -> some View {
+        ZStack(alignment: .bottomTrailing) {
+            QuestPrefectureSubMapView(
+                shape: shape,
+                isVisited: isVisited,
+                spotPoints: hasRealSpotData ? questKanagawaSpotMapPoints : [:],
+                spots: hasRealSpotData ? spots : [],
+                completedSpotIds: completedSpotIds
+            )
+            .frame(height: 300)
+
+            if hasRealSpotData {
+                Button {
+                    path.append(AreaExploreRoute(prefecture: prefecture))
+                } label: {
+                    PictriLightFloatingPill(text: "エリア一覧", systemImage: "list.bullet")
+                }
+                .padding(16)
+            }
+        }
+        .padding(.vertical, 10)
+        .background(PictriLightTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .shadow(color: PictriLightTheme.shadow, radius: 18, x: 0, y: 8)
+    }
+
+    private var nextSpotsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("次に行きたい場所")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(PictriLightTheme.textPrimary)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    ForEach(nextSpotsToCapture) { spot in
+                    ForEach(nextSpots) { spot in
                         Button {
-                            path.append(spot)
+                            path.append(AreaExploreRoute(prefecture: prefecture))
                         } label: {
-                            discoverySpotCard(spot)
+                            PictriLightSpotCard(
+                                title: spot.name,
+                                subtitle: spot.areaName,
+                                isVisited: false
+                            )
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("\(spot.name)、\(spot.areaName)。スポット詳細を開く")
+                        .accessibilityLabel("\(spot.name)、\(spot.areaName)")
                     }
                 }
             }
         }
     }
 
-    private func discoverySpotCard(_ spot: QuestSpot) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // まだ行っていないスポットなので、訪問済みスポット用の色(MemoryVisualStyle)ではなく
-            // 暗い余白トーンを使う。「次に色がつく場所」であることをピンの淡いaccentだけで示す。
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(PictriTheme.unvisitedSpotGradient)
-                .frame(width: 128, height: 72)
-                .overlay {
-                    Image(systemName: "mappin.and.ellipse")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(PictriTheme.accent.opacity(0.75))
-                }
+    private var collectionCTACard: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "photo.stack.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(PictriLightTheme.teal)
+                .frame(width: 40, height: 40)
+                .background(PictriLightTheme.teal.opacity(0.14))
+                .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(spot.name)
+                Text("思い出をコレクションしよう")
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
+                    .foregroundStyle(PictriLightTheme.textPrimary)
 
-                Text(spot.areaName)
+                Text("訪れた場所の写真を記録して、あなただけの地図を完成させよう。")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.5))
-            }
-        }
-        .frame(width: 128, alignment: .leading)
-    }
-
-    private var mapPanelBadge: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                // 1スポットでも訪問済みなら「訪問=teal」に切り替え、未訪問はaccentのまま。
-                // Map側でも「行けた場所に色がつく」思想をMemoriesと同じ色で一貫させる。
-                Circle()
-                    .fill(completedCount > 0 ? PictriTheme.teal : PictriTheme.accent)
-                    .frame(width: 7, height: 7)
-
-                Text("神奈川")
-                    .font(.system(size: 19, weight: .bold))
-                    .foregroundStyle(.black)
+                    .foregroundStyle(PictriLightTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
-            Text("\(completedCount) / 24 スポット撮影済み")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.black.opacity(0.5))
+            Spacer(minLength: 0)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(PictriLightTheme.textFaint)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(.white.opacity(0.94))
-        .clipShape(
-            RoundedRectangle(
-                cornerRadius: 18,
-                style: .continuous
-            )
-        )
-        .shadow(color: .black.opacity(0.14), radius: 14, x: 0, y: 6)
+        .padding(16)
+        .background(PictriLightTheme.teal.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
+
+/// 県の形をズームして表示し、実スポットがある場合はその位置に達成状況の
+/// 丸バッジ(チェック=訪問済み、点線=未訪問)を重ねる。区市町村界のデータは
+/// 保有していないため、実際のスポット座標を「エリアの達成状況」の代わりに使う。
+private struct QuestPrefectureSubMapView: View {
+    let shape: QuestPrefectureShape
+    let isVisited: Bool
+    let spotPoints: [String: CGPoint]
+    let spots: [QuestSpot]
+    let completedSpotIds: Set<String>
+
+    private var bounds: (minX: CGFloat, minY: CGFloat, width: CGFloat, height: CGFloat) {
+        let xs = shape.points.map { $0.x }
+        let ys = shape.points.map { $0.y }
+        let minX = xs.min() ?? 0
+        let minY = ys.min() ?? 0
+        let width = max((xs.max() ?? 1) - minX, 1)
+        let height = max((ys.max() ?? 1) - minY, 1)
+        return (minX, minY, width, height)
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let box = bounds
+            let pad: CGFloat = 26
+            let scale = min(
+                (proxy.size.width - pad * 2) / box.width,
+                (proxy.size.height - pad * 2) / box.height
+            )
+            let offsetX = (proxy.size.width - box.width * scale) / 2 - box.minX * scale
+            let offsetY = (proxy.size.height - box.height * scale) / 2 - box.minY * scale
+            let fillColor = isVisited ? PictriLightTheme.visitedPrefectureColor(id: shape.id) : PictriLightTheme.unvisitedFill
+
+            ZStack {
+                QuestScaledShapePath(points: shape.points, scale: scale, offsetX: offsetX, offsetY: offsetY)
+                    .fill(fillColor)
+
+                QuestScaledShapePath(points: shape.points, scale: scale, offsetX: offsetX, offsetY: offsetY)
+                    .stroke(.white, lineWidth: 1.5)
+
+                ForEach(spots) { spot in
+                    if let point = spotPoints[spot.id] {
+                        let isDone = completedSpotIds.contains(spot.id)
+
+                        Circle()
+                            .fill(.white)
+                            .frame(width: 22, height: 22)
+                            .overlay {
+                                Image(systemName: isDone ? "checkmark" : "circle.dashed")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(isDone ? PictriLightTheme.teal : PictriLightTheme.textFaint)
+                            }
+                            .shadow(color: .black.opacity(0.14), radius: 3, x: 0, y: 1)
+                            .position(x: point.x * scale + offsetX, y: point.y * scale + offsetY)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Area Explore Screen (エリア/スポット探索)
+
+private struct QuestAreaExploreScreen: View {
+    let prefecture: QuestPrefecture
+    @Binding var path: NavigationPath
+
+    @EnvironmentObject var memoryStore: QuestMemoryStore
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var mapZoomLevel: QuestMapZoomLevel = .prefecture
+    @State private var selectedCategory: QuestSpotCategory?
+
+    private static let filterCategories: [QuestSpotCategory] = [.nature, .photogenic, .landmark, .cafe]
+
+    private var allSpots: [QuestSpot] {
+        mockQuestSpots
+            .filter { $0.prefectureId == prefecture.id }
+            .sorted { $0.gridIndex < $1.gridIndex }
+    }
+
+    private var filteredSpots: [QuestSpot] {
+        guard let selectedCategory else { return allSpots }
+        return allSpots.filter { $0.category == selectedCategory }
+    }
+
+    private var completedSpotIds: Set<String> {
+        Set(
+            memoryStore.memoryPhotos
+                .filter { $0.prefectureId == prefecture.id }
+                .map { $0.spotId }
+        )
+    }
+
+    private var nearbySpots: [QuestSpot] {
+        Array(filteredSpots.prefix(6))
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            PictriLightTheme.background.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                header
+                filterRow
+
+                QuestMapKitView(
+                    spots: filteredSpots,
+                    completedSpotIds: completedSpotIds,
+                    zoomLevel: $mapZoomLevel
+                ) { spot in
+                    path.append(spot)
+                }
+            }
+
+            nearbySpotsCard
+        }
+        .navigationBarBackButtonHidden(true)
+    }
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(PictriLightTheme.textPrimary)
+                    .frame(width: 32, height: 32)
+            }
+            .accessibilityLabel("戻る")
+
+            Text("\(prefecture.name)周辺")
+                .font(.system(size: 17, weight: .bold))
+                .foregroundStyle(PictriLightTheme.textPrimary)
+
+            Spacer()
+        }
+        .padding(.horizontal, JQUI.sidePadding)
+        .padding(.top, 14)
+        .padding(.bottom, 10)
+        .background(PictriLightTheme.background)
+    }
+
+    private var filterRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                Button {
+                    selectedCategory = nil
+                } label: {
+                    PictriLightFilterChip(text: "すべて", isSelected: selectedCategory == nil)
+                }
+                .buttonStyle(.plain)
+
+                ForEach(Self.filterCategories, id: \.self) { category in
+                    Button {
+                        selectedCategory = (selectedCategory == category) ? nil : category
+                    } label: {
+                        PictriLightFilterChip(
+                            text: category.label,
+                            systemImage: category.systemImage,
+                            isSelected: selectedCategory == category
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, JQUI.sidePadding)
+        }
+        .padding(.bottom, 10)
+        .background(PictriLightTheme.background)
+    }
+
+    private var nearbySpotsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("近くのスポット")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(PictriLightTheme.textPrimary)
+
+            if nearbySpots.isEmpty {
+                Text("このカテゴリのスポットはまだありません")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(PictriLightTheme.textSecondary)
+                    .padding(.vertical, 8)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(nearbySpots) { spot in
+                            Button {
+                                path.append(spot)
+                            } label: {
+                                PictriLightSpotCard(
+                                    title: spot.name,
+                                    subtitle: spot.areaName,
+                                    isVisited: completedSpotIds.contains(spot.id)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("\(spot.name)、\(spot.areaName)。スポット詳細を開く")
+                        }
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(PictriLightTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .shadow(color: PictriLightTheme.shadow, radius: 20, x: 0, y: -4)
+        .padding(.horizontal, 12)
+        .padding(.bottom, JQUI.bottomBarReserve - 26)
+    }
+}
+
+// MARK: - Spot Detail (Cameraへの入口。既存の黒基調UIを維持)
 
 struct QuestSpotDetailView: View {
     let spot: QuestSpot
@@ -519,4 +1096,3 @@ struct QuestSpotDetailView: View {
     }
 
 }
-

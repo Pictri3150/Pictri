@@ -422,3 +422,392 @@ struct PictriEmptyState: View {
         .pictriSurface(fill: .white.opacity(0.05))
     }
 }
+
+// MARK: - Pictri Light Theme (Map専用)
+//
+// Map関連画面(日本全体Map・都道府県詳細・エリア探索)だけに使う、白基調・軽い・
+// 上品なテーマ。既存のPictriTheme(黒基調、Home/Camera/Memories/Accountで使用)は
+// 無変更で維持し、この2つのテーマは意図的に混ぜない(黒基調の白文字をこちらで
+// 使うと白背景に白文字で読めなくなるため)。
+
+enum PictriLightTheme {
+    static let background = Color(red: 0.985, green: 0.988, blue: 0.996)
+    static let surface = Color.white
+    static let surfaceBorder = Color.black.opacity(0.05)
+
+    static let textPrimary = Color(red: 0.10, green: 0.12, blue: 0.16)
+    static let textSecondary = Color.black.opacity(0.46)
+    static let textFaint = Color.black.opacity(0.28)
+
+    /// 主要CTA・撮影可能・選択中を示すsky blue。Map内での「今できる行動」の色。
+    static let accent = Color(red: 0.18, green: 0.50, blue: 0.92)
+    static let accentSoft = Color(red: 0.18, green: 0.50, blue: 0.92).opacity(0.12)
+
+    /// 訪問済み/記録があることを示すteal / mint / sky blueの3トーン。
+    static let teal = Color(red: 0.20, green: 0.68, blue: 0.64)
+    static let mint = Color(red: 0.46, green: 0.76, blue: 0.60)
+    static let skyBlue = Color(red: 0.44, green: 0.66, blue: 0.88)
+
+    /// 未訪問(まだ埋まっていない余白)を示すlight gray。
+    static let unvisitedFill = Color(red: 0.91, green: 0.92, blue: 0.94)
+    static let unvisitedStroke = Color.white
+
+    static let shadow = Color.black.opacity(0.07)
+
+    /// 都道府県ごとの訪問済み配色を、idの文字コード合計から安定的に決める。
+    /// Swiftの String.hashValue はプロセスごとにランダム化されるため使わず、
+    /// 同じ県が再起動やスクショの取り直しのたびに違う色に見えないようにする。
+    static func visitedPrefectureColor(id: String) -> Color {
+        let palette = [teal, skyBlue, mint]
+        let sum = id.unicodeScalars.reduce(0) { $0 + Int($1.value) }
+        return palette[sum % palette.count]
+    }
+}
+
+// MARK: - Light Progress Card
+
+/// 「訪れた都道府県 17/47」「訪問スポット 12/20」のような、数字+バー+割合をまとめた
+/// 進捗カード。日本全体Mapと都道府県詳細の両方で同じ型を再利用する。
+struct PictriLightProgressCard: View {
+    let icon: String
+    let label: String
+    let current: Int
+    let total: Int
+    var accentColor: Color = PictriLightTheme.accent
+
+    private var ratio: Double {
+        guard total > 0 else { return 0 }
+        return min(1, Double(current) / Double(total))
+    }
+
+    private var percentText: String {
+        "\(Int((ratio * 100).rounded()))%"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(accentColor)
+
+                Text(label)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(PictriLightTheme.textSecondary)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(current)")
+                    .font(.system(size: 30, weight: .heavy))
+                    .foregroundStyle(accentColor)
+
+                Text("/ \(total)")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(PictriLightTheme.textFaint)
+            }
+
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(PictriLightTheme.unvisitedFill)
+
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [PictriLightTheme.teal, accentColor],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: proxy.size.width * ratio)
+                }
+            }
+            .frame(height: 6)
+
+            Text("訪問率 \(percentText)")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(PictriLightTheme.textSecondary)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(PictriLightTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: PictriLightTheme.shadow, radius: 16, x: 0, y: 6)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Light Floating Pill
+
+/// 「地域一覧」「エリア一覧」のような、Mapの上に浮かべる白いピルボタン。
+struct PictriLightFloatingPill: View {
+    let text: String
+    let systemImage: String
+
+    var body: some View {
+        Label(text, systemImage: systemImage)
+            .font(.system(size: 13, weight: .bold))
+            .foregroundStyle(PictriLightTheme.textPrimary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 11)
+            .background(PictriLightTheme.surface)
+            .clipShape(Capsule())
+            .shadow(color: PictriLightTheme.shadow, radius: 12, x: 0, y: 4)
+    }
+}
+
+// MARK: - Light Filter Chip
+
+/// エリア探索画面のカテゴリフィルタチップ。「人気/ランキング」文脈を避けるため、
+/// カテゴリ名(自然・フォトジェニック・名所など)のみを使う。
+struct PictriLightFilterChip: View {
+    let text: String
+    var systemImage: String?
+    let isSelected: Bool
+
+    var body: some View {
+        Group {
+            if let systemImage {
+                Label(text, systemImage: systemImage)
+            } else {
+                Text(text)
+            }
+        }
+        .font(.system(size: 13, weight: .bold))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .background(isSelected ? PictriLightTheme.accent : PictriLightTheme.surface)
+        .foregroundStyle(isSelected ? Color.white : PictriLightTheme.textSecondary)
+        .clipShape(Capsule())
+        .overlay {
+            if !isSelected {
+                Capsule().stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
+            }
+        }
+    }
+}
+
+// MARK: - Light Spot Card
+
+/// 「近くのスポット」「次に行きたい場所」で使う、写真+訪問状態付きのカード。
+struct PictriLightSpotCard: View {
+    let title: String
+    let subtitle: String
+    let isVisited: Bool
+    var thumbnail: Image?
+    var accentColor: Color = PictriLightTheme.accent
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topTrailing) {
+                Group {
+                    if let thumbnail {
+                        thumbnail
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        LinearGradient(
+                            colors: isVisited
+                                ? [PictriLightTheme.teal.opacity(0.32), PictriLightTheme.teal.opacity(0.12)]
+                                : [PictriLightTheme.skyBlue.opacity(0.28), PictriLightTheme.skyBlue.opacity(0.10)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .overlay {
+                            Image(systemName: isVisited ? "checkmark.circle.fill" : "mappin.circle.fill")
+                                .font(.system(size: 22, weight: .medium))
+                                .foregroundStyle(isVisited ? PictriLightTheme.teal : PictriLightTheme.skyBlue)
+                        }
+                    }
+                }
+                .frame(height: 92)
+                .clipped()
+
+                Image(systemName: isVisited ? "checkmark" : "camera.fill")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 26, height: 26)
+                    .background(isVisited ? Color.black.opacity(0.34) : accentColor)
+                    .clipShape(Circle())
+                    .padding(7)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(PictriLightTheme.textPrimary)
+                    .lineLimit(1)
+
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(isVisited ? PictriLightTheme.textFaint : accentColor)
+                        .frame(width: 6, height: 6)
+
+                    Text(isVisited ? "訪問済み" : "未訪問")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(isVisited ? PictriLightTheme.textFaint : accentColor)
+
+                    Spacer(minLength: 0)
+                }
+
+                Text(subtitle)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(PictriLightTheme.textSecondary)
+                    .lineLimit(1)
+            }
+            .padding(10)
+        }
+        .frame(width: 148)
+        .background(PictriLightTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .shadow(color: PictriLightTheme.shadow, radius: 10, x: 0, y: 4)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Light Nudge Card
+
+/// 「あと少しで達成!」のような軽い達成訴求カード。
+struct PictriLightNudgeCard: View {
+    let title: String
+    let detail: String
+    var systemImage: String = "flag.fill"
+    var accentColor: Color = PictriLightTheme.teal
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 38, height: 38)
+                .background(accentColor)
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(PictriLightTheme.textPrimary)
+
+                Text(detail)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(PictriLightTheme.textSecondary)
+            }
+
+            Spacer(minLength: 8)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(PictriLightTheme.textFaint)
+        }
+        .padding(14)
+        .background(PictriLightTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .shadow(color: PictriLightTheme.shadow, radius: 10, x: 0, y: 4)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Light Share Card
+
+/// 「家族や友だちにシェアしよう」の軽いカード。特定ブランドのアイコンは使わず、
+/// iOS標準のShareLinkで「誰と共有するか」はユーザー自身に委ねる
+/// (LINE/Instagram等の商標アイコンを模倣しない、かつフォロー/フォロワー型SNSにしない)。
+struct PictriLightShareCard: View {
+    let shareText: String
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Circle()
+                .fill(PictriLightTheme.accentSoft)
+                .frame(width: 42, height: 42)
+                .overlay {
+                    Image(systemName: "person.2.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(PictriLightTheme.accent)
+                }
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("家族や友だちにシェアしよう")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(PictriLightTheme.textPrimary)
+
+                Text("身内だけに、旅の記録を共有できます")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(PictriLightTheme.textSecondary)
+            }
+
+            Spacer(minLength: 8)
+
+            ShareLink(item: shareText) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(PictriLightTheme.accent)
+                    .frame(width: 38, height: 38)
+                    .background(PictriLightTheme.accentSoft)
+                    .clipShape(Circle())
+            }
+        }
+        .padding(14)
+        .background(PictriLightTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: PictriLightTheme.shadow, radius: 12, x: 0, y: 4)
+    }
+}
+
+// MARK: - Light Decorative Motifs
+
+/// 日本全体Map/県詳細Mapの余白に控えめに置く、線画風の木・波アイコン。
+/// 実装当初は灰色の矩形を並べていたシミュレータープレースホルダーで
+/// 「壊れて見える」問題が起きた反省を踏まえ、極薄い不透明度に留める。
+struct PictriPineTreeMotif: View {
+    var tint: Color = PictriLightTheme.skyBlue
+
+    var body: some View {
+        VStack(spacing: -3) {
+            PictriTriangleShape().frame(width: 10, height: 8)
+            PictriTriangleShape().frame(width: 14, height: 9)
+            PictriTriangleShape().frame(width: 18, height: 11)
+        }
+        .foregroundStyle(tint)
+    }
+}
+
+struct PictriWaveMotif: View {
+    var tint: Color = PictriLightTheme.skyBlue
+    var width: CGFloat = 30
+
+    var body: some View {
+        PictriWaveShape()
+            .stroke(tint, lineWidth: 1.4)
+            .frame(width: width, height: 8)
+    }
+}
+
+struct PictriTriangleShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+struct PictriWaveShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let midY = rect.midY
+        path.move(to: CGPoint(x: rect.minX, y: midY))
+        path.addCurve(
+            to: CGPoint(x: rect.midX, y: midY),
+            control1: CGPoint(x: rect.minX + rect.width * 0.17, y: midY - rect.height * 0.55),
+            control2: CGPoint(x: rect.minX + rect.width * 0.33, y: midY + rect.height * 0.55)
+        )
+        path.addCurve(
+            to: CGPoint(x: rect.maxX, y: midY),
+            control1: CGPoint(x: rect.midX + rect.width * 0.17, y: midY - rect.height * 0.55),
+            control2: CGPoint(x: rect.midX + rect.width * 0.33, y: midY + rect.height * 0.55)
+        )
+        return path
+    }
+}

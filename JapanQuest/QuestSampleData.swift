@@ -59,7 +59,8 @@ let mockQuestSpots: [QuestSpot] = [
         latitude: 35.2996,
         longitude: 139.4807,
         unlockRadiusMeters: 250,
-        gridIndex: 0
+        gridIndex: 0,
+        category: .nature
     ),
     QuestSpot(
         id: "kamakura_daibutsu",
@@ -70,7 +71,8 @@ let mockQuestSpots: [QuestSpot] = [
         latitude: 35.3167,
         longitude: 139.5358,
         unlockRadiusMeters: 250,
-        gridIndex: 1
+        gridIndex: 1,
+        category: .landmark
     ),
     QuestSpot(
         id: "akarenga",
@@ -81,7 +83,8 @@ let mockQuestSpots: [QuestSpot] = [
         latitude: 35.4526,
         longitude: 139.6428,
         unlockRadiusMeters: 250,
-        gridIndex: 2
+        gridIndex: 2,
+        category: .photogenic
     ),
     QuestSpot(
         id: "minatomirai",
@@ -92,7 +95,8 @@ let mockQuestSpots: [QuestSpot] = [
         latitude: 35.4579,
         longitude: 139.6323,
         unlockRadiusMeters: 300,
-        gridIndex: 3
+        gridIndex: 3,
+        category: .photogenic
     ),
     QuestSpot(
         id: "kamakura_station",
@@ -103,7 +107,8 @@ let mockQuestSpots: [QuestSpot] = [
         latitude: 35.3192,
         longitude: 139.5503,
         unlockRadiusMeters: 200,
-        gridIndex: 4
+        gridIndex: 4,
+        category: .landmark
     ),
     QuestSpot(
         id: "yamashita_park",
@@ -114,7 +119,8 @@ let mockQuestSpots: [QuestSpot] = [
         latitude: 35.4442,
         longitude: 139.6498,
         unlockRadiusMeters: 250,
-        gridIndex: 5
+        gridIndex: 5,
+        category: .nature
     ),
     QuestSpot(
         id: "tsurugaoka_hachimangu",
@@ -125,7 +131,8 @@ let mockQuestSpots: [QuestSpot] = [
         latitude: 35.3261,
         longitude: 139.5565,
         unlockRadiusMeters: 250,
-        gridIndex: 6
+        gridIndex: 6,
+        category: .landmark
     ),
     QuestSpot(
         id: "hakone_shrine",
@@ -136,7 +143,8 @@ let mockQuestSpots: [QuestSpot] = [
         latitude: 35.2056,
         longitude: 139.0256,
         unlockRadiusMeters: 300,
-        gridIndex: 7
+        gridIndex: 7,
+        category: .landmark
     ),
     QuestSpot(
         id: "hasedera",
@@ -147,7 +155,8 @@ let mockQuestSpots: [QuestSpot] = [
         latitude: 35.3127,
         longitude: 139.5332,
         unlockRadiusMeters: 250,
-        gridIndex: 8
+        gridIndex: 8,
+        category: .landmark
     ),
     QuestSpot(
         id: "enosui",
@@ -158,7 +167,8 @@ let mockQuestSpots: [QuestSpot] = [
         latitude: 35.3100,
         longitude: 139.4801,
         unlockRadiusMeters: 250,
-        gridIndex: 9
+        gridIndex: 9,
+        category: .photogenic
     ),
     QuestSpot(
         id: "hakone_ropeway",
@@ -169,7 +179,8 @@ let mockQuestSpots: [QuestSpot] = [
         latitude: 35.2407,
         longitude: 139.0203,
         unlockRadiusMeters: 300,
-        gridIndex: 10
+        gridIndex: 10,
+        category: .nature
     ),
     QuestSpot(
         id: "owakudani",
@@ -180,7 +191,8 @@ let mockQuestSpots: [QuestSpot] = [
         latitude: 35.2444,
         longitude: 139.0197,
         unlockRadiusMeters: 300,
-        gridIndex: 11
+        gridIndex: 11,
+        category: .nature
     )
 ]
 

@@ -15,6 +15,33 @@ struct QuestPrefecture: Identifiable, Hashable {
     let totalSpotCount: Int
 }
 
+/// Map探索画面のフィルタチップとピン種別を分けるための、スポットの見た目上の分類。
+/// 「人気」のような順位づけの概念は持たず、あくまで内容の種類だけを表す。
+enum QuestSpotCategory: String, Hashable {
+    case nature
+    case landmark
+    case photogenic
+    case cafe
+
+    var label: String {
+        switch self {
+        case .nature: return "自然"
+        case .landmark: return "名所"
+        case .photogenic: return "フォトジェニック"
+        case .cafe: return "カフェ"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .nature: return "leaf.fill"
+        case .landmark: return "building.columns.fill"
+        case .photogenic: return "camera.fill"
+        case .cafe: return "cup.and.saucer.fill"
+        }
+    }
+}
+
 struct QuestSpot: Identifiable, Hashable {
     let id: String
     let prefectureId: String
@@ -25,6 +52,7 @@ struct QuestSpot: Identifiable, Hashable {
     let longitude: Double
     let unlockRadiusMeters: Double
     let gridIndex: Int
+    var category: QuestSpotCategory = .landmark
 }
 
 struct QuestPost: Identifiable, Hashable {

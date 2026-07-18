@@ -199,16 +199,21 @@ struct QuestMapKitView: UIViewRepresentable {
                 markerView.canShowCallout = true
                 markerView.animatesWhenAdded = true
 
-                markerView.markerTintColor = spotAnnotation.isCompleted
-                    ? UIColor.black.withAlphaComponent(0.22)
-                    : UIColor.black
-
-                markerView.glyphTintColor = .white
-                markerView.glyphImage = UIImage(
-                    systemName: spotAnnotation.isCompleted
-                    ? "checkmark"
-                    : "camera.fill"
-                )
+                // 訪問済みは白+グレーcheckmarkで統一。未訪問は自然カテゴリならmint系の葉アイコン、
+                // それ以外はaccent(sky blue)のカメラアイコンで「撮影可能」を示す。
+                if spotAnnotation.isCompleted {
+                    markerView.markerTintColor = .white
+                    markerView.glyphTintColor = UIColor(PictriLightTheme.textSecondary)
+                    markerView.glyphImage = UIImage(systemName: "checkmark")
+                } else if spotAnnotation.spot.category == .nature {
+                    markerView.markerTintColor = UIColor(PictriLightTheme.mint)
+                    markerView.glyphTintColor = .white
+                    markerView.glyphImage = UIImage(systemName: "leaf.fill")
+                } else {
+                    markerView.markerTintColor = UIColor(PictriLightTheme.accent)
+                    markerView.glyphTintColor = .white
+                    markerView.glyphImage = UIImage(systemName: "camera.fill")
+                }
 
                 markerView.titleVisibility = .adaptive
                 markerView.subtitleVisibility = .hidden
@@ -229,7 +234,7 @@ struct QuestMapKitView: UIViewRepresentable {
                 markerView.annotation = annotation
                 markerView.canShowCallout = true
                 markerView.animatesWhenAdded = true
-                markerView.markerTintColor = .black
+                markerView.markerTintColor = UIColor(PictriLightTheme.accent)
                 markerView.glyphTintColor = .white
                 markerView.glyphImage = UIImage(systemName: "flag.fill")
                 markerView.titleVisibility = .visible

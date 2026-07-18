@@ -50,6 +50,16 @@ enum PictriVisualReview {
         value(for: "-pictriMapSpot")
     }
 
+    /// `-pictriMapPrefecture <prefectureId>` で都道府県詳細画面を直接スクショ確認できるようにする。DEBUG限定。
+    static var mapPrefectureId: String? {
+        value(for: "-pictriMapPrefecture")
+    }
+
+    /// `-pictriMapArea <prefectureId>` でエリア探索画面を直接スクショ確認できるようにする。DEBUG限定。
+    static var mapAreaPrefectureId: String? {
+        value(for: "-pictriMapArea")
+    }
+
     /// `-pictriExploreDetail <spotId>` でExplore detail sheetを直接開けるようにする。DEBUG限定。
     static var exploreDetailSpotId: String? {
         value(for: "-pictriExploreDetail")
@@ -107,6 +117,19 @@ enum PictriVisualReview {
         case "saved": return .saved
         default: return nil
         }
+    }
+
+    /// `-pictriColorScenario multiPrefecture` の時、日本全体Mapのプレビュー用に
+    /// 実データとは別に「訪問済み」に見せる都道府県idの集合。既存の
+    /// prefectureCountOverrides(神奈川/東京/京都の達成率プレビュー)とは別の目的で、
+    /// Map全体の色づき具合を確認するための表示専用フラグ。memoryStoreへは一切書き込まない。
+    static var mapPreviewVisitedPrefectureIds: Set<String>? {
+        guard value(for: "-pictriColorScenario") == "multiPrefecture" else { return nil }
+        return [
+            "hokkaido", "aomori", "miyagi", "saitama", "chiba", "tokyo", "kanagawa",
+            "niigata", "shizuoka", "aichi", "kyoto", "osaka", "hyogo", "hiroshima",
+            "fukuoka", "kochi"
+        ]
     }
 
     /// `-pictriShowCameraDebugControls true` の時だけ、Camera上部にQA用の
