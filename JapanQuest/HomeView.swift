@@ -12,7 +12,20 @@ struct HomeView: View {
     @State private var profilePost: QuestFeedPost?
 
     private var visiblePosts: [QuestFeedPost] {
-        memoryStore.visibleFeedPosts()
+        let posts = memoryStore.visibleFeedPosts()
+        #if DEBUG
+        // `-pictriHomeCommentsOpen <postId>` でコメント欄を開いた投稿カードを
+        // ScrollViewの自動スクロールなしで確認できるよう、対象投稿を先頭へ並べ替える。
+        // 通常操作(likedPostIds/onLike等)には一切影響しない。
+        if let targetId = PictriVisualReview.homeCommentsOpenPostId,
+           let index = posts.firstIndex(where: { $0.id == targetId }) {
+            var reordered = posts
+            let target = reordered.remove(at: index)
+            reordered.insert(target, at: 0)
+            return reordered
+        }
+        #endif
+        return posts
     }
 
     private var completedSpotCount: Int {
@@ -82,9 +95,11 @@ struct HomeView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 22) {
                         topBar
-                        questHeroCard
-                        if !unvisitedKanagawaSpots.isEmpty {
-                            nextSpotSection
+                        if !isDebugCommentsPreviewActive {
+                            questHeroCard
+                            if !unvisitedKanagawaSpots.isEmpty {
+                                nextSpotSection
+                            }
                         }
                         recentShareSection
 
@@ -104,7 +119,24 @@ struct HomeView: View {
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
+            .onAppear {
+                openDebugProfileIfRequested()
+            }
         }
+    }
+
+    /// `-pictriHomeProfile <username>` でFriendProfileSheetを直接開けるようにする。
+    /// DEBUG限定。該当ユーザーの投稿が無ければ何もしない(通常のHome表示のまま)。
+    /// 既存のアバター/ユーザー名タップ(onProfileTap → profilePost代入)と同じ経路を使う。
+    private func openDebugProfileIfRequested() {
+        #if DEBUG
+        guard profilePost == nil,
+              let username = PictriVisualReview.homeProfileUsername,
+              let match = visiblePosts.first(where: { $0.username == username }) else {
+            return
+        }
+        profilePost = match
+        #endif
     }
 
     private func toggleLike(postId: String) {
@@ -113,6 +145,26 @@ struct HomeView: View {
         } else {
             likedPostIds.insert(postId)
         }
+    }
+
+    /// `-pictriHomeCommentsOpen <postId>` の対象投稿かどうか。DEBUG限定。
+    private func isDebugCommentsOpenTarget(_ post: QuestFeedPost) -> Bool {
+        #if DEBUG
+        return PictriVisualReview.homeCommentsOpenPostId == post.id
+        #else
+        return false
+        #endif
+    }
+
+    /// `-pictriHomeCommentsOpen` 指定時はHero/気になるスポットを省略し、
+    /// スクロールなしで対象の投稿カード(コメント欄含む)をスクショ確認できるようにする。
+    /// DEBUG限定・通常起動には一切影響しない。
+    private var isDebugCommentsPreviewActive: Bool {
+        #if DEBUG
+        return PictriVisualReview.homeCommentsOpenPostId != nil
+        #else
+        return false
+        #endif
     }
 
     private var topBar: some View {
@@ -348,7 +400,8 @@ struct HomeView: View {
                         post: post,
                         isLiked: likedPostIds.contains(post.id),
                         onLike: { toggleLike(postId: post.id) },
-                        onProfileTap: { profilePost = post }
+                        onProfileTap: { profilePost = post },
+                        initiallyCommentsOpen: isDebugCommentsOpenTarget(post)
                     )
                 }
             }
@@ -385,15 +438,22 @@ struct HomeLargePostCard: View {
 
     @EnvironmentObject var memoryStore: QuestMemoryStore
 
-    @State private var isCommentVisible = false
+    @State private var isCommentVisible: Bool
     @State private var commentDraft = ""
     @State private var comments: [HomeComment]
 
-    init(post: QuestFeedPost, isLiked: Bool, onLike: @escaping () -> Void, onProfileTap: @escaping () -> Void) {
+    init(
+        post: QuestFeedPost,
+        isLiked: Bool,
+        onLike: @escaping () -> Void,
+        onProfileTap: @escaping () -> Void,
+        initiallyCommentsOpen: Bool = false
+    ) {
         self.post = post
         self.isLiked = isLiked
         self.onLike = onLike
         self.onProfileTap = onProfileTap
+        _isCommentVisible = State(initialValue: initiallyCommentsOpen)
         _comments = State(initialValue: HomeLargePostCard.seedComment(for: post).map { [$0] } ?? [])
     }
 
@@ -509,7 +569,7 @@ struct HomeLargePostCard: View {
     }
 
     private var postFooter: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             if !comments.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(comments.prefix(3)) { comment in
@@ -523,11 +583,11 @@ struct HomeLargePostCard: View {
                                 Text(comment.username)
                                     .font(.system(size: 13, weight: .bold))
                                     .foregroundStyle(.white.opacity(0.88))
-                                + Text("  \(comment.text)")
+                                + Text(" \(comment.text)")
                                     .font(.system(size: 13, weight: .medium))
                                     .foregroundStyle(.white.opacity(0.70))
                             )
-                            .lineLimit(2)
+                            .lineLimit(3)
                         }
                     }
                 }
@@ -575,32 +635,42 @@ struct HomeLargePostCard: View {
             }
 
             if isCommentVisible {
-                HStack(spacing: 8) {
-                    TextField("コメントを入力…", text: $commentDraft)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.white)
-                        .tint(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
-                        .background(.white.opacity(0.08))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .accessibilityLabel("コメントを入力")
-                        .onSubmit(submitComment)
+                VStack(alignment: .leading, spacing: 10) {
+                    Rectangle()
+                        .fill(PictriTheme.surfaceBorder)
+                        .frame(height: 1)
 
-                    Button(action: submitComment) {
-                        Text("送信")
-                            .font(.system(size: 13, weight: .bold))
-                            .padding(.horizontal, 14)
-                            .frame(minHeight: 44)
-                            .background(.white)
-                            .foregroundStyle(.black)
+                    HStack(spacing: 8) {
+                        TextField("コメントを入力…", text: $commentDraft)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.white)
+                            .tint(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .background(.white.opacity(0.08))
                             .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .accessibilityLabel("コメントを入力")
+                            .onSubmit(submitComment)
+
+                        Button(action: submitComment) {
+                            Image(systemName: "arrow.up")
+                                .font(.system(size: 14, weight: .bold))
+                                .frame(width: 36, height: 36)
+                                .background(isCommentDraftEmpty ? .white.opacity(0.10) : .white)
+                                .foregroundStyle(isCommentDraftEmpty ? .white.opacity(0.40) : .black)
+                                .clipShape(Circle())
+                        }
+                        .disabled(isCommentDraftEmpty)
+                        .accessibilityLabel("コメントを送信")
                     }
-                    .accessibilityLabel("コメントを送信")
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+    }
+
+    private var isCommentDraftEmpty: Bool {
+        commentDraft.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     private func submitComment() {
@@ -688,6 +758,10 @@ struct FriendProfileSheet: View {
         return result
     }
 
+    private var recentFriendPosts: [QuestFeedPost] {
+        Array(friendPosts.prefix(4))
+    }
+
     var body: some View {
         ZStack {
             AppBackground()
@@ -721,31 +795,14 @@ struct FriendProfileSheet: View {
                             Circle().stroke(avatarAccent.opacity(0.6), lineWidth: 2)
                         }
 
-                    VStack(spacing: 6) {
-                        Text(post.username)
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundStyle(.white)
+                    Text(post.username)
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(.white)
 
-                        Text("最近の記録: \(post.displayPlace)")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.46))
-                    }
+                    VStack(alignment: .leading, spacing: 14) {
+                        PictriCompactMetric(label: "旅の記録", value: "\(friendPosts.count)件")
 
-                    HStack(spacing: 22) {
-                        PictriCompactMetric(label: "記録", value: "\(friendPosts.count)件")
-                        PictriCompactMetric(label: "最近", value: post.displayPlace)
-                    }
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 12)
-                    .pictriSurface(cornerRadius: PictriTheme.cornerMedium)
-
-                    if !recentPlaces.isEmpty {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("最近の旅先")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.55))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
+                        if !recentPlaces.isEmpty {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
                                     ForEach(recentPlaces, id: \.self) { place in
@@ -761,12 +818,55 @@ struct FriendProfileSheet: View {
                             }
                         }
                     }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .pictriSurface(cornerRadius: PictriTheme.cornerMedium)
+
+                    if !recentFriendPosts.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("残してきた記憶")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.55))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            LazyVGrid(
+                                columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)],
+                                spacing: 10
+                            ) {
+                                ForEach(recentFriendPosts) { friendPost in
+                                    recentMemoryTile(for: friendPost)
+                                }
+                            }
+                        }
+                    }
 
                     Spacer(minLength: 12)
                 }
                 .padding(20)
             }
         }
+    }
+
+    /// 「記録12件」という数字だけで終わらせず、実際に残してきた記憶を小さく見せることで
+    /// ランキング的な数値表示ではなく旅の記録として読ませる。
+    @ViewBuilder
+    private func recentMemoryTile(for friendPost: QuestFeedPost) -> some View {
+        ZStack {
+            if let image = memoryStore.image(for: friendPost) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else if let spot = mockQuestSpots.first(where: { $0.id == friendPost.spotId }) {
+                Rectangle().fill(MemoryVisualStyle.gradient(for: spot))
+            } else {
+                Rectangle().fill(PictriTheme.surface)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 110)
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerSmall, style: .continuous))
     }
 }
 

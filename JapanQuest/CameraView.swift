@@ -928,12 +928,19 @@ enum QuestDemoPhotoMaker {
 }
 
 enum QuestDualPhotoComposer {
+    /// composeが描画するキャンバスサイズと、内カメラ写真を焼き込む位置。
+    /// MemoriesViewのExplore Detail(内カメラサムネイル)が同じ値を参照して
+    /// 実写真から内カメラ領域だけを切り出すため、この2つの定数だけが「唯一の正解」になる。
+    /// ここを変更すればサムネイル側も自動的に追従する(二重管理を避ける)。
+    static let canvasSize = CGSize(width: 1080, height: 1920)
+    static let frontInsetRect = CGRect(x: 58, y: 78, width: 286, height: 382)
+
     static func compose(
         backImage: UIImage,
         frontImage: UIImage?,
         spot: QuestSpot
     ) -> UIImage {
-        let canvasSize = CGSize(width: 1080, height: 1920)
+        let canvasSize = self.canvasSize
 
         let renderer = UIGraphicsImageRenderer(size: canvasSize)
 
@@ -1034,12 +1041,7 @@ enum QuestDualPhotoComposer {
         context: CGContext,
         canvasSize: CGSize
     ) {
-        let insetRect = CGRect(
-            x: 58,
-            y: 78,
-            width: 286,
-            height: 382
-        )
+        let insetRect = frontInsetRect
 
         context.saveGState()
 
@@ -1121,5 +1123,30 @@ enum QuestDualPhotoComposer {
             ),
             withAttributes: placeAttributes
         )
+    }
+
+    /// composeで焼き込んだ内カメラ領域(frontInsetRect)だけを、実際の画像サイズに合わせて
+    /// 比率換算して切り出す。保存された写真は必ずcompose経由(CameraViewの保存ボタンのみが
+    /// memoryStore.saveを呼ぶ)なので、この関数だけが「内カメラ画像の取り出し方」を知っていればよく、
+    /// 呼び出し側(MemoriesViewのExplore Detail等)は座標を一切ハードコードしない。
+    static func cropInnerCamera(from image: UIImage) -> UIImage? {
+        guard let cgImage = image.cgImage else { return nil }
+
+        let scaleX = CGFloat(cgImage.width) / canvasSize.width
+        let scaleY = CGFloat(cgImage.height) / canvasSize.height
+
+        let cropRect = CGRect(
+            x: frontInsetRect.origin.x * scaleX,
+            y: frontInsetRect.origin.y * scaleY,
+            width: frontInsetRect.width * scaleX,
+            height: frontInsetRect.height * scaleY
+        ).integral
+
+        guard cropRect.width > 0, cropRect.height > 0,
+              let cropped = cgImage.cropping(to: cropRect) else {
+            return nil
+        }
+
+        return UIImage(cgImage: cropped, scale: image.scale, orientation: image.imageOrientation)
     }
 }

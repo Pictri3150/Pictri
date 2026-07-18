@@ -790,29 +790,6 @@ struct FixedEmptySpotCell: View {
 
 // MARK: - Explore Photo Detail Sheet
 
-/// QuestDualPhotoComposer.compose が内カメラ写真を焼き込む位置
-/// (x:58, y:78, w:286, h:382 / canvas 1080x1920)を同じ比率で切り出す。
-/// 保存された写真は必ずこのcomposer経由(CameraViewの保存ボタンのみがmemoryStore.saveを呼ぶ)
-/// なので、別途内カメラ画像を保存しなくても実際に撮影された表情をそのまま表示できる。
-private extension UIImage {
-    var pictriInnerCameraCrop: UIImage? {
-        guard let cgImage else { return nil }
-        let width = CGFloat(cgImage.width)
-        let height = CGFloat(cgImage.height)
-        let cropRect = CGRect(
-            x: width * (58.0 / 1080.0),
-            y: height * (78.0 / 1920.0),
-            width: width * (286.0 / 1080.0),
-            height: height * (382.0 / 1920.0)
-        ).integral
-        guard cropRect.width > 0, cropRect.height > 0,
-              let cropped = cgImage.cropping(to: cropRect) else {
-            return nil
-        }
-        return UIImage(cgImage: cropped, scale: scale, orientation: imageOrientation)
-    }
-}
-
 private struct ExplorePhotoDetailSheet: View {
     let item: ExploreItem
     @Binding var viewMode: MemoriesViewMode
@@ -953,7 +930,7 @@ private struct ExplorePhotoDetailSheet: View {
     @ViewBuilder
     private var innerCameraThumbnail: some View {
         Group {
-            if let crop = displayImage?.pictriInnerCameraCrop {
+            if let image = displayImage, let crop = QuestDualPhotoComposer.cropInnerCamera(from: image) {
                 Image(uiImage: crop)
                     .resizable()
                     .scaledToFill()

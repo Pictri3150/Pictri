@@ -55,6 +55,18 @@ enum PictriVisualReview {
         value(for: "-pictriExploreDetail")
     }
 
+    /// `-pictriHomeCommentsOpen <postId>` でHomeの指定投稿カードのコメント欄を
+    /// 開いた状態で直接スクショ確認できるようにする。DEBUG限定。
+    static var homeCommentsOpenPostId: String? {
+        value(for: "-pictriHomeCommentsOpen")
+    }
+
+    /// `-pictriHomeProfile <username>` でHomeの指定ユーザーのFriendProfileSheetを
+    /// 直接開いてスクショ確認できるようにする。DEBUG限定。
+    static var homeProfileUsername: String? {
+        value(for: "-pictriHomeProfile")
+    }
+
     static var cameraScenario: PictriCameraVisualScenario? {
         switch value(for: "-pictriCameraScenario") {
         case "ready": return .ready
