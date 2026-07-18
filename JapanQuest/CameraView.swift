@@ -53,7 +53,8 @@ struct QuestCameraView: View {
     @State private var captureRunID = UUID()
 
     /// タブバーを没入時に隠すぶん、Cameraはより背の高いプレビューを主役にできる。
-    private let panelHeight: CGFloat = 620
+    /// パネルが縮みすぎないための最低保証値のみ。実際の高さはVStackの残り空間に自動追従する。
+    private let minPanelHeight: CGFloat = 260
 
     private var sequenceText: String {
         switch capturePhase {
@@ -192,6 +193,10 @@ struct QuestCameraView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
+            // Cameraパネルの高さを固定値にせず、ヘッダー/statusCard/下部コントロールが
+            // 実際に使った分を引いた「残り全部」に自動で合わせる。以前は620ptの固定値だったため、
+            // 端末やstatusCardの有無によっては合計がscreen heightを超え、
+            // シャッターやカメラ切替ボタンが画面下に見切れていた(このバグの直接原因)。
             VStack(alignment: .leading, spacing: 14) {
                 cameraHeader
 
@@ -202,8 +207,6 @@ struct QuestCameraView: View {
                 }
 
                 cameraBottomArea
-
-                Spacer(minLength: 8)
             }
             .padding(.horizontal, JQUI.sidePadding)
             .padding(.top, JQUI.screenTopPadding)
@@ -225,19 +228,32 @@ struct QuestCameraView: View {
 
     private var cameraHeader: some View {
         PictriScreenHeader(eyebrow: "CAMERA", title: selectedSpot.name) {
-            Button {
-                resetCapture()
-                selectedTab = .home
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .frame(width: 40, height: 40)
-                    .background(.white.opacity(0.10))
-                    .clipShape(Circle())
+            Button(action: closeCamera) {
+                HStack(spacing: 6) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .bold))
+                    Text("閉じる")
+                        .font(.system(size: 13, weight: .bold))
+                }
+                .foregroundStyle(.white.opacity(0.88))
+                .padding(.horizontal, 14)
+                .frame(minWidth: 44, minHeight: 44)
+                .background(.white.opacity(0.12))
+                .clipShape(Capsule())
+                .overlay {
+                    Capsule().stroke(.white.opacity(0.16), lineWidth: 1)
+                }
             }
             .accessibilityLabel("カメラを閉じてホームへ戻る")
         }
+    }
+
+    /// Cameraからいつでも確実に戻れるようにする唯一の出口。
+    /// previewImage/hasSaved/capturePhase/blockingStateなど、いかなる状態にも依存させない。
+    /// 撮影中(isCapturingSequence)のシーケンスIDだけ更新して安全に打ち切ってから戻る。
+    private func closeCamera() {
+        resetCapture()
+        selectedTab = .home
     }
 
     private var cameraPanel: some View {
@@ -273,7 +289,7 @@ struct QuestCameraView: View {
                 countdownOverlay(number: countdownNumber)
             }
         }
-        .frame(height: panelHeight)
+        .frame(minHeight: minPanelHeight, maxHeight: .infinity)
         .clipShape(
             RoundedRectangle(
                 cornerRadius: JQUI.panelCornerRadius,
@@ -302,11 +318,11 @@ struct QuestCameraView: View {
                 Image(uiImage: previewImage)
                     .resizable()
                     .scaledToFill()
-                    .frame(height: panelHeight)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
             } else if cameraService.isCameraAvailable && !cameraService.permissionDenied {
                 QuestCameraPreview(session: cameraService.session)
-                    .frame(height: panelHeight)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
             } else {
                 demoCameraBackground
@@ -323,40 +339,38 @@ struct QuestCameraView: View {
             )
             .allowsHitTesting(false)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// 実カメラが無い(主にSimulator)時のプレースホルダー。以前は灰色の矩形が
+    /// 縦に並んでおり、スケルトンローディングのような「壊れている画面」に見えるという
+    /// 指摘があったため、水平線と淡いwarmトーンだけの写真風の見た目に差し替えた。
     private var demoCameraBackground: some View {
-        LinearGradient(
-            colors: [
-                PictriTheme.accent.opacity(0.34),
-                Color(red: 0.30, green: 0.24, blue: 0.30),
-                Color.black
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .frame(height: panelHeight)
-        .overlay {
-            VStack(spacing: 24) {
-                Rectangle()
-                    .fill(.white.opacity(0.16))
-                    .frame(height: 4)
-                    .padding(.horizontal, 48)
+        ZStack {
+            LinearGradient(
+                colors: [
+                    PictriTheme.accent.opacity(0.26),
+                    Color(red: 0.10, green: 0.16, blue: 0.26),
+                    Color(red: 0.05, green: 0.08, blue: 0.14)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
 
+            GeometryReader { proxy in
                 Rectangle()
-                    .fill(.white.opacity(0.08))
-                    .frame(height: 92)
-                    .padding(.horizontal, 34)
+                    .fill(.white.opacity(0.12))
+                    .frame(width: proxy.size.width, height: 1)
+                    .position(x: proxy.size.width / 2, y: proxy.size.height * 0.58)
 
-                Rectangle()
-                    .fill(.white.opacity(0.06))
-                    .frame(height: 146)
-                    .padding(.horizontal, 18)
-
-                Spacer()
+                LinearGradient(
+                    colors: [.clear, PictriTheme.warm.opacity(0.07)],
+                    startPoint: UnitPoint(x: 0.5, y: 0.58),
+                    endPoint: .bottom
+                )
             }
-            .padding(.top, 142)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var cameraPanelTopControls: some View {
