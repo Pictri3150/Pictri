@@ -384,16 +384,28 @@ struct QuestCameraView: View {
             } else if !cameraService.isCameraAvailable {
                 // 実機カメラが使えない(主にSimulator)場合のみ表示。撮影シーケンス中は
                 // sequenceTextと同じ位置を取り合うため、片方だけを出す。
-                PictriGlassPill(text: "サンプル表示", systemImage: "sparkles", tone: .muted)
+                // アイコン付きの太字ピルだと「トグルUI」のように機械的に見えるため、
+                // 通常のstatus pillより控えめな極小キャプションとして表示する。
+                Text("サンプル表示")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.46))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.black.opacity(0.20), in: Capsule())
             }
 
             #if DEBUG
-            Toggle("", isOn: $developerUnlockMode)
-                .labelsHidden()
-                .scaleEffect(0.55)
-                .padding(.horizontal, 2)
-                .background(.black.opacity(0.25), in: Capsule())
-                .accessibilityLabel("開発用: 位置認証を無視して撮影を解放")
+            // 通常のCamera UIには常に隠す。QA目的で明示的に呼び出したい時だけ
+            // `-pictriShowCameraDebugControls true` を渡す。位置認証の解放自体は
+            // 引き続き `-pictriDevUnlock true/false` で行えるため、機能は失われない。
+            if PictriVisualReview.showCameraDebugControls {
+                Toggle("", isOn: $developerUnlockMode)
+                    .labelsHidden()
+                    .scaleEffect(0.55)
+                    .padding(.horizontal, 2)
+                    .background(.black.opacity(0.25), in: Capsule())
+                    .accessibilityLabel("開発用: 位置認証を無視して撮影を解放")
+            }
             #endif
         }
         .padding(16)
@@ -844,99 +856,101 @@ enum QuestDemoPhotoMaker {
         return renderer.image { context in
             let cgContext = context.cgContext
 
-            let colorSpace = CGColorSpaceCreateDeviceRGB()
-
-            let colors: [CGColor]
-
             if isFrontCamera {
-                colors = [
-                    UIColor(red: 0.22, green: 0.21, blue: 0.20, alpha: 1).cgColor,
-                    UIColor(red: 0.07, green: 0.07, blue: 0.08, alpha: 1).cgColor
-                ]
+                drawFrontDemoScene(in: cgContext, size: size)
             } else {
-                colors = [
-                    UIColor(red: 0.70, green: 0.68, blue: 0.58, alpha: 1).cgColor,
-                    UIColor(red: 0.25, green: 0.28, blue: 0.29, alpha: 1).cgColor,
-                    UIColor(red: 0.04, green: 0.04, blue: 0.05, alpha: 1).cgColor
-                ]
+                drawBackDemoScene(in: cgContext, size: size)
             }
-
-            let gradient = CGGradient(
-                colorsSpace: colorSpace,
-                colors: colors as CFArray,
-                locations: nil
-            )!
-
-            cgContext.drawLinearGradient(
-                gradient,
-                start: CGPoint(x: 0, y: 0),
-                end: CGPoint(x: size.width, y: size.height),
-                options: []
-            )
-
-            drawDemoScene(
-                in: cgContext,
-                size: size,
-                spot: spot,
-                isFrontCamera: isFrontCamera
-            )
         }
     }
 
-    private static func drawDemoScene(
-        in context: CGContext,
-        size: CGSize,
-        spot: QuestSpot,
-        isFrontCamera: Bool
-    ) {
-        context.setStrokeColor(UIColor.white.withAlphaComponent(0.15).cgColor)
-        context.setLineWidth(5)
+    /// 外カメ(旅先の景色)側のplaceholder。斜めのライン/ドット格子は
+    /// スケルトンローディングのような「壊れている画面」に見えるという指摘があったため廃止し、
+    /// 砂浜〜空へ抜ける落ち着いたグラデーションと淡い水平線1本だけの写真風の見た目にした。
+    private static func drawBackDemoScene(in context: CGContext, size: CGSize) {
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
 
-        for i in 0..<7 {
-            let y = CGFloat(280 + i * 130)
-            context.move(to: CGPoint(x: 90, y: y))
-            context.addLine(to: CGPoint(x: size.width - 90, y: y + CGFloat(i * 8)))
-            context.strokePath()
-        }
+        let skyColors = [
+            UIColor(red: 0.62, green: 0.58, blue: 0.50, alpha: 1).cgColor,
+            UIColor(red: 0.22, green: 0.26, blue: 0.32, alpha: 1).cgColor,
+            UIColor(red: 0.04, green: 0.05, blue: 0.08, alpha: 1).cgColor
+        ]
 
-        context.setFillColor(UIColor.white.withAlphaComponent(0.10).cgColor)
+        let gradient = CGGradient(
+            colorsSpace: colorSpace,
+            colors: skyColors as CFArray,
+            locations: [0, 0.55, 1]
+        )!
 
-        for i in 0..<9 {
-            let x = CGFloat(120 + i * 95)
-            let rect = CGRect(x: x, y: 520, width: 36, height: 36)
-            context.fillEllipse(in: rect)
-        }
+        context.drawLinearGradient(
+            gradient,
+            start: CGPoint(x: size.width / 2, y: 0),
+            end: CGPoint(x: size.width / 2, y: size.height),
+            options: []
+        )
 
-        context.setFillColor(UIColor.black.withAlphaComponent(0.18).cgColor)
+        context.setStrokeColor(UIColor.white.withAlphaComponent(0.14).cgColor)
+        context.setLineWidth(2)
+        let horizonY = size.height * 0.5
+        context.move(to: CGPoint(x: 0, y: horizonY))
+        context.addLine(to: CGPoint(x: size.width, y: horizonY))
+        context.strokePath()
+
+        context.setFillColor(UIColor.black.withAlphaComponent(0.16).cgColor)
         context.fill(
             CGRect(
                 x: 0,
-                y: size.height * 0.68,
+                y: size.height * 0.7,
                 width: size.width,
-                height: size.height * 0.32
+                height: size.height * 0.3
             )
         )
+    }
 
-        // 外カメ(isFrontCamera: false)側の画像は最終的に合成写真の全面背景になり、
-        // QuestDualPhotoComposer.drawLocationText が同じ左下エリアに日付+地名のラベルを
-        // 別途描くため、ここでも地名を焼き込むと文字が二重に重なってしまう。
-        // 内カメ側は小さなインセット枠にしか使われず他のラベルと競合しないため、そのまま残す。
-        guard isFrontCamera else { return }
+    /// 内カメ(表情)側のplaceholder。AI生成っぽい顔や人物の輪郭は描かず、
+    /// 中央の暖色の柔らかいグローだけで「人がそこにいる」気配を表現する。
+    /// 以前の「front camera」という透かし文字はデバッグ表示に見えるため削除した。
+    private static func drawFrontDemoScene(in context: CGContext, size: CGSize) {
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
 
-        let title = "front camera"
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.monospacedSystemFont(ofSize: 42, weight: .semibold),
-            .foregroundColor: UIColor.white.withAlphaComponent(0.28)
+        let baseColors = [
+            UIColor(red: 0.16, green: 0.14, blue: 0.14, alpha: 1).cgColor,
+            UIColor(red: 0.06, green: 0.06, blue: 0.07, alpha: 1).cgColor
         ]
 
-        title.draw(
-            in: CGRect(
-                x: 70,
-                y: size.height - 240,
-                width: size.width - 140,
-                height: 70
-            ),
-            withAttributes: attributes
+        let gradient = CGGradient(
+            colorsSpace: colorSpace,
+            colors: baseColors as CFArray,
+            locations: nil
+        )!
+
+        context.drawLinearGradient(
+            gradient,
+            start: CGPoint(x: 0, y: 0),
+            end: CGPoint(x: size.width, y: size.height),
+            options: []
+        )
+
+        let glowColors = [
+            UIColor(red: 0.85, green: 0.55, blue: 0.35, alpha: 0.28).cgColor,
+            UIColor(red: 0.85, green: 0.55, blue: 0.35, alpha: 0.0).cgColor
+        ]
+
+        let glowGradient = CGGradient(
+            colorsSpace: colorSpace,
+            colors: glowColors as CFArray,
+            locations: [0, 1]
+        )!
+
+        let glowCenter = CGPoint(x: size.width / 2, y: size.height * 0.42)
+
+        context.drawRadialGradient(
+            glowGradient,
+            startCenter: glowCenter,
+            startRadius: 0,
+            endCenter: glowCenter,
+            endRadius: size.width * 0.55,
+            options: []
         )
     }
 }

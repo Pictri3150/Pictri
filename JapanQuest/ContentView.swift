@@ -108,6 +108,14 @@ enum PictriVisualReview {
         default: return nil
         }
     }
+
+    /// `-pictriShowCameraDebugControls true` の時だけ、Camera上部にQA用の
+    /// developerUnlockModeトグルを表示する。通常のCamera UIには常に隠し、
+    /// 見せる用のスクショに機械的なトグルが写り込まないようにする。
+    /// 位置認証の解放そのものは引き続き `-pictriDevUnlock true/false` で行える。
+    static var showCameraDebugControls: Bool {
+        value(for: "-pictriShowCameraDebugControls") == "true"
+    }
 }
 
 enum PictriCameraVisualScenario: Equatable {
