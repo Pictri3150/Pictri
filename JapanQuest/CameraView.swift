@@ -192,7 +192,9 @@ struct QuestCameraView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            // 純黒だとCamera画面だけ他画面から断絶して見えるため、PicTriアイコンの
+            // 紫〜青トーンに近いdeep indigoへ寄せる(safe area構造・撮影ロジックは無変更)。
+            PictriLightTheme.photoDepth.ignoresSafeArea()
 
             // Cameraパネルの高さを固定値にせず、ヘッダー/statusCard/下部コントロールが
             // 実際に使った分を引いた「残り全部」に自動で合わせる。以前は620ptの固定値だったため、

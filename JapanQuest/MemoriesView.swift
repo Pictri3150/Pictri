@@ -36,7 +36,13 @@ struct MemoriesView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AppBackground()
+                // CollectはMapと同じ白基調、Exploreは写真が主役の深いindigo基調のまま維持する。
+                // 2つのモードで背景トーンが違うのは意図的("記録棚"と"写真ビューア"の切り替え)。
+                if viewMode == .collect {
+                    PictriLightTheme.background.ignoresSafeArea()
+                } else {
+                    AppBackground()
+                }
 
                 if viewMode == .collect {
                     collectBody
@@ -207,16 +213,22 @@ struct MemoriesView: View {
     }
 
     // MARK: - Header (shared between modes)
+    //
+    // CollectモードとExploreモードで背景トーンが違う(白基調/深いindigo基調)ため、
+    // ヘッダー自体もisCollectで配色を切り替える。
+
+    private var isCollectMode: Bool { viewMode == .collect }
 
     private var memoriesHeader: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 5) {
                 Text("メモリーズ")
                     .font(.system(size: 30, weight: .bold))
+                    .foregroundStyle(isCollectMode ? PictriLightTheme.textPrimary : .white)
 
                 Text("現地で撮った写真が記録になる")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.48))
+                    .foregroundStyle(isCollectMode ? PictriLightTheme.textSecondary : .white.opacity(0.48))
             }
 
             Spacer()
@@ -231,7 +243,7 @@ struct MemoriesView: View {
             modeButton("探索", mode: .explore)
         }
         .padding(3)
-        .background(.white.opacity(0.08))
+        .background(isCollectMode ? PictriLightTheme.unvisitedFill : .white.opacity(0.08))
         .clipShape(Capsule())
     }
 
@@ -246,7 +258,11 @@ struct MemoriesView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(viewMode == mode ? PictriTheme.teal : .clear)
-                .foregroundStyle(viewMode == mode ? .black : .white.opacity(0.55))
+                .foregroundStyle(
+                    viewMode == mode
+                        ? Color.black
+                        : (isCollectMode ? PictriLightTheme.textFaint : .white.opacity(0.55))
+                )
                 .clipShape(Capsule())
         }
     }
@@ -274,7 +290,7 @@ struct MemoriesView: View {
                         // 「そこはもう色づいている」ことを地図に頼らず一目で示す。
                         if visibleCompletedCount(for: prefecture) > 0 {
                             Circle()
-                                .fill(PictriTheme.teal.opacity(0.7))
+                                .fill(PictriLightTheme.teal)
                                 .frame(width: 5, height: 5)
                         }
 
@@ -283,18 +299,26 @@ struct MemoriesView: View {
                     }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
-                        .background(prefecture.id == "kanagawa" ? .white : .white.opacity(0.08))
-                        .foregroundStyle(prefecture.id == "kanagawa" ? .black : .white)
+                        .background(prefecture.id == "kanagawa" ? PictriLightTheme.accent : PictriLightTheme.surface)
+                        .foregroundStyle(prefecture.id == "kanagawa" ? .white : PictriLightTheme.textPrimary)
                         .clipShape(Capsule())
+                        .overlay {
+                            if prefecture.id != "kanagawa" {
+                                Capsule().stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
+                            }
+                        }
                 }
 
                 Text("...")
                     .font(.system(size: 14, weight: .bold))
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(.white.opacity(0.08))
-                    .foregroundStyle(.white)
+                    .background(PictriLightTheme.surface)
+                    .foregroundStyle(PictriLightTheme.textSecondary)
                     .clipShape(Capsule())
+                    .overlay {
+                        Capsule().stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
+                    }
             }
         }
     }
@@ -458,20 +482,20 @@ struct PrefectureMemorySummaryCard: View {
     }
 
     private var achievementTextColor: Color {
-        guard completedCount > 0 else { return .white.opacity(0.46) }
-        return isCompleted ? PictriTheme.teal : PictriTheme.teal.opacity(0.75)
+        guard completedCount > 0 else { return PictriLightTheme.textFaint }
+        return isCompleted ? PictriLightTheme.teal : PictriLightTheme.teal.opacity(0.80)
     }
 
-    /// 訪問スポットが増えるほど、カード面にteal(Pictriの「達成・完了」色)がじわっと重なる。
+    /// 訪問スポットが増えるほど、カード面にteal(PicTriの「達成・完了」色)がじわっと重なる。
     /// 達成率バーのような数値表現ではなく、色の濃さそのものを進捗として使う。
     private var visitedTintOpacity: Double {
         guard completedCount > 0 else { return 0 }
-        return 0.04 + 0.06 * progressRatio
+        return 0.05 + 0.09 * progressRatio
     }
 
     private var borderColor: Color {
-        if isCompleted { return PictriTheme.teal.opacity(0.45) }
-        return prefecture.id == "kanagawa" ? .white.opacity(0.65) : .white.opacity(0.06)
+        if isCompleted { return PictriLightTheme.teal.opacity(0.45) }
+        return prefecture.id == "kanagawa" ? PictriLightTheme.accent.opacity(0.5) : PictriLightTheme.surfaceBorder
     }
 
     var body: some View {
@@ -481,29 +505,29 @@ struct PrefectureMemorySummaryCard: View {
                     HStack(spacing: 8) {
                         Text(prefecture.name)
                             .font(.system(size: 23, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(PictriLightTheme.textPrimary)
 
                         if isCompleted {
                             Text("all visited")
                                 .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(PictriTheme.teal)
+                                .foregroundStyle(PictriLightTheme.teal)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(PictriTheme.tealSoft)
+                                .background(PictriLightTheme.teal.opacity(0.14))
                                 .clipShape(Capsule())
                         }
                     }
 
                     Text("\(completedCount) / \(prefecture.totalSpotCount) スポット")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(PictriTheme.textFaint)
+                        .foregroundStyle(PictriLightTheme.textSecondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "bookmark")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.65))
+                    .foregroundStyle(PictriLightTheme.textFaint)
             }
 
             HStack(spacing: 6) {
@@ -524,8 +548,8 @@ struct PrefectureMemorySummaryCard: View {
         .padding(14)
         .background {
             ZStack {
-                PictriTheme.surface
-                PictriTheme.teal.opacity(visitedTintOpacity)
+                PictriLightTheme.surface
+                PictriLightTheme.teal.opacity(visitedTintOpacity)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 24))
@@ -533,6 +557,7 @@ struct PrefectureMemorySummaryCard: View {
             RoundedRectangle(cornerRadius: 24)
                 .stroke(borderColor, lineWidth: 1)
         }
+        .shadow(color: PictriLightTheme.shadow, radius: 12, x: 0, y: 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(prefecture.name)。\(completedCount)/\(prefecture.totalSpotCount)スポット。\(achievementText)")
     }
@@ -562,16 +587,18 @@ struct PrefecturePreviewTile: View {
                     .resizable()
                     .scaledToFill()
                     .frame(height: 74)
+            } else if memoryPhoto != nil, let spot {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(MemoryVisualStyle.gradient(for: spot))
+                    .frame(height: 74)
             } else {
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(tileBackground)
+                    .fill(PictriLightTheme.unvisitedFill)
                     .frame(height: 74)
 
-                if memoryPhoto == nil {
-                    Image(systemName: "mappin")
-                        .font(.system(size: 18))
-                        .foregroundStyle(.white.opacity(0.14))
-                }
+                Image(systemName: "mappin")
+                    .font(.system(size: 18))
+                    .foregroundStyle(PictriLightTheme.textFaint)
             }
 
             if extraCount > 0 {
@@ -583,18 +610,6 @@ struct PrefecturePreviewTile: View {
         }
         .frame(height: 74)
         .clipShape(RoundedRectangle(cornerRadius: 10))
-    }
-
-    private var tileBackground: LinearGradient {
-        guard let spot, memoryPhoto != nil else {
-            return LinearGradient(
-                colors: [.white.opacity(0.08), .white.opacity(0.04)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
-
-        return MemoryVisualStyle.gradient(for: spot)
     }
 }
 
@@ -622,7 +637,7 @@ struct PrefectureMemoryDetailView: View {
 
     var body: some View {
         ZStack {
-            AppBackground()
+            PictriLightTheme.background.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 15) {
@@ -655,9 +670,9 @@ struct PrefectureMemoryDetailView: View {
             Button {} label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(PictriLightTheme.textPrimary)
                     .frame(width: 36, height: 36)
-                    .background(.white.opacity(0.08))
+                    .background(PictriLightTheme.surface)
                     .clipShape(Circle())
             }
             .opacity(0)
@@ -667,20 +682,22 @@ struct PrefectureMemoryDetailView: View {
             VStack(spacing: 4) {
                 Text(prefecture.name)
                     .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(PictriLightTheme.textPrimary)
 
                 Text("\(completedCount) / \(prefecture.totalSpotCount) スポット")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.55))
+                    .foregroundStyle(PictriLightTheme.textSecondary)
             }
 
             Spacer()
 
             Image(systemName: "ellipsis")
                 .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(PictriLightTheme.textPrimary)
                 .frame(width: 36, height: 36)
-                .background(.white.opacity(0.08))
+                .background(PictriLightTheme.surface)
                 .clipShape(Circle())
+                .shadow(color: PictriLightTheme.shadow, radius: 6, x: 0, y: 2)
         }
         .padding(.bottom, 4)
     }
@@ -746,38 +763,21 @@ struct FixedMemorySpotCell: View {
                 .scaledToFill()
                 .frame(height: 132)
                 .clipped()
+        } else if isUnlocked {
+            RoundedRectangle(cornerRadius: 14)
+                .fill(MemoryVisualStyle.gradient(for: spot))
+                .frame(height: 132)
         } else {
             RoundedRectangle(cornerRadius: 14)
-                .fill(cellBackground)
+                .fill(PictriLightTheme.unvisitedFill)
                 .frame(height: 132)
-                .overlay {
-                    if isUnlocked {
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(.white.opacity(0.025))
-                    }
-                }
-        }
-    }
-
-    private var cellBackground: LinearGradient {
-        if isUnlocked {
-            return MemoryVisualStyle.gradient(for: spot)
-        } else {
-            return LinearGradient(
-                colors: [
-                    .white.opacity(0.07),
-                    .white.opacity(0.035)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
         }
     }
 
     private var lockedContent: some View {
         Image(systemName: "mappin")
             .font(.system(size: 24, weight: .regular))
-            .foregroundStyle(.white.opacity(0.16))
+            .foregroundStyle(PictriLightTheme.textFaint)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -804,7 +804,7 @@ struct FixedEmptySpotCell: View {
 
     /// 余白セルの濃淡をわずかに変えて、単調な繰り返しに見えないようにする。
     private var glowOpacity: Double {
-        index % 3 == 0 ? 0.07 : 0.045
+        index % 3 == 0 ? 0.10 : 0.05
     }
 
     var body: some View {
@@ -813,8 +813,8 @@ struct FixedEmptySpotCell: View {
                 .fill(
                     LinearGradient(
                         colors: [
-                            PictriTheme.accent.opacity(glowOpacity),
-                            .white.opacity(0.02)
+                            PictriLightTheme.accent.opacity(glowOpacity),
+                            PictriLightTheme.unvisitedFill
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -823,7 +823,7 @@ struct FixedEmptySpotCell: View {
 
             Image(systemName: "mappin")
                 .font(.system(size: 20, weight: .light))
-                .foregroundStyle(.white.opacity(0.18))
+                .foregroundStyle(PictriLightTheme.textFaint)
         }
         .frame(height: 132)
         .overlay {
@@ -831,7 +831,7 @@ struct FixedEmptySpotCell: View {
                 .strokeBorder(
                     style: StrokeStyle(lineWidth: 1, dash: [4, 5])
                 )
-                .foregroundStyle(PictriTheme.accent.opacity(0.16))
+                .foregroundStyle(PictriLightTheme.accent.opacity(0.30))
         }
         .accessibilityLabel("未訪問のスポット")
         .accessibilityHint("現地で撮影すると、ここが写真で埋まります")

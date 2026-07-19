@@ -133,6 +133,26 @@ extension ButtonStyle where Self == PictriSecondaryButtonStyle {
     static var pictriSecondary: PictriSecondaryButtonStyle { PictriSecondaryButtonStyle() }
 }
 
+/// 白基調画面(Home/Memories Collect等)向けのセカンダリボタン。PictriSecondaryButtonStyleの
+/// 白背景版で、accentカラーのテキスト+淡いaccent地の組み合わせにする。
+struct PictriLightSecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 15, weight: .bold))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 15)
+            .background(PictriLightTheme.accentSoft)
+            .foregroundStyle(PictriLightTheme.accent)
+            .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous))
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+extension ButtonStyle where Self == PictriLightSecondaryButtonStyle {
+    static var pictriLightSecondary: PictriLightSecondaryButtonStyle { PictriLightSecondaryButtonStyle() }
+}
+
 // MARK: - Status Badge
 
 enum PictriStatusTone: Equatable {
@@ -178,10 +198,12 @@ struct PictriStatusBadge: View {
 
 struct PictriSectionHeader: View {
     let title: String
+    var textColor: Color = PictriTheme.textPrimary
     var trailing: AnyView?
 
-    init(_ title: String, @ViewBuilder trailing: () -> some View = { EmptyView() }) {
+    init(_ title: String, textColor: Color = PictriTheme.textPrimary, @ViewBuilder trailing: () -> some View = { EmptyView() }) {
         self.title = title
+        self.textColor = textColor
         self.trailing = AnyView(trailing())
     }
 
@@ -189,7 +211,7 @@ struct PictriSectionHeader: View {
         HStack {
             Text(title)
                 .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(PictriTheme.textPrimary)
+                .foregroundStyle(textColor)
                 .accessibilityAddTraits(.isHeader)
 
             Spacer()
@@ -242,16 +264,17 @@ struct PictriScreenHeader: View {
 struct PictriCompactMetric: View {
     let label: String
     let value: String
+    var isLight: Bool = false
 
     var body: some View {
         HStack(spacing: 5) {
             Text(label)
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.white.opacity(0.42))
+                .foregroundStyle(isLight ? PictriLightTheme.textSecondary : .white.opacity(0.42))
 
             Text(value)
                 .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(.white.opacity(0.75))
+                .foregroundStyle(isLight ? PictriLightTheme.textPrimary : .white.opacity(0.75))
         }
         .accessibilityElement(children: .combine)
     }
@@ -378,39 +401,51 @@ struct PictriGlassPill: View {
 // MARK: - Empty State
 
 /// 「何もない」ではなく「まだ余白」として見せるための共通空状態ビュー。
+/// `isLight`をtrueにすると、白基調画面(Home/Memories Collect等)向けの淡い配色になる。
 struct PictriEmptyState: View {
     let systemImage: String
     let title: String
     let message: String
     var actionTitle: String?
     var action: (() -> Void)?
+    var isLight: Bool = false
 
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: systemImage)
                 .font(.system(size: 40, weight: .regular))
-                .foregroundStyle(.white.opacity(0.38))
+                .foregroundStyle(isLight ? PictriLightTheme.textFaint : .white.opacity(0.38))
                 .accessibilityHidden(true)
 
             VStack(spacing: 12) {
                 Text(title)
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(isLight ? PictriLightTheme.textPrimary : .white)
 
                 Text(message)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.46))
+                    .foregroundStyle(isLight ? PictriLightTheme.textSecondary : .white.opacity(0.46))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .combine)
 
             if let actionTitle, let action {
-                Button(action: action) {
-                    Text(actionTitle)
-                        .font(.system(size: 13, weight: .bold))
+                Group {
+                    if isLight {
+                        Button(action: action) {
+                            Text(actionTitle)
+                                .font(.system(size: 13, weight: .bold))
+                        }
+                        .buttonStyle(.pictriLightSecondary)
+                    } else {
+                        Button(action: action) {
+                            Text(actionTitle)
+                                .font(.system(size: 13, weight: .bold))
+                        }
+                        .buttonStyle(.pictriSecondary)
+                    }
                 }
-                .buttonStyle(.pictriSecondary)
                 .padding(.top, 4)
                 .frame(maxWidth: 220)
                 .frame(minHeight: 44)
@@ -419,7 +454,18 @@ struct PictriEmptyState: View {
         .padding(.horizontal, 28)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 36)
-        .pictriSurface(fill: .white.opacity(0.05))
+        .background {
+            if isLight {
+                RoundedRectangle(cornerRadius: PictriTheme.cornerLarge, style: .continuous)
+                    .fill(PictriLightTheme.surface)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: PictriTheme.cornerLarge, style: .continuous)
+                            .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
+                    }
+            } else {
+                Color.clear.pictriSurface(fill: .white.opacity(0.05))
+            }
+        }
     }
 }
 
@@ -451,6 +497,25 @@ enum PictriLightTheme {
     /// 未訪問(まだ埋まっていない余白)を示すlight gray。
     static let unvisitedFill = Color(red: 0.91, green: 0.92, blue: 0.94)
     static let unvisitedStroke = Color.white
+
+    /// 「訪問済み/記憶がある」を指す時の意味的エイリアス(実体はteal)。
+    /// 「未訪問/まだ行っていない場所」を指す時の意味的エイリアス(実体はunvisitedFill)。
+    /// Home/Memories側で「visited/unvisitedという名前で読みたい」箇所に使う。
+    static let visited = teal
+    static let unvisited = unvisitedFill
+
+    /// 友達・コメント・いいねなど「人の温度感」に使う、白背景用の淡いコーラル。
+    /// PictriTheme.warm(黒背景用)と役割は同じだが、白背景でも沈まないよう明度を上げている。
+    static let friendWarm = Color(red: 0.90, green: 0.56, blue: 0.44)
+    static let friendWarmSoft = Color(red: 0.90, green: 0.56, blue: 0.44).opacity(0.14)
+
+    /// 写真・夜・Camera背景に使う深いindigo/blue gray。純黒を避け、PicTriアイコンの
+    /// 紫〜青グラデーションに近いトーンにすることで、Cameraが他画面と断絶して
+    /// 見えないようにする。
+    static let photoDepth = Color(red: 0.09, green: 0.10, blue: 0.16)
+
+    /// surfaceBorderの意味的エイリアス。カード用の淡い境界線。
+    static let subtleBorder = surfaceBorder
 
     static let shadow = Color.black.opacity(0.07)
 

@@ -827,7 +827,8 @@ struct QuestSpotDetailView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            // Cameraへの入口の画面なので、純黒ではなくCameraと同じdeep indigoに揃える。
+            PictriLightTheme.photoDepth.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
@@ -1007,7 +1008,7 @@ struct QuestSpotDetailView: View {
     }
 
     /// 撮影済みスポットへ戻ってきた時は「もう一枚残す」、初めてのスポットは
-    /// 「この場所で撮る」と分けることで、Pictriの「現地で残す」体験を強調する。
+    /// 「この場所で撮る」と分けることで、PicTriの「現地で残す」体験を強調する。
     private var actionButtonLabel: String {
         guard isUnlocked else { return "現地に行くと撮れます" }
         return isCompleted ? "もう一枚、ここで残す" : "この場所で撮る"

@@ -91,7 +91,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                AppBackground()
+                PictriLightTheme.background.ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 22) {
@@ -187,10 +187,11 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("PicTri")
                     .font(.system(size: 30, weight: .bold))
+                    .foregroundStyle(PictriLightTheme.textPrimary)
 
                 Text("場所で見つけて、現地で残す")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.50))
+                    .foregroundStyle(PictriLightTheme.textSecondary)
             }
 
             Spacer()
@@ -200,22 +201,23 @@ struct HomeView: View {
             } label: {
                 ZStack(alignment: .bottomTrailing) {
                     Circle()
-                        .fill(.white.opacity(0.10))
+                        .fill(PictriLightTheme.surface)
                         .frame(width: 46, height: 46)
                         .overlay {
                             Image(systemName: "person.fill")
                                 .font(.system(size: 18, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.92))
+                                .foregroundStyle(PictriLightTheme.accent)
                         }
+                        .shadow(color: PictriLightTheme.shadow, radius: 8, x: 0, y: 3)
 
                     if !friendStore.incomingRequests.isEmpty {
                         Circle()
-                            .fill(.white)
+                            .fill(PictriLightTheme.friendWarm)
                             .frame(width: 14, height: 14)
                             .overlay {
                                 Text("\(friendStore.incomingRequests.count)")
                                     .font(.system(size: 8, weight: .heavy))
-                                    .foregroundStyle(.black)
+                                    .foregroundStyle(.white)
                             }
                             .offset(x: 1, y: 1)
                     }
@@ -232,9 +234,9 @@ struct HomeView: View {
                 .fill(
                     LinearGradient(
                         colors: [
-                            .white.opacity(0.12),
-                            .white.opacity(0.045),
-                            .white.opacity(0.025)
+                            PictriLightTheme.skyBlue.opacity(0.20),
+                            PictriLightTheme.teal.opacity(0.10),
+                            PictriLightTheme.surface
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -251,13 +253,13 @@ struct HomeView: View {
 
                         Text(heroHeadline)
                             .font(.system(size: 24, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(PictriLightTheme.textPrimary)
                             .lineLimit(2)
                             .minimumScaleFactor(0.85)
 
                         Text(heroSubcopy)
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.52))
+                            .foregroundStyle(PictriLightTheme.textSecondary)
                             .lineSpacing(3)
                             .lineLimit(2)
                     }
@@ -266,11 +268,11 @@ struct HomeView: View {
 
                     Image(systemName: "map.fill")
                         .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(.black)
+                        .foregroundStyle(.white)
                         .frame(width: 48, height: 48)
-                        .background(.white)
+                        .background(PictriLightTheme.accent)
                         .clipShape(Circle())
-                        .shadow(color: PictriTheme.accent.opacity(0.35), radius: 10)
+                        .shadow(color: PictriLightTheme.accent.opacity(0.30), radius: 10)
                 }
 
                 Button {
@@ -283,8 +285,8 @@ struct HomeView: View {
                     .font(.system(size: 15, weight: .bold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(.white)
-                    .foregroundStyle(.black)
+                    .background(PictriLightTheme.accent)
+                    .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 18))
                 }
             }
@@ -292,8 +294,9 @@ struct HomeView: View {
         }
         .overlay {
             RoundedRectangle(cornerRadius: PictriTheme.cornerLarge)
-                .stroke(.white.opacity(0.08), lineWidth: 1)
+                .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
         }
+        .shadow(color: PictriLightTheme.shadow, radius: 16, x: 0, y: 6)
     }
 
     /// 「友達の旅が生きている」ことを、文章より先に色とイニシャルで一目で伝える小さな列。
@@ -301,22 +304,22 @@ struct HomeView: View {
         HStack(spacing: -8) {
             ForEach(Array(recentFriendUsernames.enumerated()), id: \.offset) { index, username in
                 Circle()
-                    .fill(HomeFriendColor.accent(for: username).opacity(0.85))
+                    .fill(HomeFriendColor.accent(for: username))
                     .frame(width: 22, height: 22)
                     .overlay {
                         Text(String(username.prefix(1)).uppercased())
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.black)
+                            .foregroundStyle(.white)
                     }
                     .overlay {
-                        Circle().stroke(PictriTheme.backgroundTop, lineWidth: 2)
+                        Circle().stroke(PictriLightTheme.surface, lineWidth: 2)
                     }
                     .zIndex(Double(3 - index))
             }
 
             Text("友達の旅が動いてる")
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.white.opacity(0.55))
+                .foregroundStyle(PictriLightTheme.textSecondary)
                 .padding(.leading, 12)
         }
         .accessibilityElement(children: .combine)
@@ -325,7 +328,7 @@ struct HomeView: View {
 
     private var nextSpotSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            PictriSectionHeader("気になるスポット") {
+            PictriSectionHeader("気になるスポット", textColor: PictriLightTheme.textPrimary) {
                 Button {
                     selectedTab = .map
                 } label: {
@@ -337,8 +340,8 @@ struct HomeView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
-                    .background(.white.opacity(0.10))
-                    .foregroundStyle(.white)
+                    .background(PictriLightTheme.accentSoft)
+                    .foregroundStyle(PictriLightTheme.accent)
                     .clipShape(Capsule())
                 }
             }
@@ -348,24 +351,24 @@ struct HomeView: View {
                     selectedTab = .map
                 } label: {
                     HStack(spacing: 14) {
-                        // 未訪問スポットなので、訪問済み用の色ではなく暗い余白トーンを使う。
+                        // 未訪問スポットなので、訪問済み用の色ではなく余白トーン(light gray)を使う。
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(PictriTheme.unvisitedSpotGradient)
+                            .fill(PictriLightTheme.unvisitedFill)
                             .frame(width: 42, height: 42)
                             .overlay {
                                 Image(systemName: "mappin.and.ellipse")
                                     .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(PictriTheme.accent.opacity(0.75))
+                                    .foregroundStyle(PictriLightTheme.accent)
                             }
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text(spot.name)
                                 .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(PictriLightTheme.textPrimary)
 
                             Text("次はここに行ってみる? ・ \(spot.areaName)")
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.52))
+                                .foregroundStyle(PictriLightTheme.textSecondary)
                                 .lineLimit(1)
                         }
 
@@ -373,15 +376,16 @@ struct HomeView: View {
 
                         Image(systemName: "chevron.right")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.55))
+                            .foregroundStyle(PictriLightTheme.textFaint)
                     }
                     .padding(14)
-                    .background(.white.opacity(0.08))
+                    .background(PictriLightTheme.surface)
                     .clipShape(RoundedRectangle(cornerRadius: 18))
                     .overlay {
                         RoundedRectangle(cornerRadius: 18)
-                            .stroke(.white.opacity(0.08), lineWidth: 1)
+                            .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
                     }
+                    .shadow(color: PictriLightTheme.shadow, radius: 8, x: 0, y: 3)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(spot.name)、\(spot.areaName)。地図で見る")
@@ -391,13 +395,13 @@ struct HomeView: View {
 
     private var recentShareSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            PictriSectionHeader("フレンドの旅の記録") {
+            PictriSectionHeader("フレンドの旅の記録", textColor: PictriLightTheme.textPrimary) {
                 Text("7日間")
                     .font(.system(size: 12, weight: .bold))
                     .padding(.horizontal, 11)
                     .padding(.vertical, 7)
-                    .background(.white.opacity(0.10))
-                    .foregroundStyle(.white.opacity(0.72))
+                    .background(PictriLightTheme.unvisitedFill)
+                    .foregroundStyle(PictriLightTheme.textSecondary)
                     .clipShape(Capsule())
             }
 
@@ -406,10 +410,10 @@ struct HomeView: View {
                     systemImage: "mappin.and.ellipse",
                     title: "まだフレンドの記録がありません",
                     message: "フレンドが旅先で記録を残すと、ここに表示されます。\nまずはあなたが最初の一枚を残してみよう。",
-                    actionTitle: "地図でスポットを探す"
-                ) {
-                    selectedTab = .map
-                }
+                    actionTitle: "地図でスポットを探す",
+                    action: { selectedTab = .map },
+                    isLight: true
+                )
             } else {
                 ForEach(visiblePosts.prefix(4)) { post in
                     HomeLargePostCard(
@@ -432,7 +436,7 @@ struct HomeView: View {
 /// UTF8バイトの単純な合計で、再起動しても同じユーザーには同じ色が付くようにする。
 enum HomeFriendColor {
     static func accent(for username: String) -> Color {
-        let palette: [Color] = [PictriTheme.accent, PictriTheme.warm, .white.opacity(0.7)]
+        let palette: [Color] = [PictriLightTheme.accent, PictriLightTheme.friendWarm, PictriLightTheme.teal]
         let stableSeed = username.utf8.reduce(0) { $0 + Int($1) }
         return palette[stableSeed % palette.count]
     }
@@ -515,7 +519,7 @@ struct HomeLargePostCard: View {
             Text(travelMoodCaption)
                 .font(.system(size: 12, weight: .medium))
                 .italic()
-                .foregroundStyle(.white.opacity(0.42))
+                .foregroundStyle(PictriLightTheme.textSecondary)
 
             ZStack(alignment: .bottomLeading) {
                 postVisual
@@ -537,8 +541,13 @@ struct HomeLargePostCard: View {
             postFooter
         }
         .padding(12)
-        .background(PictriTheme.surface)
+        .background(PictriLightTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 26))
+        .shadow(color: PictriLightTheme.shadow, radius: 12, x: 0, y: 4)
+        .overlay {
+            RoundedRectangle(cornerRadius: 26)
+                .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
+        }
     }
 
     private var avatarAccent: Color {
@@ -551,22 +560,18 @@ struct HomeLargePostCard: View {
         } label: {
             HStack(spacing: 10) {
                 Circle()
-                    .fill(avatarAccent.opacity(0.20))
+                    .fill(avatarAccent)
                     .frame(width: 34, height: 34)
                     .overlay {
                         Text(String(post.username.prefix(1)).uppercased())
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(.white)
                     }
-                    .overlay {
-                        Circle()
-                            .stroke(avatarAccent.opacity(0.55), lineWidth: 1.5)
-                    }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(post.username)
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(PictriLightTheme.textPrimary)
 
                     HStack(spacing: 4) {
                         Image(systemName: "mappin")
@@ -574,7 +579,7 @@ struct HomeLargePostCard: View {
                         Text(post.displayPlace)
                     }
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(PictriLightTheme.textSecondary)
                 }
 
                 Spacer()
@@ -598,10 +603,10 @@ struct HomeLargePostCard: View {
                             (
                                 Text(comment.username)
                                     .font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(.white.opacity(0.88))
+                                    .foregroundStyle(PictriLightTheme.textPrimary)
                                 + Text(" \(comment.text)")
                                     .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.70))
+                                    .foregroundStyle(PictriLightTheme.textSecondary)
                             )
                             .lineLimit(3)
                         }
@@ -622,7 +627,7 @@ struct HomeLargePostCard: View {
                         Text("\(displayLikeCount)")
                             .font(.system(size: 13, weight: .semibold))
                     }
-                    .foregroundStyle(isLiked ? PictriTheme.warm : .white.opacity(0.45))
+                    .foregroundStyle(isLiked ? PictriLightTheme.friendWarm : PictriLightTheme.textFaint)
                 }
                 .frame(minWidth: 44, minHeight: 44, alignment: .leading)
                 .contentShape(Rectangle())
@@ -640,7 +645,7 @@ struct HomeLargePostCard: View {
                         Text(comments.isEmpty ? "コメント" : "\(comments.count)")
                             .font(.system(size: 13, weight: .semibold))
                     }
-                    .foregroundStyle(.white.opacity(0.45))
+                    .foregroundStyle(PictriLightTheme.textFaint)
                 }
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
@@ -653,17 +658,17 @@ struct HomeLargePostCard: View {
             if isCommentVisible {
                 VStack(alignment: .leading, spacing: 10) {
                     Rectangle()
-                        .fill(PictriTheme.surfaceBorder)
+                        .fill(PictriLightTheme.surfaceBorder)
                         .frame(height: 1)
 
                     HStack(spacing: 8) {
                         TextField("コメントを入力…", text: $commentDraft)
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(.white)
-                            .tint(.white)
+                            .foregroundStyle(PictriLightTheme.textPrimary)
+                            .tint(PictriLightTheme.accent)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)
-                            .background(.white.opacity(0.08))
+                            .background(PictriLightTheme.unvisitedFill)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                             .accessibilityLabel("コメントを入力")
                             .onSubmit(submitComment)
@@ -672,8 +677,8 @@ struct HomeLargePostCard: View {
                             Image(systemName: "arrow.up")
                                 .font(.system(size: 14, weight: .bold))
                                 .frame(width: 36, height: 36)
-                                .background(isCommentDraftEmpty ? .white.opacity(0.10) : .white)
-                                .foregroundStyle(isCommentDraftEmpty ? .white.opacity(0.40) : .black)
+                                .background(isCommentDraftEmpty ? PictriLightTheme.unvisitedFill : PictriLightTheme.accent)
+                                .foregroundStyle(isCommentDraftEmpty ? PictriLightTheme.textFaint : .white)
                                 .clipShape(Circle())
                         }
                         .disabled(isCommentDraftEmpty)
@@ -791,7 +796,7 @@ struct FriendProfileSheet: View {
 
     var body: some View {
         ZStack {
-            AppBackground()
+            PictriLightTheme.background.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 22) {
@@ -803,28 +808,26 @@ struct FriendProfileSheet: View {
                         } label: {
                             Image(systemName: "xmark")
                                 .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.72))
+                                .foregroundStyle(PictriLightTheme.textSecondary)
                                 .frame(width: 32, height: 32)
-                                .background(.white.opacity(0.08))
+                                .background(PictriLightTheme.surface)
                                 .clipShape(Circle())
+                                .shadow(color: PictriLightTheme.shadow, radius: 6, x: 0, y: 2)
                         }
                     }
 
                     Circle()
-                        .fill(avatarAccent.opacity(0.20))
+                        .fill(avatarAccent)
                         .frame(width: 84, height: 84)
                         .overlay {
                             Text(String(post.username.prefix(1)).uppercased())
                                 .font(.system(size: 32, weight: .bold))
                                 .foregroundStyle(.white)
                         }
-                        .overlay {
-                            Circle().stroke(avatarAccent.opacity(0.6), lineWidth: 2)
-                        }
 
                     Text(post.username)
                         .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(PictriLightTheme.textPrimary)
 
                     // フォロワー数ではなく、「友達追加済みで、ここだけに共有されている」という
                     // 身内の安心感を短く伝える。公開SNS感を出さないための最小限の一言。
@@ -834,7 +837,7 @@ struct FriendProfileSheet: View {
                         Text("友達・ここだけで共有")
                             .font(.system(size: 11, weight: .semibold))
                     }
-                    .foregroundStyle(.white.opacity(0.42))
+                    .foregroundStyle(PictriLightTheme.textSecondary)
 
                     if let recentMomentText {
                         HStack(spacing: 6) {
@@ -843,11 +846,11 @@ struct FriendProfileSheet: View {
                             Text(recentMomentText)
                                 .font(.system(size: 12, weight: .semibold))
                         }
-                        .foregroundStyle(PictriTheme.warm.opacity(0.85))
+                        .foregroundStyle(PictriLightTheme.friendWarm)
                     }
 
                     VStack(alignment: .leading, spacing: 14) {
-                        PictriCompactMetric(label: "旅の記録", value: "\(friendPosts.count)件")
+                        PictriCompactMetric(label: "旅の記録", value: "\(friendPosts.count)件", isLight: true)
 
                         if !recentPlaces.isEmpty {
                             ScrollView(.horizontal, showsIndicators: false) {
@@ -857,7 +860,7 @@ struct FriendProfileSheet: View {
                                             .font(.system(size: 12, weight: .bold))
                                             .padding(.horizontal, 12)
                                             .padding(.vertical, 7)
-                                            .background(avatarAccent.opacity(0.16))
+                                            .background(avatarAccent.opacity(0.14))
                                             .foregroundStyle(avatarAccent)
                                             .clipShape(Capsule())
                                     }
@@ -868,13 +871,19 @@ struct FriendProfileSheet: View {
                     .padding(.horizontal, 18)
                     .padding(.vertical, 16)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .pictriSurface(cornerRadius: PictriTheme.cornerMedium)
+                    .background(PictriLightTheme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous)
+                            .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
+                    }
+                    .shadow(color: PictriLightTheme.shadow, radius: 10, x: 0, y: 4)
 
                     if !recentFriendPosts.isEmpty {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("残してきた記憶")
                                 .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.55))
+                                .foregroundStyle(PictriLightTheme.textSecondary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
                             LazyVGrid(
@@ -907,7 +916,7 @@ struct FriendProfileSheet: View {
             } else if let spot = mockQuestSpots.first(where: { $0.id == friendPost.spotId }) {
                 Rectangle().fill(MemoryVisualStyle.gradient(for: spot))
             } else {
-                Rectangle().fill(PictriTheme.surface)
+                Rectangle().fill(PictriLightTheme.unvisitedFill)
             }
         }
         .frame(maxWidth: .infinity)
@@ -938,16 +947,17 @@ struct JQAccountSheetView: View {
     }
 
     /// 「友達コード」カード。QRコード生成等は不要で、身内共有の雰囲気をUIだけで示す。
+    /// soft tealを控えめに使い、コピー完了時だけ強調する(コピー前は静かなカード)。
     private var friendCodeCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("あなたの友達コード")
                 .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(.white.opacity(0.55))
+                .foregroundStyle(PictriLightTheme.textSecondary)
 
             HStack {
                 Text("@keita_travel")
                     .font(.system(size: 17, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(PictriLightTheme.textPrimary)
 
                 Spacer()
 
@@ -969,8 +979,8 @@ struct JQAccountSheetView: View {
                     .font(.system(size: 12, weight: .bold))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
-                    .background(didCopyFriendCode ? PictriTheme.tealSoft : .white.opacity(0.12))
-                    .foregroundStyle(didCopyFriendCode ? PictriTheme.teal : .white)
+                    .background(didCopyFriendCode ? PictriLightTheme.teal.opacity(0.16) : PictriLightTheme.accentSoft)
+                    .foregroundStyle(didCopyFriendCode ? PictriLightTheme.teal : PictriLightTheme.accent)
                     .clipShape(Capsule())
                 }
                 .accessibilityLabel("友達コードをコピー")
@@ -978,11 +988,21 @@ struct JQAccountSheetView: View {
 
             Text("このコードを知っている人だけが、あなたの旅を見られます")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.white.opacity(0.4))
+                .foregroundStyle(PictriLightTheme.textFaint)
         }
         .padding(15)
-        .background(PictriTheme.surface)
+        .background(
+            LinearGradient(
+                colors: [PictriLightTheme.teal.opacity(0.08), PictriLightTheme.surface],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
         .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
+        }
     }
 
     /// 「フォロワー数」のような公開SNS的な数字ではなく、
@@ -993,7 +1013,7 @@ struct JQAccountSheetView: View {
 
     var body: some View {
         ZStack {
-            AppBackground()
+            PictriLightTheme.background.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
@@ -1012,22 +1032,22 @@ struct JQAccountSheetView: View {
     private var header: some View {
         VStack(spacing: 12) {
             Circle()
-                .fill(.white.opacity(0.12))
+                .fill(PictriLightTheme.accentSoft)
                 .frame(width: 82, height: 82)
                 .overlay {
                     Image(systemName: "person.fill")
                         .font(.system(size: 34, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(PictriLightTheme.accent)
                 }
 
             VStack(spacing: 5) {
                 Text("keita_travel")
                     .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(PictriLightTheme.textPrimary)
 
                 Text("場所で残す、旅の記録")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.48))
+                    .foregroundStyle(PictriLightTheme.textSecondary)
             }
         }
     }
@@ -1048,7 +1068,7 @@ struct JQAccountSheetView: View {
             JQAccountSectionButton(title: "申請", section: .requests, selectedSection: $selectedSection)
         }
         .padding(5)
-        .background(PictriTheme.surface)
+        .background(PictriLightTheme.unvisitedFill)
         .clipShape(Capsule())
     }
 
@@ -1065,8 +1085,17 @@ struct JQAccountSheetView: View {
 
         case .friends:
             VStack(alignment: .leading, spacing: 12) {
-                ForEach(friendStore.friends) { friend in
-                    JQFriendMiniRow(friend: friend)
+                if friendStore.friends.isEmpty {
+                    PictriEmptyState(
+                        systemImage: "person.2",
+                        title: "まだ友達がいません",
+                        message: "友達コードで身内を追加すると、ここに並びます。",
+                        isLight: true
+                    )
+                } else {
+                    ForEach(friendStore.friends) { friend in
+                        JQFriendMiniRow(friend: friend)
+                    }
                 }
             }
 
@@ -1076,15 +1105,16 @@ struct JQAccountSheetView: View {
 
                 Text("ユーザー名で友達に追加")
                     .font(.system(size: 19, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(PictriLightTheme.textPrimary)
 
                 TextField("@username", text: $addFriendText)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .font(.system(size: 16, weight: .semibold))
                     .padding(15)
-                    .background(.white.opacity(0.08))
-                    .foregroundStyle(.white)
+                    .background(PictriLightTheme.unvisitedFill)
+                    .foregroundStyle(PictriLightTheme.textPrimary)
+                    .tint(PictriLightTheme.accent)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
 
                 Button {
@@ -1096,24 +1126,29 @@ struct JQAccountSheetView: View {
                         .font(.system(size: 16, weight: .bold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 15)
-                        .background(.white)
-                        .foregroundStyle(.black)
+                        .background(PictriLightTheme.accent)
+                        .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 18))
                 }
             }
             .padding(15)
-            .background(PictriTheme.surface)
+            .background(PictriLightTheme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 22))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22)
+                    .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
+            }
+            .shadow(color: PictriLightTheme.shadow, radius: 10, x: 0, y: 4)
 
         case .requests:
             VStack(alignment: .leading, spacing: 12) {
                 if friendStore.incomingRequests.isEmpty {
                     Text("新しい申請はありません")
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.65))
+                        .foregroundStyle(PictriLightTheme.textSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 32)
-                        .background(.white.opacity(0.055))
+                        .background(PictriLightTheme.unvisitedFill)
                         .clipShape(RoundedRectangle(cornerRadius: 22))
                 } else {
                     ForEach(friendStore.incomingRequests) { request in
@@ -1145,9 +1180,10 @@ struct JQAccountSectionButton: View {
                 .font(.system(size: 12, weight: .bold))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 9)
-                .background(selectedSection == section ? .white : .clear)
-                .foregroundStyle(selectedSection == section ? .black : .white.opacity(0.68))
+                .background(selectedSection == section ? PictriLightTheme.surface : .clear)
+                .foregroundStyle(selectedSection == section ? PictriLightTheme.textPrimary : PictriLightTheme.textFaint)
                 .clipShape(Capsule())
+                .shadow(color: selectedSection == section ? PictriLightTheme.shadow : .clear, radius: 6, x: 0, y: 2)
         }
     }
 }
@@ -1160,16 +1196,21 @@ struct JQAccountStat: View {
         VStack(spacing: 5) {
             Text(value)
                 .font(.system(size: 21, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(PictriLightTheme.textPrimary)
 
             Text(title)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white.opacity(0.48))
+                .foregroundStyle(PictriLightTheme.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 13)
-        .background(PictriTheme.surfaceStrong)
+        .background(PictriLightTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
+        }
+        .shadow(color: PictriLightTheme.shadow, radius: 8, x: 0, y: 3)
     }
 }
 
@@ -1181,26 +1222,35 @@ struct JQAccountMenuRow: View {
         HStack {
             Image(systemName: icon)
                 .frame(width: 28)
+                .foregroundStyle(PictriLightTheme.accent)
 
             Text(title)
                 .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(PictriLightTheme.textPrimary)
 
             Spacer()
         }
-        .foregroundStyle(.white)
         .padding(16)
-        .background(PictriTheme.surfaceStrong)
+        .background(PictriLightTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
+        }
     }
 }
 
 struct JQFriendMiniRow: View {
     let friend: QuestFriend
 
+    private var avatarAccent: Color {
+        HomeFriendColor.accent(for: friend.username)
+    }
+
     var body: some View {
         HStack(spacing: 13) {
             Circle()
-                .fill(.white.opacity(0.13))
+                .fill(avatarAccent)
                 .frame(width: 46, height: 46)
                 .overlay {
                     Text(String(friend.displayName.prefix(1)).uppercased())
@@ -1211,11 +1261,11 @@ struct JQFriendMiniRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(friend.displayName)
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(PictriLightTheme.textPrimary)
 
                 Text("@\(friend.username)")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.48))
+                    .foregroundStyle(PictriLightTheme.textSecondary)
             }
 
             Spacer()
@@ -1224,13 +1274,17 @@ struct JQFriendMiniRow: View {
                 .font(.system(size: 12, weight: .bold))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
-                .background(.white.opacity(0.08))
-                .foregroundStyle(.white.opacity(0.75))
+                .background(PictriLightTheme.teal.opacity(0.14))
+                .foregroundStyle(PictriLightTheme.teal)
                 .clipShape(Capsule())
         }
         .padding(13)
-        .background(PictriTheme.surface)
+        .background(PictriLightTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
+        }
     }
 }
 
@@ -1238,11 +1292,15 @@ struct JQRequestMiniRow: View {
     @EnvironmentObject var friendStore: QuestFriendStore
     let request: QuestFriendRequest
 
+    private var avatarAccent: Color {
+        HomeFriendColor.accent(for: request.username)
+    }
+
     var body: some View {
         VStack(spacing: 12) {
             HStack(spacing: 13) {
                 Circle()
-                    .fill(.white.opacity(0.13))
+                    .fill(avatarAccent)
                     .frame(width: 46, height: 46)
                     .overlay {
                         Text(String(request.displayName.prefix(1)).uppercased())
@@ -1253,11 +1311,11 @@ struct JQRequestMiniRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(request.displayName)
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(PictriLightTheme.textPrimary)
 
                     Text("@\(request.username)")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.48))
+                        .foregroundStyle(PictriLightTheme.textSecondary)
                 }
 
                 Spacer()
@@ -1271,8 +1329,8 @@ struct JQRequestMiniRow: View {
                         .font(.system(size: 14, weight: .bold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 11)
-                        .background(.white.opacity(0.08))
-                        .foregroundStyle(.white)
+                        .background(PictriLightTheme.unvisitedFill)
+                        .foregroundStyle(PictriLightTheme.textSecondary)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
 
@@ -1283,14 +1341,18 @@ struct JQRequestMiniRow: View {
                         .font(.system(size: 14, weight: .bold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 11)
-                        .background(.white)
-                        .foregroundStyle(.black)
+                        .background(PictriLightTheme.accent)
+                        .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
             }
         }
         .padding(13)
-        .background(PictriTheme.surface)
+        .background(PictriLightTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
+        }
     }
 }
