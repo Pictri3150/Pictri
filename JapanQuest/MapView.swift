@@ -165,7 +165,7 @@ private struct QuestJapanOverviewScreen: View {
                     japanMapPanel
 
                     PictriLightShareCard(
-                        shareText: "ピクトリで訪れた都道府県 \(visitedCount)/47 を記録中!"
+                        shareText: "PicTriで訪れた都道府県 \(visitedCount)/47 を記録中!"
                     )
 
                     Spacer(minLength: JQUI.bottomBarReserve)
@@ -191,7 +191,7 @@ private struct QuestJapanOverviewScreen: View {
                 .font(.system(size: 21, weight: .bold))
                 .foregroundStyle(PictriLightTheme.accent)
 
-            Text("ピクトリ")
+            Text("PicTri")
                 .font(.system(size: 21, weight: .heavy))
                 .foregroundStyle(PictriLightTheme.textPrimary)
 

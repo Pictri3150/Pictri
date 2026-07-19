@@ -256,6 +256,7 @@
 				DEVELOPMENT_TEAM = VX77SAQW4Q;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = PicTri;
 				INFOPLIST_KEY_NSCameraUsageDescription = "旅行先限定のスタンプ付き写真を撮影するために使用します。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "現在地から近いスポットの限定カメラを解放するために使用します。";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "シミュレーターで写真を選択してスタンプ合成を試すために使用します。";
@@ -291,6 +292,7 @@
 				DEVELOPMENT_TEAM = VX77SAQW4Q;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = PicTri;
 				INFOPLIST_KEY_NSCameraUsageDescription = "旅行先限定のスタンプ付き写真を撮影するために使用します。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "現在地から近いスポットの限定カメラを解放するために使用します。";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "シミュレーターで写真を選択してスタンプ合成を試すために使用します。";
