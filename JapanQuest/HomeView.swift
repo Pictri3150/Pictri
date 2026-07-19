@@ -206,7 +206,7 @@ struct HomeView: View {
                         .overlay {
                             Image(systemName: "person.fill")
                                 .font(.system(size: 18, weight: .bold))
-                                .foregroundStyle(PictriLightTheme.accent)
+                                .foregroundStyle(PictriLightTheme.sand)
                         }
                         .shadow(color: PictriLightTheme.shadow, radius: 8, x: 0, y: 3)
 
@@ -234,8 +234,8 @@ struct HomeView: View {
                 .fill(
                     LinearGradient(
                         colors: [
-                            PictriLightTheme.skyBlue.opacity(0.20),
-                            PictriLightTheme.teal.opacity(0.10),
+                            PictriLightTheme.mint.opacity(0.22),
+                            PictriLightTheme.sand.opacity(0.12),
                             PictriLightTheme.surface
                         ],
                         startPoint: .topLeading,
@@ -270,11 +270,13 @@ struct HomeView: View {
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(.white)
                         .frame(width: 48, height: 48)
-                        .background(PictriLightTheme.accent)
+                        .background(PictriLightTheme.mint)
                         .clipShape(Circle())
-                        .shadow(color: PictriLightTheme.accent.opacity(0.30), radius: 10)
+                        .shadow(color: PictriLightTheme.mint.opacity(0.30), radius: 10)
                 }
 
+                // 「Mapで探す」文脈のCTAはmint(訪問・場所の色)にする。
+                // 青ボタンをHeroの主役にすると、他のSaaS/AIアプリと見分けがつかなくなるため。
                 Button {
                     selectedTab = .map
                 } label: {
@@ -285,7 +287,7 @@ struct HomeView: View {
                     .font(.system(size: 15, weight: .bold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(PictriLightTheme.accent)
+                    .background(PictriLightTheme.mint)
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 18))
                 }
@@ -340,25 +342,26 @@ struct HomeView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
-                    .background(PictriLightTheme.accentSoft)
-                    .foregroundStyle(PictriLightTheme.accent)
+                    .background(PictriLightTheme.sandSoft)
+                    .foregroundStyle(PictriLightTheme.amber)
                     .clipShape(Capsule())
                 }
             }
 
+            // 「気になるスポット」=「次に行きたい場所」なので、余白トーンではなく
+            // warm sand/amberで「未訪問だけど魅力的」という温度感を出す。
             ForEach(unvisitedKanagawaSpots) { spot in
                 Button {
                     selectedTab = .map
                 } label: {
                     HStack(spacing: 14) {
-                        // 未訪問スポットなので、訪問済み用の色ではなく余白トーン(light gray)を使う。
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(PictriLightTheme.unvisitedFill)
+                            .fill(PictriLightTheme.sandSoft)
                             .frame(width: 42, height: 42)
                             .overlay {
                                 Image(systemName: "mappin.and.ellipse")
                                     .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(PictriLightTheme.accent)
+                                    .foregroundStyle(PictriLightTheme.amber)
                             }
 
                         VStack(alignment: .leading, spacing: 4) {
@@ -435,8 +438,15 @@ struct HomeView: View {
 /// Swiftの String.hashValue はプロセスごとにランダム化されるため使わず、
 /// UTF8バイトの単純な合計で、再起動しても同じユーザーには同じ色が付くようにする。
 enum HomeFriendColor {
+    /// 友達アバターの配色は青を使わず、coral/amber/mint/lavenderの4トーンで回す。
+    /// 「みんな同じ青いアバター」にならないようにすることで、フィード全体の単調さを減らす。
     static func accent(for username: String) -> Color {
-        let palette: [Color] = [PictriLightTheme.accent, PictriLightTheme.friendWarm, PictriLightTheme.teal]
+        let palette: [Color] = [
+            PictriLightTheme.coral,
+            PictriLightTheme.amber,
+            PictriLightTheme.mint,
+            PictriLightTheme.lavender
+        ]
         let stableSeed = username.utf8.reduce(0) { $0 + Int($1) }
         return palette[stableSeed % palette.count]
     }
@@ -665,7 +675,7 @@ struct HomeLargePostCard: View {
                         TextField("コメントを入力…", text: $commentDraft)
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(PictriLightTheme.textPrimary)
-                            .tint(PictriLightTheme.accent)
+                            .tint(PictriLightTheme.coral)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)
                             .background(PictriLightTheme.unvisitedFill)
@@ -677,7 +687,7 @@ struct HomeLargePostCard: View {
                             Image(systemName: "arrow.up")
                                 .font(.system(size: 14, weight: .bold))
                                 .frame(width: 36, height: 36)
-                                .background(isCommentDraftEmpty ? PictriLightTheme.unvisitedFill : PictriLightTheme.accent)
+                                .background(isCommentDraftEmpty ? PictriLightTheme.unvisitedFill : PictriLightTheme.coral)
                                 .foregroundStyle(isCommentDraftEmpty ? PictriLightTheme.textFaint : .white)
                                 .clipShape(Circle())
                         }
@@ -730,7 +740,7 @@ struct HomeLargePostCard: View {
         }
 
         return LinearGradient(
-            colors: [.gray.opacity(0.4), .black],
+            colors: [PictriLightTheme.lavender.opacity(0.55), Color(red: 0.14, green: 0.12, blue: 0.20)],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -979,8 +989,8 @@ struct JQAccountSheetView: View {
                     .font(.system(size: 12, weight: .bold))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
-                    .background(didCopyFriendCode ? PictriLightTheme.teal.opacity(0.16) : PictriLightTheme.accentSoft)
-                    .foregroundStyle(didCopyFriendCode ? PictriLightTheme.teal : PictriLightTheme.accent)
+                    .background(didCopyFriendCode ? PictriLightTheme.teal.opacity(0.16) : PictriLightTheme.sandSoft)
+                    .foregroundStyle(didCopyFriendCode ? PictriLightTheme.teal : PictriLightTheme.sand)
                     .clipShape(Capsule())
                 }
                 .accessibilityLabel("友達コードをコピー")
@@ -993,7 +1003,7 @@ struct JQAccountSheetView: View {
         .padding(15)
         .background(
             LinearGradient(
-                colors: [PictriLightTheme.teal.opacity(0.08), PictriLightTheme.surface],
+                colors: [PictriLightTheme.sandSoft, PictriLightTheme.surface],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -1001,7 +1011,7 @@ struct JQAccountSheetView: View {
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay {
             RoundedRectangle(cornerRadius: 20)
-                .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
+                .stroke(PictriLightTheme.warmBorder, lineWidth: 1)
         }
     }
 
@@ -1032,12 +1042,12 @@ struct JQAccountSheetView: View {
     private var header: some View {
         VStack(spacing: 12) {
             Circle()
-                .fill(PictriLightTheme.accentSoft)
+                .fill(PictriLightTheme.sandSoft)
                 .frame(width: 82, height: 82)
                 .overlay {
                     Image(systemName: "person.fill")
                         .font(.system(size: 34, weight: .bold))
-                        .foregroundStyle(PictriLightTheme.accent)
+                        .foregroundStyle(PictriLightTheme.sand)
                 }
 
             VStack(spacing: 5) {
@@ -1114,9 +1124,11 @@ struct JQAccountSheetView: View {
                     .padding(15)
                     .background(PictriLightTheme.unvisitedFill)
                     .foregroundStyle(PictriLightTheme.textPrimary)
-                    .tint(PictriLightTheme.accent)
+                    .tint(PictriLightTheme.coral)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
 
+                // 「友達に追加」はcoral(人の温度感)にする。Accountの主要CTAが
+                // 全部青だと、追加・承認・コピーの区別がつかず機械的に見えるため。
                 Button {
                     friendStore.addFriend(username: addFriendText)
                     addFriendText = ""
@@ -1126,7 +1138,7 @@ struct JQAccountSheetView: View {
                         .font(.system(size: 16, weight: .bold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 15)
-                        .background(PictriLightTheme.accent)
+                        .background(PictriLightTheme.coral)
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 18))
                 }
@@ -1220,9 +1232,10 @@ struct JQAccountMenuRow: View {
 
     var body: some View {
         HStack {
+            // 設定メニューの並びなので、機能ごとに色分けせず落ち着いたneutralトーンに統一する。
             Image(systemName: icon)
                 .frame(width: 28)
-                .foregroundStyle(PictriLightTheme.accent)
+                .foregroundStyle(PictriLightTheme.textSecondary)
 
             Text(title)
                 .font(.system(size: 16, weight: .semibold))
@@ -1341,7 +1354,7 @@ struct JQRequestMiniRow: View {
                         .font(.system(size: 14, weight: .bold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 11)
-                        .background(PictriLightTheme.accent)
+                        .background(PictriLightTheme.coral)
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                 }

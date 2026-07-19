@@ -754,20 +754,22 @@ struct QuestCameraView: View {
                     .clipShape(Circle())
                     .overlay {
                         Circle()
-                            .stroke(PictriTheme.accent.opacity(0.35), lineWidth: 1.5)
+                            .stroke(PictriTheme.teal.opacity(0.35), lineWidth: 1.5)
                     }
                 }
                 .disabled(isCapturingSequence)
                 .accessibilityLabel(cameraService.currentPosition == .front ? "外カメラに切り替え" : "内カメラに切り替え")
             }
 
+            // 撮影可能CTAはmint/teal(PicTriの「撮る」文脈色)にする。青いグロー1色に
+            // 頼ると、CameraだけAIツールの録画ボタンのように見えてしまうため。
             Button {
                 startDualCapture()
             } label: {
                 Circle()
-                    .stroke(canCapture ? PictriTheme.accent : .white.opacity(0.28), lineWidth: 6)
+                    .stroke(canCapture ? PictriTheme.teal : .white.opacity(0.28), lineWidth: 6)
                     .frame(width: 88, height: 88)
-                    .shadow(color: canCapture ? PictriTheme.accent.opacity(0.55) : .clear, radius: 14)
+                    .shadow(color: canCapture ? PictriTheme.teal.opacity(0.55) : .clear, radius: 14)
                     .overlay {
                         Circle()
                             .fill(canCapture ? .white : .white.opacity(0.22))

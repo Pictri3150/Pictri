@@ -299,7 +299,7 @@ struct MemoriesView: View {
                     }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
-                        .background(prefecture.id == "kanagawa" ? PictriLightTheme.accent : PictriLightTheme.surface)
+                        .background(prefecture.id == "kanagawa" ? PictriLightTheme.mint : PictriLightTheme.surface)
                         .foregroundStyle(prefecture.id == "kanagawa" ? .white : PictriLightTheme.textPrimary)
                         .clipShape(Capsule())
                         .overlay {
@@ -367,7 +367,7 @@ struct ExplorePhotoCard: View {
                 }
                 .overlay {
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .stroke(PictriTheme.accent.opacity(0.5), lineWidth: 1)
+                        .stroke(PictriLightTheme.lavender.opacity(0.6), lineWidth: 1)
                 }
                 .padding(10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -375,7 +375,7 @@ struct ExplorePhotoCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 22))
         .overlay {
             RoundedRectangle(cornerRadius: 22)
-                .stroke(.white.opacity(0.10), lineWidth: 1)
+                .stroke(PictriLightTheme.lavender.opacity(0.22), lineWidth: 1)
         }
         .shadow(color: .black.opacity(0.32), radius: 14, y: 6)
     }
@@ -495,7 +495,7 @@ struct PrefectureMemorySummaryCard: View {
 
     private var borderColor: Color {
         if isCompleted { return PictriLightTheme.teal.opacity(0.45) }
-        return prefecture.id == "kanagawa" ? PictriLightTheme.accent.opacity(0.5) : PictriLightTheme.surfaceBorder
+        return prefecture.id == "kanagawa" ? PictriLightTheme.mint.opacity(0.5) : PictriLightTheme.surfaceBorder
     }
 
     var body: some View {
@@ -809,11 +809,13 @@ struct FixedEmptySpotCell: View {
 
     var body: some View {
         ZStack {
+            // 未訪問セルは「冷たい灰色」ではなく、warm sandのほのかなグローで
+            // 「行けば埋まる、行きたくなる余白」に見せる。
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [
-                            PictriLightTheme.accent.opacity(glowOpacity),
+                            PictriLightTheme.sand.opacity(glowOpacity),
                             PictriLightTheme.unvisitedFill
                         ],
                         startPoint: .topLeading,
@@ -831,7 +833,7 @@ struct FixedEmptySpotCell: View {
                 .strokeBorder(
                     style: StrokeStyle(lineWidth: 1, dash: [4, 5])
                 )
-                .foregroundStyle(PictriLightTheme.accent.opacity(0.30))
+                .foregroundStyle(PictriLightTheme.sand.opacity(0.40))
         }
         .accessibilityLabel("未訪問のスポット")
         .accessibilityHint("現地で撮影すると、ここが写真で埋まります")
@@ -986,7 +988,7 @@ private struct ExplorePhotoDetailSheet: View {
                     .scaledToFill()
             } else {
                 LinearGradient(
-                    colors: [PictriTheme.accent.opacity(0.28), .black.opacity(0.55)],
+                    colors: [PictriLightTheme.lavender.opacity(0.32), .black.opacity(0.55)],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -1007,7 +1009,7 @@ private struct ExplorePhotoDetailSheet: View {
         .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerSmall, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: PictriTheme.cornerSmall, style: .continuous)
-                .stroke(PictriTheme.accent.opacity(0.40), lineWidth: 1)
+                .stroke(PictriLightTheme.lavender.opacity(0.45), lineWidth: 1)
         }
         .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
     }
@@ -1096,17 +1098,20 @@ private struct ExploreCardButtonStyle: ButtonStyle {
 /// そのまま使っており、PictriThemeのindigo/teal/warmと無関係な「サンプルアプリ」的な
 /// 見た目になっていたため、全パターンをブランドカラーの組み合わせへ差し替えた。
 enum MemoryVisualStyle {
+    /// 以前はaccent(sky blue)が9パターン中4回登場し、写真プレースホルダー全体が
+    /// 青っぽく見えていた。写真・思い出の基調色であるlavenderに置き換えることで、
+    /// 「青いアプリ」感を減らしつつ、意味的にも「記憶の余韻」の色として自然にした。
     static func gradient(for spot: QuestSpot) -> LinearGradient {
         switch spot.gridIndex % 9 {
         case 0:
-            return LinearGradient(colors: [PictriTheme.accent.opacity(0.62), .black], startPoint: .top, endPoint: .bottom)
+            return LinearGradient(colors: [PictriLightTheme.lavender.opacity(0.60), .black], startPoint: .top, endPoint: .bottom)
         case 1:
             return LinearGradient(colors: [PictriTheme.teal.opacity(0.58), .black], startPoint: .top, endPoint: .bottom)
         case 2:
             return LinearGradient(colors: [PictriTheme.warm.opacity(0.58), .black], startPoint: .top, endPoint: .bottom)
         case 3:
             return LinearGradient(
-                colors: [PictriTheme.accent.opacity(0.55), Color(red: 0.28, green: 0.19, blue: 0.42), .black],
+                colors: [PictriLightTheme.lavender.opacity(0.55), Color(red: 0.28, green: 0.19, blue: 0.42), .black],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -1124,13 +1129,13 @@ enum MemoryVisualStyle {
             )
         case 6:
             return LinearGradient(
-                colors: [PictriTheme.accent.opacity(0.48), PictriTheme.teal.opacity(0.32), .black],
+                colors: [PictriLightTheme.lavender.opacity(0.46), PictriTheme.teal.opacity(0.32), .black],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         case 7:
             return LinearGradient(
-                colors: [PictriTheme.warm.opacity(0.46), PictriTheme.accent.opacity(0.28), .black],
+                colors: [PictriTheme.warm.opacity(0.46), PictriLightTheme.lavender.opacity(0.28), .black],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

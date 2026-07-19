@@ -478,25 +478,48 @@ struct PictriEmptyState: View {
 
 enum PictriLightTheme {
     static let background = Color(red: 0.985, green: 0.988, blue: 0.996)
+    /// 少しだけ暖かいoff white。カードの中にもう一段面を作りたい時(単調さを崩す用途)に使う。
+    static let warmWhite = Color(red: 0.992, green: 0.980, blue: 0.966)
     static let surface = Color.white
     static let surfaceBorder = Color.black.opacity(0.05)
+    /// sand/coral系のカードで使う、ほんのり暖色がかった境界線。
+    static let warmBorder = Color(red: 0.80, green: 0.66, blue: 0.52).opacity(0.30)
 
     static let textPrimary = Color(red: 0.10, green: 0.12, blue: 0.16)
     static let textSecondary = Color.black.opacity(0.46)
     static let textFaint = Color.black.opacity(0.28)
 
-    /// 主要CTA・撮影可能・選択中を示すsky blue。Map内での「今できる行動」の色。
+    /// sky blueは「Map上の水・空・補助情報」限定に格下げ。主要CTAには多用しない
+    /// (青ボタンが並ぶとAIチャット/SaaSテンプレのように見えるという指摘を受けての方針転換)。
     static let accent = Color(red: 0.18, green: 0.50, blue: 0.92)
     static let accentSoft = Color(red: 0.18, green: 0.50, blue: 0.92).opacity(0.12)
 
-    /// 訪問済み/記録があることを示すteal / mint / sky blueの3トーン。
+    /// 訪問済み/保存済み/場所が色づいた状態を示すteal / mint。
     static let teal = Color(red: 0.20, green: 0.68, blue: 0.64)
     static let mint = Color(red: 0.46, green: 0.76, blue: 0.60)
+    static let mintSoft = Color(red: 0.46, green: 0.76, blue: 0.60).opacity(0.14)
     static let skyBlue = Color(red: 0.44, green: 0.66, blue: 0.88)
 
-    /// 未訪問(まだ埋まっていない余白)を示すlight gray。
+    /// 友達・コメント・いいね・承認など「人の温度感」に使う、白背景用の淡いコーラル。
+    static let coral = Color(red: 0.92, green: 0.53, blue: 0.44)
+    static let coralSoft = Color(red: 0.92, green: 0.53, blue: 0.44).opacity(0.14)
+
+    /// 次に行きたい場所・旅の余白・軽い誘導CTAに使う、暖かいsand。
+    static let sand = Color(red: 0.80, green: 0.65, blue: 0.46)
+    static let sandSoft = Color(red: 0.80, green: 0.65, blue: 0.46).opacity(0.16)
+
+    /// sandより一段はっきりした、行動を促すamber(名所・ちょっと強めの誘導に使う)。
+    static let amber = Color(red: 0.85, green: 0.60, blue: 0.31)
+    static let amberSoft = Color(red: 0.85, green: 0.60, blue: 0.31).opacity(0.16)
+
+    /// 写真・思い出・Memories Exploreの余韻に使う、くすんだラベンダー。
+    static let lavender = Color(red: 0.56, green: 0.51, blue: 0.72)
+    static let lavenderSoft = Color(red: 0.56, green: 0.51, blue: 0.72).opacity(0.15)
+
+    /// 未訪問(まだ埋まっていない余白)を示すlight gray。fogは同系統でわずかに暖かい変種。
     static let unvisitedFill = Color(red: 0.91, green: 0.92, blue: 0.94)
     static let unvisitedStroke = Color.white
+    static let fog = Color(red: 0.92, green: 0.905, blue: 0.89)
 
     /// 「訪問済み/記憶がある」を指す時の意味的エイリアス(実体はteal)。
     /// 「未訪問/まだ行っていない場所」を指す時の意味的エイリアス(実体はunvisitedFill)。
@@ -504,10 +527,9 @@ enum PictriLightTheme {
     static let visited = teal
     static let unvisited = unvisitedFill
 
-    /// 友達・コメント・いいねなど「人の温度感」に使う、白背景用の淡いコーラル。
-    /// PictriTheme.warm(黒背景用)と役割は同じだが、白背景でも沈まないよう明度を上げている。
-    static let friendWarm = Color(red: 0.90, green: 0.56, blue: 0.44)
-    static let friendWarmSoft = Color(red: 0.90, green: 0.56, blue: 0.44).opacity(0.14)
+    /// 旧名。coralへ統合したため以後はcoral/coralSoftを直接使う(既存コードとの後方互換のみ)。
+    static let friendWarm = coral
+    static let friendWarmSoft = coralSoft
 
     /// 写真・夜・Camera背景に使う深いindigo/blue gray。純黒を避け、PicTriアイコンの
     /// 紫〜青グラデーションに近いトーンにすることで、Cameraが他画面と断絶して
@@ -522,10 +544,45 @@ enum PictriLightTheme {
     /// 都道府県ごとの訪問済み配色を、idの文字コード合計から安定的に決める。
     /// Swiftの String.hashValue はプロセスごとにランダム化されるため使わず、
     /// 同じ県が再起動やスクショの取り直しのたびに違う色に見えないようにする。
+    /// skyBlueへ寄りすぎないよう、teal/mint/lavenderの3トーンを基本にした。
     static func visitedPrefectureColor(id: String) -> Color {
-        let palette = [teal, skyBlue, mint]
+        let palette = [teal, mint, lavender]
         let sum = id.unicodeScalars.reduce(0) { $0 + Int($1.value) }
         return palette[sum % palette.count]
+    }
+}
+
+/// 「CTA=青」から脱却するための、文脈別の軽量トーン。フィルタチップやボタンなど
+/// 複数箇所で「この文脈は何色か」を毎回書き下さずに済むようにするための最小限の分類で、
+/// 大規模なデザインシステム化はしない。
+enum PictriLightTone {
+    case mint
+    case sand
+    case amber
+    case coral
+    case lavender
+    case neutral
+
+    var color: Color {
+        switch self {
+        case .mint: return PictriLightTheme.mint
+        case .sand: return PictriLightTheme.sand
+        case .amber: return PictriLightTheme.amber
+        case .coral: return PictriLightTheme.coral
+        case .lavender: return PictriLightTheme.lavender
+        case .neutral: return PictriLightTheme.textSecondary
+        }
+    }
+
+    var soft: Color {
+        switch self {
+        case .mint: return PictriLightTheme.mintSoft
+        case .sand: return PictriLightTheme.sandSoft
+        case .amber: return PictriLightTheme.amberSoft
+        case .coral: return PictriLightTheme.coralSoft
+        case .lavender: return PictriLightTheme.lavenderSoft
+        case .neutral: return PictriLightTheme.unvisitedFill
+        }
     }
 }
 
@@ -538,7 +595,9 @@ struct PictriLightProgressCard: View {
     let label: String
     let current: Int
     let total: Int
-    var accentColor: Color = PictriLightTheme.accent
+    // 「訪れた県」「訪問スポット」など、進捗カードは基本的に訪問済みの文脈で使うため
+    // デフォルトをmintにする(青は主要ボタンから降りたため、進捗の主役にもしない)。
+    var accentColor: Color = PictriLightTheme.mint
 
     private var ratio: Double {
         guard total > 0 else { return 0 }
@@ -628,6 +687,7 @@ struct PictriLightFilterChip: View {
     let text: String
     var systemImage: String?
     let isSelected: Bool
+    var tone: PictriLightTone = .mint
 
     var body: some View {
         Group {
@@ -640,7 +700,7 @@ struct PictriLightFilterChip: View {
         .font(.system(size: 13, weight: .bold))
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        .background(isSelected ? PictriLightTheme.accent : PictriLightTheme.surface)
+        .background(isSelected ? tone.color : PictriLightTheme.surface)
         .foregroundStyle(isSelected ? Color.white : PictriLightTheme.textSecondary)
         .clipShape(Capsule())
         .overlay {

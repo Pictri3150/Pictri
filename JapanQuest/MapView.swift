@@ -453,10 +453,10 @@ private struct QuestPrefectureDetailScreen: View {
                 } label: {
                     Label("エリアを探索する", systemImage: "map.fill")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(PictriLightTheme.accent)
+                        .foregroundStyle(PictriLightTheme.mint)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(PictriLightTheme.accentSoft)
+                        .background(PictriLightTheme.mintSoft)
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -718,13 +718,24 @@ private struct QuestAreaExploreScreen: View {
         .background(PictriLightTheme.background)
     }
 
+    /// カテゴリごとに自然な差し色を与える。全部同じ色(青)になると
+    /// フィルタの意味が伝わらず、生成テンプレのように見えてしまうため。
+    private func tone(for category: QuestSpotCategory) -> PictriLightTone {
+        switch category {
+        case .nature: return .mint
+        case .photogenic: return .lavender
+        case .landmark: return .amber
+        case .cafe: return .coral
+        }
+    }
+
     private var filterRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 Button {
                     selectedCategory = nil
                 } label: {
-                    PictriLightFilterChip(text: "すべて", isSelected: selectedCategory == nil)
+                    PictriLightFilterChip(text: "すべて", isSelected: selectedCategory == nil, tone: .neutral)
                 }
                 .buttonStyle(.plain)
 
@@ -735,7 +746,8 @@ private struct QuestAreaExploreScreen: View {
                         PictriLightFilterChip(
                             text: category.label,
                             systemImage: category.systemImage,
-                            isSelected: selectedCategory == category
+                            isSelected: selectedCategory == category,
+                            tone: tone(for: category)
                         )
                     }
                     .buttonStyle(.plain)
