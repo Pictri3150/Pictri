@@ -1,6 +1,19 @@
 import SwiftUI
 import MapKit
 
+/// カテゴリチップ(エリア探索の絞り込み)とMapKitピンの色を一致させるための共有マッピング。
+/// 自然=mint、フォトジェニック=lavender、名所=amber、カフェ=coralで統一する。
+enum QuestSpotCategoryColor {
+    static func tone(for category: QuestSpotCategory) -> Color {
+        switch category {
+        case .nature: return PictriLightTheme.mint
+        case .photogenic: return PictriLightTheme.lavender
+        case .landmark: return PictriLightTheme.amber
+        case .cafe: return PictriLightTheme.coral
+        }
+    }
+}
+
 enum QuestMapZoomLevel: String, Equatable {
     case prefecture
     case majorSpots
@@ -199,20 +212,17 @@ struct QuestMapKitView: UIViewRepresentable {
                 markerView.canShowCallout = true
                 markerView.animatesWhenAdded = true
 
-                // 訪問済みは白+グレーcheckmarkで統一。未訪問は自然カテゴリならmint系の葉アイコン、
-                // それ以外はaccent(sky blue)のカメラアイコンで「撮影可能」を示す。
+                // 訪問済みは白+グレーcheckmarkで統一。未訪問はカテゴリチップと同じ配色
+                // (自然=mint、フォトジェニック=lavender、名所=amber、カフェ=coral)にする。
                 if spotAnnotation.isCompleted {
                     markerView.markerTintColor = .white
                     markerView.glyphTintColor = UIColor(PictriLightTheme.textSecondary)
                     markerView.glyphImage = UIImage(systemName: "checkmark")
-                } else if spotAnnotation.spot.category == .nature {
-                    markerView.markerTintColor = UIColor(PictriLightTheme.mint)
-                    markerView.glyphTintColor = .white
-                    markerView.glyphImage = UIImage(systemName: "leaf.fill")
                 } else {
-                    markerView.markerTintColor = UIColor(PictriLightTheme.accent)
+                    let tone = QuestSpotCategoryColor.tone(for: spotAnnotation.spot.category)
+                    markerView.markerTintColor = UIColor(tone)
                     markerView.glyphTintColor = .white
-                    markerView.glyphImage = UIImage(systemName: "camera.fill")
+                    markerView.glyphImage = UIImage(systemName: spotAnnotation.spot.category.systemImage)
                 }
 
                 markerView.titleVisibility = .adaptive
@@ -412,5 +422,139 @@ final class QuestPrefectureAnnotation: NSObject, MKAnnotation {
         self.titleText = title
         self.subtitleText = subtitle
         self.coordinateValue = coordinate
+    }
+}
+
+// MARK: - Prefecture Overview Map (県詳細カード用)
+
+/// 都道府県詳細カードで使う、実在のMapKit地図に基づいた軽量プレビュー。
+/// 以前はQuestMapGeoData(簡略化した自作ポリゴン)を拡大表示していたが、
+/// 県単位まで拡大すると簡略化の粗さが目立ち「地図として信用できない」という
+/// 指摘を受けたため、実スポット座標が収まるregionを持つ本物の地図に置き換えた。
+/// エリア探索(QuestMapKitView)と違い、ズームレベル切り替えは持たない固定表示で、
+/// ScrollView内に置かれるためpan/pinchジェスチャーを無効化し、外側のスクロールと
+/// 競合しないreadonly風のカードにしている(タップでのピン選択は引き続き機能する)。
+struct QuestPrefectureOverviewMapView: UIViewRepresentable {
+    let spots: [QuestSpot]
+    let completedSpotIds: Set<String>
+    let onSpotSelected: (QuestSpot) -> Void
+
+    func makeUIView(context: Context) -> MKMapView {
+        let mapView = MKMapView()
+
+        mapView.delegate = context.coordinator
+        mapView.mapType = .mutedStandard
+        mapView.pointOfInterestFilter = .excludingAll
+        mapView.showsCompass = false
+        mapView.showsScale = false
+        mapView.showsTraffic = false
+        mapView.showsBuildings = false
+        mapView.showsUserLocation = false
+        mapView.isRotateEnabled = false
+        mapView.isPitchEnabled = false
+        mapView.isScrollEnabled = false
+        mapView.isZoomEnabled = false
+        mapView.overrideUserInterfaceStyle = .light
+
+        mapView.addAnnotations(annotations())
+        fitRegion(on: mapView, animated: false)
+
+        return mapView
+    }
+
+    func updateUIView(_ mapView: MKMapView, context: Context) {
+        context.coordinator.parent = self
+
+        guard context.coordinator.renderedCompletedSpotIds != completedSpotIds else {
+            return
+        }
+        context.coordinator.renderedCompletedSpotIds = completedSpotIds
+
+        mapView.removeAnnotations(mapView.annotations.filter { !($0 is MKUserLocation) })
+        mapView.addAnnotations(annotations())
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    private func annotations() -> [QuestSpotAnnotation] {
+        spots.map { spot in
+            QuestSpotAnnotation(spot: spot, isCompleted: completedSpotIds.contains(spot.id))
+        }
+    }
+
+    private func fitRegion(on mapView: MKMapView, animated: Bool) {
+        guard !spots.isEmpty else {
+            return
+        }
+
+        var rect = MKMapRect.null
+
+        for spot in spots {
+            let coordinate = CLLocationCoordinate2D(latitude: spot.latitude, longitude: spot.longitude)
+            let point = MKMapPoint(coordinate)
+            rect = rect.union(MKMapRect(x: point.x, y: point.y, width: 1, height: 1))
+        }
+
+        mapView.setVisibleMapRect(
+            rect,
+            edgePadding: UIEdgeInsets(top: 40, left: 32, bottom: 40, right: 32),
+            animated: animated
+        )
+    }
+
+    final class Coordinator: NSObject, MKMapViewDelegate {
+        var parent: QuestPrefectureOverviewMapView
+        var renderedCompletedSpotIds: Set<String>
+
+        init(parent: QuestPrefectureOverviewMapView) {
+            self.parent = parent
+            self.renderedCompletedSpotIds = parent.completedSpotIds
+        }
+
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            guard let spotAnnotation = annotation as? QuestSpotAnnotation else {
+                return nil
+            }
+
+            let identifier = "QuestPrefectureOverviewSpotAnnotation"
+
+            let markerView = mapView.dequeueReusableAnnotationView(
+                withIdentifier: identifier
+            ) as? MKMarkerAnnotationView ?? MKMarkerAnnotationView(
+                annotation: annotation,
+                reuseIdentifier: identifier
+            )
+
+            markerView.annotation = annotation
+            markerView.canShowCallout = true
+            markerView.animatesWhenAdded = true
+
+            if spotAnnotation.isCompleted {
+                markerView.markerTintColor = .white
+                markerView.glyphTintColor = UIColor(PictriLightTheme.textSecondary)
+                markerView.glyphImage = UIImage(systemName: "checkmark")
+            } else {
+                let tone = QuestSpotCategoryColor.tone(for: spotAnnotation.spot.category)
+                markerView.markerTintColor = UIColor(tone)
+                markerView.glyphTintColor = .white
+                markerView.glyphImage = UIImage(systemName: spotAnnotation.spot.category.systemImage)
+            }
+
+            markerView.titleVisibility = .adaptive
+            markerView.subtitleVisibility = .hidden
+
+            return markerView
+        }
+
+        func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+            guard let spotAnnotation = view.annotation as? QuestSpotAnnotation else {
+                return
+            }
+
+            parent.onSpotSelected(spotAnnotation.spot)
+            mapView.deselectAnnotation(spotAnnotation, animated: true)
+        }
     }
 }

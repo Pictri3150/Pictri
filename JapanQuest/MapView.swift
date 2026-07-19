@@ -491,16 +491,30 @@ private struct QuestPrefectureDetailScreen: View {
         .shadow(color: PictriLightTheme.shadow, radius: 12, x: 0, y: 4)
     }
 
+    /// 実スポットデータがある県(拡大表示され、精度が厳しく見られる)は実在のMapKit地図を、
+    /// データが無い県(準備中カードのみで、拡大して精査される場面が無い)は従来の
+    /// 簡略シルエットを使う。粗いポリゴンを「拡大しても信頼できる地図」として
+    /// 見せることはしない、という今回の方針をそのまま反映している。
     private func prefectureSubMap(shape: QuestPrefectureShape) -> some View {
         ZStack(alignment: .bottomTrailing) {
-            QuestPrefectureSubMapView(
-                shape: shape,
-                isVisited: isVisited,
-                spotPoints: hasRealSpotData ? questKanagawaSpotMapPoints : [:],
-                spots: hasRealSpotData ? spots : [],
-                completedSpotIds: completedSpotIds
-            )
-            .frame(height: 300)
+            if hasRealSpotData {
+                QuestPrefectureOverviewMapView(
+                    spots: spots,
+                    completedSpotIds: completedSpotIds,
+                    onSpotSelected: { spot in
+                        path.append(spot)
+                    }
+                )
+                .frame(height: 300)
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .padding(.horizontal, 10)
+            } else {
+                QuestPrefectureSubMapView(
+                    shape: shape,
+                    isVisited: isVisited
+                )
+                .frame(height: 300)
+            }
 
             if hasRealSpotData {
                 Button {
@@ -575,15 +589,13 @@ private struct QuestPrefectureDetailScreen: View {
     }
 }
 
-/// 県の形をズームして表示し、実スポットがある場合はその位置に達成状況の
-/// 丸バッジ(チェック=訪問済み、点線=未訪問)を重ねる。区市町村界のデータは
-/// 保有していないため、実際のスポット座標を「エリアの達成状況」の代わりに使う。
+/// 実スポットデータがまだ無い県の、簡略シルエットだけのプレビュー。
+/// 拡大して精査される場面が無い(準備中カードのみで詳細情報が無い)ため、
+/// QuestMapGeoDataの簡略ポリゴンで「どの県か」を示す用途に限定している。
+/// 実スポットがある県はQuestPrefectureOverviewMapView(実在のMapKit地図)を使う。
 private struct QuestPrefectureSubMapView: View {
     let shape: QuestPrefectureShape
     let isVisited: Bool
-    let spotPoints: [String: CGPoint]
-    let spots: [QuestSpot]
-    let completedSpotIds: Set<String>
 
     private var bounds: (minX: CGFloat, minY: CGFloat, width: CGFloat, height: CGFloat) {
         let xs = shape.points.map { $0.x }
@@ -613,23 +625,6 @@ private struct QuestPrefectureSubMapView: View {
 
                 QuestScaledShapePath(points: shape.points, scale: scale, offsetX: offsetX, offsetY: offsetY)
                     .stroke(.white, lineWidth: 1.5)
-
-                ForEach(spots) { spot in
-                    if let point = spotPoints[spot.id] {
-                        let isDone = completedSpotIds.contains(spot.id)
-
-                        Circle()
-                            .fill(.white)
-                            .frame(width: 22, height: 22)
-                            .overlay {
-                                Image(systemName: isDone ? "checkmark" : "circle.dashed")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(isDone ? PictriLightTheme.teal : PictriLightTheme.textFaint)
-                            }
-                            .shadow(color: .black.opacity(0.14), radius: 3, x: 0, y: 1)
-                            .position(x: point.x * scale + offsetX, y: point.y * scale + offsetY)
-                    }
-                }
             }
         }
     }

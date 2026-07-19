@@ -71,22 +71,7 @@ let questPrefectureShapes: [QuestPrefectureShape] = [
     QuestPrefectureShape(id: "okinawa", name: "沖縄", region: "okinawa", points: [CGPoint(x:251.6,y:389.5), CGPoint(x:261.6,y:381.5), CGPoint(x:281.6,y:383.5), CGPoint(x:297.6,y:391.5), CGPoint(x:293.6,y:411.5), CGPoint(x:265.6,y:409.5), CGPoint(x:251.6,y:401.5)]),
 ]
 
-// MARK: - Kanagawa Spot Positions (prefecture-detail sub-map)
-
-/// 神奈川県内の実スポット(緯度経度)を、questPrefectureShapesと同じ共有座標系に
-/// 投影した位置。県詳細画面で「県の形の上に実スポットを点で置く」ために使う。
-/// 緯度経度そのものではなく、変換済みの相対座標だけを保持する。
-let questKanagawaSpotMapPoints: [String: CGPoint] = [
-    "enoshima_coast": CGPoint(x:188.8,y:246.1),
-    "kamakura_daibutsu": CGPoint(x:189.8,y:245.7),
-    "akarenga": CGPoint(x:191.8,y:242.5),
-    "minatomirai": CGPoint(x:191.6,y:242.4),
-    "kamakura_station": CGPoint(x:190.1,y:245.7),
-    "yamashita_park": CGPoint(x:192.0,y:242.7),
-    "tsurugaoka_hachimangu": CGPoint(x:190.2,y:245.5),
-    "hakone_shrine": CGPoint(x:180.4,y:248.3),
-    "hasedera": CGPoint(x:189.8,y:245.8),
-    "enosui": CGPoint(x:188.8,y:245.9),
-    "hakone_ropeway": CGPoint(x:180.3,y:247.5),
-    "owakudani": CGPoint(x:180.3,y:247.4),
-]
+// 以前はここに神奈川県内の実スポットをQuestPrefectureShapeと同じ簡略座標系へ
+// 投影したquestKanagawaSpotMapPoints(県ポリゴン上に点を置くための座標)があったが、
+// 県詳細の地図表現をQuestPrefectureOverviewMapView(実在のMapKit地図)へ置き換えたため、
+// このテーブルは不要になった(MapKitは各スポットの実際の緯度経度をそのまま使う)。
