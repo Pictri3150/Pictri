@@ -35,3 +35,16 @@ fastlane/test_output/
 *.p12
 *.mobileprovision
 *.cer
+*.p8
+*.pem
+
+# Archives and build products
+*.xcarchive
+*.ipa
+*.dSYM
+*.dSYM.zip
+
+# Environment / secrets (never commit these)
+.env
+.env.*
+GoogleService-Info.plist
