@@ -182,6 +182,17 @@ struct QuestMapKitView: UIViewRepresentable {
                     rect = rect.union(MKMapRect(x: point.x, y: point.y, width: 1, height: 1))
                 }
 
+                // クラスタの中身が2件だけ・近接している場合、rectがほぼ点になり
+                // 極端に寄りすぎたズームになってしまう。周辺の街並みが見える最低限まで広げる。
+                let clusterCenter = MKMapPoint(x: rect.midX, y: rect.midY).coordinate
+                let minSpan = 1400 * MKMapPointsPerMeterAtLatitude(clusterCenter.latitude)
+                if rect.width < minSpan {
+                    rect = rect.insetBy(dx: -(minSpan - rect.width) / 2, dy: 0)
+                }
+                if rect.height < minSpan {
+                    rect = rect.insetBy(dx: 0, dy: -(minSpan - rect.height) / 2)
+                }
+
                 isProgrammaticFit = true
                 mapView.setVisibleMapRect(
                     rect,

@@ -734,11 +734,13 @@ private struct QuestAreaExploreScreen: View {
                 ) { spot in
                     path.append(spot)
                 }
+                .accessibilityIdentifier("pictri_area_map")
             }
 
             nearbySpotsCard
         }
         .navigationBarBackButtonHidden(true)
+        .accessibilityIdentifier("pictri_map_area_screen")
     }
 
     private var header: some View {
@@ -785,6 +787,7 @@ private struct QuestAreaExploreScreen: View {
                     PictriLightFilterChip(text: "すべて", isSelected: selectedCategory == nil, tone: .neutral)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("pictri_filter_all")
 
                 ForEach(Self.filterCategories, id: \.self) { category in
                     Button {
@@ -798,6 +801,7 @@ private struct QuestAreaExploreScreen: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("pictri_filter_\(category.rawValue)")
                 }
             }
             .padding(.horizontal, JQUI.sidePadding)
@@ -834,6 +838,7 @@ private struct QuestAreaExploreScreen: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("\(spot.name)、\(spot.areaName)。スポット詳細を開く")
+                            .accessibilityIdentifier("pictri_spot_card_\(spot.id)")
                         }
                     }
                 }
@@ -903,6 +908,7 @@ struct QuestSpotDetailView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .accessibilityIdentifier("pictri_spot_detail_\(spot.id)")
     }
 
     private var hero: some View {
@@ -1115,6 +1121,7 @@ struct QuestSpotDetailView: View {
             }
             .disabled(!isUnlocked)
             .accessibilityLabel(isUnlocked ? "\(spot.name)でカメラを起動" : "\(spot.name)は現地に行くと撮影できます")
+            .accessibilityIdentifier("pictri_spot_detail_camera_cta")
             .animation(.easeInOut(duration: 0.3), value: isUnlocked)
         }
     }
