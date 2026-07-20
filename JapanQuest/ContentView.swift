@@ -60,6 +60,32 @@ enum PictriVisualReview {
         value(for: "-pictriMapArea")
     }
 
+    /// `-pictriMapAreaLevel prefecture|area|spots` でエリア探索Mapのズーム段階を
+    /// 直接指定してスクショ確認できるようにする。DEBUG限定。
+    /// 自動ピンチズームが難しいため、実際のズーム操作を経由せずに
+    /// QuestMapKitViewの初期表示段階を直接差し替える。
+    static var mapAreaLevel: QuestMapZoomLevel? {
+        switch value(for: "-pictriMapAreaLevel") {
+        case "prefecture": return .prefecture
+        case "area": return .majorSpots
+        case "spots": return .allSpots
+        default: return nil
+        }
+    }
+
+    /// `-pictriMapCategory nature|photogenic|landmark|cafe` でエリア探索Mapの
+    /// カテゴリフィルタを直接適用してスクショ確認できるようにする。DEBUG限定。
+    /// 自動タップが難しいため、フィルタチップを押した状態を起動時に再現する。
+    static var mapCategory: QuestSpotCategory? {
+        switch value(for: "-pictriMapCategory") {
+        case "nature": return .nature
+        case "photogenic": return .photogenic
+        case "landmark": return .landmark
+        case "cafe": return .cafe
+        default: return nil
+        }
+    }
+
     /// `-pictriExploreDetail <spotId>` でExplore detail sheetを直接開けるようにする。DEBUG限定。
     static var exploreDetailSpotId: String? {
         value(for: "-pictriExploreDetail")

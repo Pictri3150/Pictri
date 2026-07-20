@@ -25,8 +25,8 @@ struct QuestMapView: View {
     @State private var path = NavigationPath()
 
     /// 訪問済み都道府県は「実際にメモリーが1枚でもある県」を基準にする。
-    /// 今のところ実スポットデータは神奈川しか無いため、実際の利用では{"kanagawa"}
-    /// のみになるが、将来スポットが増えればそのまま自動的に広がる。
+    /// スポットデータ(mockQuestSpots)の有無とは別の軸: 東京・京都・北海道に
+    /// スポットを追加しても、実際に写真を保存するまでは訪問済みにならない。
     /// DEBUG限定でプレビュー用に追加の県を「訪問済みに見せる」ことができる
     /// (memoryStoreへは一切書き込まない、表示専用の上乗せ)。
     private var visitedPrefectureIds: Set<String> {
@@ -650,10 +650,29 @@ private struct QuestAreaExploreScreen: View {
     @EnvironmentObject var memoryStore: QuestMemoryStore
     @Environment(\.dismiss) private var dismiss
 
-    @State private var mapZoomLevel: QuestMapZoomLevel = .prefecture
-    @State private var selectedCategory: QuestSpotCategory?
+    @State private var mapZoomLevel: QuestMapZoomLevel = QuestAreaExploreScreen.resolveInitialZoomLevel()
+    @State private var selectedCategory: QuestSpotCategory? = QuestAreaExploreScreen.resolveInitialCategory()
 
     private static let filterCategories: [QuestSpotCategory] = [.nature, .photogenic, .landmark, .cafe]
+
+    /// `-pictriMapAreaLevel prefecture|area|spots` でズーム段階を直接指定する。DEBUG限定。
+    /// 自動ピンチズームが難しい環境でも、ズーム後の表示をスクショ確認できるようにする。
+    private static func resolveInitialZoomLevel() -> QuestMapZoomLevel {
+        #if DEBUG
+        return PictriVisualReview.mapAreaLevel ?? .prefecture
+        #else
+        return .prefecture
+        #endif
+    }
+
+    /// `-pictriMapCategory nature|photogenic|landmark|cafe` でフィルタ状態を直接指定する。DEBUG限定。
+    private static func resolveInitialCategory() -> QuestSpotCategory? {
+        #if DEBUG
+        return PictriVisualReview.mapCategory
+        #else
+        return nil
+        #endif
+    }
 
     private var allSpots: [QuestSpot] {
         mockQuestSpots

@@ -97,9 +97,13 @@ struct QuestMapKitView: UIViewRepresentable {
         context.coordinator.parent = self
         context.coordinator.renderAnnotations(
             on: mapView,
-            level: .prefecture,
+            level: zoomLevel,
             force: true
         )
+        // DEBUG検証用に`zoomLevel`がprefecture以外から始まる場合(-pictriMapAreaLevel)、
+        // ピンチズームを経由していないので、実際にズームした時と同じ状態
+        // (hasEnteredSpotMode=true・region fit済み)を直接作る。
+        context.coordinator.applyInitialZoomLevelIfNeeded(on: mapView, level: zoomLevel)
 
         return mapView
     }
@@ -264,6 +268,14 @@ struct QuestMapKitView: UIViewRepresentable {
             }
 
             return nil
+        }
+
+        /// DEBUG検証用: 初期zoomLevelがprefecture以外の場合、実際にズームした時と
+        /// 同じ状態(hasEnteredSpotMode=true・全スポットをfitした region)を直接作る。
+        func applyInitialZoomLevelIfNeeded(on mapView: MKMapView, level: QuestMapZoomLevel) {
+            guard level != .prefecture else { return }
+            hasEnteredSpotMode = true
+            fitAllSpotsOnce(on: mapView)
         }
 
         func refreshCompletedStateIfNeeded(on mapView: MKMapView) {
