@@ -652,6 +652,7 @@ private struct QuestAreaExploreScreen: View {
 
     @State private var mapZoomLevel: QuestMapZoomLevel = QuestAreaExploreScreen.resolveInitialZoomLevel()
     @State private var selectedCategory: QuestSpotCategory? = QuestAreaExploreScreen.resolveInitialCategory()
+    @State private var debugSelectedSpotId: String? = QuestAreaExploreScreen.resolveInitialSelectedSpotId()
 
     private static let filterCategories: [QuestSpotCategory] = [.nature, .photogenic, .landmark, .cafe]
 
@@ -672,6 +673,25 @@ private struct QuestAreaExploreScreen: View {
         #else
         return nil
         #endif
+    }
+
+    /// `-pictriMapSelectedSpot <spotId>` で選択中スポットの見た目(ピン強調・カード強調)を
+    /// タップなしで直接指定する。DEBUG限定。整合性チェックは`effectiveSelectedSpotId`側で行う。
+    private static func resolveInitialSelectedSpotId() -> String? {
+        #if DEBUG
+        return PictriVisualReview.mapSelectedSpotId
+        #else
+        return nil
+        #endif
+    }
+
+    /// 指定spotIdが現在のフィルタ結果に含まれない場合は無視する(推奨方針A: フィルタ優先)。
+    /// 存在しないspotId・別の県のspotId・フィルタで除外されたカテゴリのspotIdは、
+    /// すべてこのガードで自動的に「選択なし」として扱われる。
+    private var effectiveSelectedSpotId: String? {
+        guard let debugSelectedSpotId else { return nil }
+        guard filteredSpots.contains(where: { $0.id == debugSelectedSpotId }) else { return nil }
+        return debugSelectedSpotId
     }
 
     private var allSpots: [QuestSpot] {
@@ -709,6 +729,7 @@ private struct QuestAreaExploreScreen: View {
                     prefecture: prefecture,
                     spots: filteredSpots,
                     completedSpotIds: completedSpotIds,
+                    selectedSpotId: effectiveSelectedSpotId,
                     zoomLevel: $mapZoomLevel
                 ) { spot in
                     path.append(spot)
@@ -806,7 +827,9 @@ private struct QuestAreaExploreScreen: View {
                                 PictriLightSpotCard(
                                     title: spot.name,
                                     subtitle: spot.areaName,
-                                    isVisited: completedSpotIds.contains(spot.id)
+                                    isVisited: completedSpotIds.contains(spot.id),
+                                    accentColor: QuestSpotCategoryColor.tone(for: spot.category),
+                                    isSelected: spot.id == effectiveSelectedSpotId
                                 )
                             }
                             .buttonStyle(.plain)

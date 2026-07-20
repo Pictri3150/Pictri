@@ -54,6 +54,9 @@ struct QuestMapKitView: UIViewRepresentable {
     let prefecture: QuestPrefecture
     let spots: [QuestSpot]
     let completedSpotIds: Set<String>
+    /// DEBUG検証用(`-pictriMapSelectedSpot`)に、タップなしで特定ピンを強調表示するための
+    /// 選択中spotId。通常操作では常にnil(ピンタップは即SpotDetailへ遷移するため)。
+    let selectedSpotId: String?
     @Binding var zoomLevel: QuestMapZoomLevel
 
     let onSpotSelected: (QuestSpot) -> Void
@@ -171,6 +174,29 @@ struct QuestMapKitView: UIViewRepresentable {
             _ mapView: MKMapView,
             didSelect view: MKAnnotationView
         ) {
+            if let clusterAnnotation = view.annotation as? MKClusterAnnotation {
+                var rect = MKMapRect.null
+
+                for member in clusterAnnotation.memberAnnotations {
+                    let point = MKMapPoint(member.coordinate)
+                    rect = rect.union(MKMapRect(x: point.x, y: point.y, width: 1, height: 1))
+                }
+
+                isProgrammaticFit = true
+                mapView.setVisibleMapRect(
+                    rect,
+                    edgePadding: UIEdgeInsets(top: 88, left: 54, bottom: 128, right: 54),
+                    animated: true
+                )
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                    self.isProgrammaticFit = false
+                }
+
+                mapView.deselectAnnotation(clusterAnnotation, animated: true)
+                return
+            }
+
             if let prefectureAnnotation = view.annotation as? QuestPrefectureAnnotation {
                 hasEnteredSpotMode = true
                 hasFittedAllSpots = false
@@ -212,6 +238,44 @@ struct QuestMapKitView: UIViewRepresentable {
                 return nil
             }
 
+            if let clusterAnnotation = annotation as? MKClusterAnnotation {
+                let identifier = "QuestAreaExploreCluster"
+
+                let markerView = mapView.dequeueReusableAnnotationView(
+                    withIdentifier: identifier
+                ) as? MKMarkerAnnotationView ?? MKMarkerAnnotationView(
+                    annotation: annotation,
+                    reuseIdentifier: identifier
+                )
+
+                markerView.annotation = annotation
+                markerView.canShowCallout = false
+                markerView.animatesWhenAdded = true
+                markerView.displayPriority = .required
+                markerView.transform = .identity
+                markerView.layer.shadowOpacity = 0
+
+                // クラスタの中身が全て訪問済みならwhite+checkmark、それ以外は
+                // 個別ピンと同じカテゴリ色(混在時はグレー)で「まだ何か残っている」ことを伝える。
+                let memberSpots = clusterAnnotation.memberAnnotations.compactMap { $0 as? QuestSpotAnnotation }
+                let allCompleted = !memberSpots.isEmpty && memberSpots.allSatisfy { $0.isCompleted }
+
+                if allCompleted {
+                    markerView.markerTintColor = .white
+                    markerView.glyphTintColor = UIColor(PictriLightTheme.textSecondary)
+                } else if let category = memberSpots.first(where: { !$0.isCompleted })?.spot.category {
+                    markerView.markerTintColor = UIColor(QuestSpotCategoryColor.tone(for: category))
+                    markerView.glyphTintColor = .white
+                } else {
+                    markerView.markerTintColor = UIColor(PictriLightTheme.textSecondary)
+                    markerView.glyphTintColor = .white
+                }
+
+                markerView.glyphText = "\(clusterAnnotation.memberAnnotations.count)"
+
+                return markerView
+            }
+
             if let spotAnnotation = annotation as? QuestSpotAnnotation {
                 let identifier = "QuestSpotAnnotation"
 
@@ -241,6 +305,28 @@ struct QuestMapKitView: UIViewRepresentable {
 
                 markerView.titleVisibility = .adaptive
                 markerView.subtitleVisibility = .hidden
+
+                // 密集ピン対策としてクラスタリングを有効化する。ただしDEBUG検証中の
+                // 選択中ピン(-pictriMapSelectedSpot)だけはクラスタに吸収されると
+                // 見失ってしまうため、常に個別表示させる(clusteringIdentifier=nil)。
+                let isSelected = spotAnnotation.spot.id == parent.selectedSpotId
+                if isSelected {
+                    markerView.clusteringIdentifier = nil
+                    markerView.zPriority = .max
+                    markerView.displayPriority = .required
+                    markerView.transform = CGAffineTransform(scaleX: 1.28, y: 1.28)
+                    markerView.layer.shadowColor = UIColor.white.cgColor
+                    markerView.layer.shadowRadius = 6
+                    markerView.layer.shadowOpacity = 0.9
+                    markerView.layer.shadowOffset = .zero
+                } else {
+                    markerView.clusteringIdentifier = spotAnnotation.isCompleted
+                        ? "questAreaCompleted"
+                        : "questAreaCategory_\(spotAnnotation.spot.category.rawValue)"
+                    markerView.zPriority = .defaultUnselected
+                    markerView.transform = .identity
+                    markerView.layer.shadowOpacity = 0
+                }
 
                 return markerView
             }

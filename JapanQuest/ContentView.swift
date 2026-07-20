@@ -86,6 +86,14 @@ enum PictriVisualReview {
         }
     }
 
+    /// `-pictriMapSelectedSpot <spotId>` でエリア探索Mapの選択中スポット表現(ピン強調・
+    /// 下部カード強調)をタップなしで直接スクショ確認できるようにする。DEBUG限定。
+    /// 指定spotIdが現在の県・フィルタ結果に含まれない場合は呼び出し側で無視される
+    /// (このプロパティ自体は文字列をそのまま返すだけで、整合性チェックはしない)。
+    static var mapSelectedSpotId: String? {
+        value(for: "-pictriMapSelectedSpot")
+    }
+
     /// `-pictriExploreDetail <spotId>` でExplore detail sheetを直接開けるようにする。DEBUG限定。
     static var exploreDetailSpotId: String? {
         value(for: "-pictriExploreDetail")

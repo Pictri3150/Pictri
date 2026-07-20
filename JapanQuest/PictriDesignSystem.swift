@@ -720,6 +720,9 @@ struct PictriLightSpotCard: View {
     let isVisited: Bool
     var thumbnail: Image?
     var accentColor: Color = PictriLightTheme.accent
+    /// Map上で選択中のピンと連動して、対応するカードを軽く強調する。
+    /// ランキング/人気感を出さないよう、枠線+淡いtintのみに留める。
+    var isSelected: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -782,8 +785,14 @@ struct PictriLightSpotCard: View {
             .padding(10)
         }
         .frame(width: 148)
-        .background(PictriLightTheme.surface)
+        .background(isSelected ? accentColor.opacity(0.10) : PictriLightTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(accentColor, lineWidth: 2)
+            }
+        }
         .shadow(color: PictriLightTheme.shadow, radius: 10, x: 0, y: 4)
         .accessibilityElement(children: .combine)
     }
