@@ -334,10 +334,11 @@ private struct QuestPrefectureDetailScreen: View {
     @EnvironmentObject var memoryStore: QuestMemoryStore
     @Environment(\.dismiss) private var dismiss
 
-    /// 実スポットデータ(緯度経度・カテゴリ等)があるのは今のところ神奈川のみ。
-    /// それ以外の県は形と訪問可否だけ見せ、「準備中」として無理にデータを捏造しない。
+    /// 神奈川固定ではなく、実際にmockQuestSpotsへその県のスポットが1件でもあるかで判定する。
+    /// スポットが無い県は形と訪問可否だけ見せ、「準備中」として無理にデータを捏造しない。
+    /// 将来、東京・京都・北海道などへ実スポットを追加すれば、この判定は自動的に切り替わる。
     private var hasRealSpotData: Bool {
-        prefecture.id == "kanagawa"
+        !spots.isEmpty
     }
 
     private var spots: [QuestSpot] {
@@ -468,17 +469,17 @@ private struct QuestPrefectureDetailScreen: View {
         HStack(spacing: 12) {
             Image(systemName: "hourglass")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(PictriLightTheme.textFaint)
+                .foregroundStyle(PictriLightTheme.textSecondary)
                 .frame(width: 40, height: 40)
-                .background(PictriLightTheme.unvisitedFill)
+                .background(PictriLightTheme.sandSoft)
                 .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("この県はまだ準備中です")
+                Text("この県のスポットは準備中です")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(PictriLightTheme.textPrimary)
 
-                Text("スポットは近日追加予定です")
+                Text("ここも、これから色づいていきます")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(PictriLightTheme.textSecondary)
             }
@@ -486,7 +487,7 @@ private struct QuestPrefectureDetailScreen: View {
             Spacer(minLength: 0)
         }
         .padding(16)
-        .background(PictriLightTheme.surface)
+        .background(PictriLightTheme.warmWhite)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .shadow(color: PictriLightTheme.shadow, radius: 12, x: 0, y: 4)
     }
@@ -503,6 +504,9 @@ private struct QuestPrefectureDetailScreen: View {
                     completedSpotIds: completedSpotIds,
                     onSpotSelected: { spot in
                         path.append(spot)
+                    },
+                    onClusterSelected: {
+                        path.append(AreaExploreRoute(prefecture: prefecture))
                     }
                 )
                 .frame(height: 300)

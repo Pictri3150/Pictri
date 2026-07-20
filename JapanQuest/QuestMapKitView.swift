@@ -434,10 +434,17 @@ final class QuestPrefectureAnnotation: NSObject, MKAnnotation {
 /// エリア探索(QuestMapKitView)と違い、ズームレベル切り替えは持たない固定表示で、
 /// ScrollView内に置かれるためpan/pinchジェスチャーを無効化し、外側のスクロールと
 /// 競合しないreadonly風のカードにしている(タップでのピン選択は引き続き機能する)。
+/// ピンが密集した場合はMapKit標準のクラスタリングでまとめ、訪問済み/カテゴリの
+/// 意味が混ざらないよう完了状態・カテゴリごとに別クラスタとして扱う。
+/// 神奈川専用の判定は持たず、渡されたspotsが1件でもあれば東京・京都・北海道等
+/// どの県でもそのまま使える(呼び出し側でspotデータの有無を判定して切り替える)。
 struct QuestPrefectureOverviewMapView: UIViewRepresentable {
     let spots: [QuestSpot]
     let completedSpotIds: Set<String>
     let onSpotSelected: (QuestSpot) -> Void
+    /// ピンが密集してクラスタ化された時のタップ用。このカードはpan/pinchができない固定表示のため、
+    /// クラスタをその場でズームしても抜け出せない。代わりにエリア探索(拡大縮小できる本物の地図)へ誘導する。
+    let onClusterSelected: () -> Void
 
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
@@ -497,6 +504,18 @@ struct QuestPrefectureOverviewMapView: UIViewRepresentable {
             rect = rect.union(MKMapRect(x: point.x, y: point.y, width: 1, height: 1))
         }
 
+        // スポットが1件だけ、または互いに近接している場合はrectがほぼ点になり、
+        // 極端に寄りすぎた(周辺の地形が全く見えない)regionになってしまう。
+        // 最低でも周辺の街並みが分かる距離まで広げる安全弁。
+        let centerCoordinate = MKMapPoint(x: rect.midX, y: rect.midY).coordinate
+        let minSpan = 1400 * MKMapPointsPerMeterAtLatitude(centerCoordinate.latitude)
+        if rect.width < minSpan {
+            rect = rect.insetBy(dx: -(minSpan - rect.width) / 2, dy: 0)
+        }
+        if rect.height < minSpan {
+            rect = rect.insetBy(dx: 0, dy: -(minSpan - rect.height) / 2)
+        }
+
         mapView.setVisibleMapRect(
             rect,
             edgePadding: UIEdgeInsets(top: 40, left: 32, bottom: 40, right: 32),
@@ -514,6 +533,42 @@ struct QuestPrefectureOverviewMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            if let clusterAnnotation = annotation as? MKClusterAnnotation {
+                let identifier = "QuestPrefectureOverviewCluster"
+
+                let markerView = mapView.dequeueReusableAnnotationView(
+                    withIdentifier: identifier
+                ) as? MKMarkerAnnotationView ?? MKMarkerAnnotationView(
+                    annotation: annotation,
+                    reuseIdentifier: identifier
+                )
+
+                markerView.annotation = annotation
+                markerView.canShowCallout = false
+                markerView.animatesWhenAdded = true
+                markerView.displayPriority = .required
+
+                // クラスタの中身が全て訪問済みならwhite+checkmark、それ以外は
+                // 個別ピンと同じカテゴリ色(混在時はグレー)で「まだ何か残っている」ことを伝える。
+                let memberSpots = clusterAnnotation.memberAnnotations.compactMap { $0 as? QuestSpotAnnotation }
+                let allCompleted = !memberSpots.isEmpty && memberSpots.allSatisfy { $0.isCompleted }
+
+                if allCompleted {
+                    markerView.markerTintColor = .white
+                    markerView.glyphTintColor = UIColor(PictriLightTheme.textSecondary)
+                } else if let category = memberSpots.first(where: { !$0.isCompleted })?.spot.category {
+                    markerView.markerTintColor = UIColor(QuestSpotCategoryColor.tone(for: category))
+                    markerView.glyphTintColor = .white
+                } else {
+                    markerView.markerTintColor = UIColor(PictriLightTheme.textSecondary)
+                    markerView.glyphTintColor = .white
+                }
+
+                markerView.glyphText = "\(clusterAnnotation.memberAnnotations.count)"
+
+                return markerView
+            }
+
             guard let spotAnnotation = annotation as? QuestSpotAnnotation else {
                 return nil
             }
@@ -535,11 +590,13 @@ struct QuestPrefectureOverviewMapView: UIViewRepresentable {
                 markerView.markerTintColor = .white
                 markerView.glyphTintColor = UIColor(PictriLightTheme.textSecondary)
                 markerView.glyphImage = UIImage(systemName: "checkmark")
+                markerView.clusteringIdentifier = "questOverviewCompleted"
             } else {
                 let tone = QuestSpotCategoryColor.tone(for: spotAnnotation.spot.category)
                 markerView.markerTintColor = UIColor(tone)
                 markerView.glyphTintColor = .white
                 markerView.glyphImage = UIImage(systemName: spotAnnotation.spot.category.systemImage)
+                markerView.clusteringIdentifier = "questOverviewCategory_\(spotAnnotation.spot.category.rawValue)"
             }
 
             markerView.titleVisibility = .adaptive
@@ -549,6 +606,12 @@ struct QuestPrefectureOverviewMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+            if view.annotation is MKClusterAnnotation {
+                parent.onClusterSelected()
+                mapView.deselectAnnotation(view.annotation, animated: true)
+                return
+            }
+
             guard let spotAnnotation = view.annotation as? QuestSpotAnnotation else {
                 return
             }
