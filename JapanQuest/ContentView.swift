@@ -109,6 +109,22 @@ enum PictriVisualReview {
         return ids
     }
 
+    /// `-pictriMemoryMode persisted|clean` でQuestMemoryStore起動時にUserDefaultsを
+    /// 読むかどうかを制御する。DEBUG限定。未指定時は既存通りpersisted(UserDefaultsを読む)。
+    /// cleanはUserDefaultsの中身を削除・変更しない。「読み込みと書き込みを無視する」だけの
+    /// 表示専用モードで、アプリ同梱のmock seed状態から毎回同じ条件でQAできるようにする。
+    static var memoryModeIsClean: Bool {
+        value(for: "-pictriMemoryMode") == "clean"
+    }
+
+    /// `-pictriCameraSpot <spotId>` でCameraタブのactiveCameraSpotIdを直接指定する。DEBUG限定。
+    /// `-pictriCameraScenario saved` と組み合わせて、任意スポットの保存済みCamera状態を
+    /// タップなしで確認できるようにする。既存の`-pictriMapSpot`はMapのナビゲーション用で
+    /// Camera側には影響しないため、役割を分けて別引数にしている。
+    static var cameraSpotId: String? {
+        value(for: "-pictriCameraSpot")
+    }
+
     /// `-pictriExploreDetail <spotId>` でExplore detail sheetを直接開けるようにする。DEBUG限定。
     static var exploreDetailSpotId: String? {
         value(for: "-pictriExploreDetail")
@@ -199,7 +215,7 @@ enum PictriCameraVisualScenario: Equatable {
 
 struct ContentView: View {
     @State private var selectedTab: AppTab = ContentView.resolveInitialTab()
-    @State private var activeCameraSpotId: String = "enoshima_coast"
+    @State private var activeCameraSpotId: String = ContentView.resolveInitialCameraSpotId()
     /// Camera保存直後に「メモリーで確認する」から遷移した時だけ使う一時的な受け渡し。
     /// MemoriesViewはこれを見て、保存した記憶をExplore Detailで直接開く。
     /// 通常のタブバー操作では常にnilのままなので、既存のCollect/Explore遷移には影響しない。
@@ -248,6 +264,19 @@ struct ContentView: View {
         #else
         return .home
         #endif
+    }
+
+    /// `-pictriCameraSpot <spotId>` でCamera起動時のspotを直接指定する。DEBUG限定。
+    /// 指定spotIdがmockQuestSpotsに存在しない場合は既存デフォルト(enoshima_coast)へ
+    /// フォールバックする。通常操作(タブ間の実際のスポット選択)には一切影響しない。
+    private static func resolveInitialCameraSpotId() -> String {
+        #if DEBUG
+        if let spotId = PictriVisualReview.cameraSpotId,
+           mockQuestSpots.contains(where: { $0.id == spotId }) {
+            return spotId
+        }
+        #endif
+        return "enoshima_coast"
     }
 
     @ViewBuilder

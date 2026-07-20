@@ -15,6 +15,8 @@ final class QuestMemoryStore: ObservableObject {
         purgeExpiredFeedPosts()
         #if DEBUG
         debugSeedVisitedFromLaunchArgsIfNeeded()
+        // QA向けの状態確認用。本番UIには一切出さない、コンソールログのみ。
+        print("[PictriVisualReview] memoryMode=\(PictriVisualReview.memoryModeIsClean ? "clean" : "persisted") memoryPhotos=\(memoryPhotos.count) feedPosts=\(feedPosts.count)")
         #endif
     }
 
@@ -218,6 +220,12 @@ final class QuestMemoryStore: ObservableObject {
     // MARK: - Save / Load Metadata
 
     private func save() {
+        #if DEBUG
+        // clean modeではUserDefaultsへの書き込みを一切行わない。既存の永続データを
+        // 変更・削除せず、プロセス終了と同時に消える表示専用の状態のままにするため。
+        guard !PictriVisualReview.memoryModeIsClean else { return }
+        #endif
+
         do {
             let memoryData = try JSONEncoder().encode(memoryPhotos)
             UserDefaults.standard.set(memoryData, forKey: memoryPhotosKey)
@@ -230,6 +238,17 @@ final class QuestMemoryStore: ObservableObject {
     }
 
     private func load() {
+        #if DEBUG
+        // clean modeではUserDefaultsを一切読まず、アプリ同梱のmock seed状態だけで
+        // 起動する。UserDefaultsの中身自体は削除しない(「読み込みを無視する」だけ)ため、
+        // 次回persisted状態(通常起動)に戻せば既存の永続データはそのまま復元される。
+        if PictriVisualReview.memoryModeIsClean {
+            memoryPhotos = mockQuestMemoryPhotos
+            feedPosts = mockQuestFeedPosts
+            return
+        }
+        #endif
+
         let loadedMemories = loadMemoryPhotos()
         let loadedFeeds = loadFeedPosts()
 
