@@ -94,6 +94,21 @@ enum PictriVisualReview {
         value(for: "-pictriMapSelectedSpot")
     }
 
+    /// `-pictriSeedVisitedSpot <spotId>` / `-pictriSeedVisitedSpots <id1,id2,id3>` で、
+    /// 実際のCamera撮影を経ずに「保存済み」状態を再現し、Map/Home/Memoriesへの反映を
+    /// 検証できるようにする。DEBUG限定。QuestMemoryStore側でverificationStatus=developer
+    /// (DEV MODE表示)として扱われ、実撮影の記録と見分けがつくようにする。
+    static var seedVisitedSpotIds: [String] {
+        var ids: [String] = []
+        if let single = value(for: "-pictriSeedVisitedSpot") {
+            ids.append(single)
+        }
+        if let multi = value(for: "-pictriSeedVisitedSpots") {
+            ids.append(contentsOf: multi.split(separator: ",").map { String($0) })
+        }
+        return ids
+    }
+
     /// `-pictriExploreDetail <spotId>` でExplore detail sheetを直接開けるようにする。DEBUG限定。
     static var exploreDetailSpotId: String? {
         value(for: "-pictriExploreDetail")

@@ -13,7 +13,59 @@ final class QuestMemoryStore: ObservableObject {
     init() {
         load()
         purgeExpiredFeedPosts()
+        #if DEBUG
+        debugSeedVisitedFromLaunchArgsIfNeeded()
+        #endif
     }
+
+    #if DEBUG
+    /// DEBUG限定・目視QA専用。`-pictriSeedVisitedSpot`/`-pictriSeedVisitedSpots`で指定された
+    /// spotIdを、実際のCamera撮影を経ずに「保存済み」として表示上のmemoryPhotos/feedPostsに
+    /// 追加する。verificationStatusは常に.developer("DEV MODE"表示)にして実撮影と区別できる
+    /// ようにする。UserDefaultsへは一切保存しない(save()を呼ばない)ため、プロセス終了と
+    /// 同時に消える表示専用の上乗せで、実ユーザーの保存データを一切破壊しない。
+    private func debugSeedVisitedFromLaunchArgsIfNeeded() {
+        let spotIds = PictriVisualReview.seedVisitedSpotIds
+        guard !spotIds.isEmpty else { return }
+
+        for spotId in spotIds {
+            guard let spot = mockQuestSpots.first(where: { $0.id == spotId }) else { continue }
+            guard !memoryPhotos.contains(where: { $0.spotId == spotId }) else { continue }
+
+            memoryPhotos.insert(
+                QuestMemoryPhoto(
+                    id: "debug_seed_\(spotId)",
+                    spotId: spot.id,
+                    prefectureId: spot.prefectureId,
+                    imageName: nil,
+                    createdAtText: currentDateTimeText(),
+                    verificationStatus: QuestVerificationStatus.developer.rawValue,
+                    verifiedDistanceMeters: nil
+                ),
+                at: 0
+            )
+
+            feedPosts.insert(
+                QuestFeedPost(
+                    id: "debug_seed_feed_\(spotId)",
+                    userId: "user_keita",
+                    username: "you",
+                    spotId: spot.id,
+                    prefectureId: spot.prefectureId,
+                    createdAt: Date(),
+                    expiresAt: Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date(),
+                    displayDate: currentDateText(),
+                    displayPlace: spot.englishName.lowercased(),
+                    isMine: true,
+                    imageName: nil,
+                    verificationStatus: QuestVerificationStatus.developer.rawValue,
+                    verifiedDistanceMeters: nil
+                ),
+                at: 0
+            )
+        }
+    }
+    #endif
 
     // MARK: - Public
 

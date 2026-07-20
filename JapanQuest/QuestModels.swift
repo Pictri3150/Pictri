@@ -119,7 +119,7 @@ enum QuestVerificationStatus: String, Codable, Hashable {
         case .unverified:
             return "UNVERIFIED"
         case .unknown:
-            return "UNKNOWN"
+            return "記録済み"
         }
     }
 
