@@ -51,11 +51,24 @@ enum QuestMapZoomLevel: String, Equatable {
 }
 
 struct QuestMapKitView: UIViewRepresentable {
+    let prefecture: QuestPrefecture
     let spots: [QuestSpot]
     let completedSpotIds: Set<String>
     @Binding var zoomLevel: QuestMapZoomLevel
 
     let onSpotSelected: (QuestSpot) -> Void
+
+    /// 神奈川固定ではなく、渡されたspotsの重心を初期中心にする。
+    /// spotsが空の場合(理論上は呼ばれない: hasRealSpotDataでガードされている)は
+    /// 日本のおおよその中心にフォールバックする。
+    private var initialCenter: CLLocationCoordinate2D {
+        guard !spots.isEmpty else {
+            return CLLocationCoordinate2D(latitude: 36.2, longitude: 138.25)
+        }
+        let latitude = spots.map(\.latitude).reduce(0, +) / Double(spots.count)
+        let longitude = spots.map(\.longitude).reduce(0, +) / Double(spots.count)
+        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
 
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
@@ -72,10 +85,7 @@ struct QuestMapKitView: UIViewRepresentable {
         mapView.overrideUserInterfaceStyle = .light
 
         let initialRegion = MKCoordinateRegion(
-            center: CLLocationCoordinate2D(
-                latitude: 35.38,
-                longitude: 139.36
-            ),
+            center: initialCenter,
             span: MKCoordinateSpan(
                 latitudeDelta: 1.05,
                 longitudeDelta: 1.05
@@ -300,12 +310,9 @@ struct QuestMapKitView: UIViewRepresentable {
             case .prefecture:
                 return [
                     QuestPrefectureAnnotation(
-                        title: "神奈川",
-                        subtitle: "\(parent.completedSpotIds.count) / 24 spots",
-                        coordinate: CLLocationCoordinate2D(
-                            latitude: 35.38,
-                            longitude: 139.36
-                        )
+                        title: parent.prefecture.name,
+                        subtitle: "\(parent.completedSpotIds.count) / \(parent.prefecture.totalSpotCount) spots",
+                        coordinate: parent.initialCenter
                     )
                 ]
 

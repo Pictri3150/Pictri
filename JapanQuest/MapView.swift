@@ -411,6 +411,13 @@ private struct QuestPrefectureDetailScreen: View {
                             detail: "\(prefecture.name)の訪問率 \(Int((achievementRatio * 100).rounded()))%",
                             accentColor: PictriLightTheme.teal
                         )
+                    } else if hasRealSpotData, completedCount == 0 {
+                        PictriLightNudgeCard(
+                            title: "ここから色づいていきます",
+                            detail: "\(prefecture.name)で最初の一枚を残しに行こう",
+                            systemImage: "sparkles",
+                            accentColor: PictriLightTheme.sand
+                        )
                     }
 
                     if hasRealSpotData, !nextSpots.isEmpty {
@@ -680,6 +687,7 @@ private struct QuestAreaExploreScreen: View {
                 filterRow
 
                 QuestMapKitView(
+                    prefecture: prefecture,
                     spots: filteredSpots,
                     completedSpotIds: completedSpotIds,
                     zoomLevel: $mapZoomLevel
