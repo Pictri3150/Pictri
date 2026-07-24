@@ -85,6 +85,10 @@ struct QuestMapKitView: UIViewRepresentable {
         mapView.showsBuildings = false
         mapView.showsUserLocation = true
         mapView.isRotateEnabled = false
+        // ピンチでの拡大・縮小、指1本でのパンをどちらも許可する
+        // (このMapは画面の主役として全面表示されるため、外側のScrollViewと競合しない)。
+        mapView.isZoomEnabled = true
+        mapView.isScrollEnabled = true
         mapView.overrideUserInterfaceStyle = .light
 
         let initialRegion = MKCoordinateRegion(
@@ -575,8 +579,11 @@ struct QuestPrefectureOverviewMapView: UIViewRepresentable {
         mapView.showsUserLocation = false
         mapView.isRotateEnabled = false
         mapView.isPitchEnabled = false
+        // 縦のScrollView内に置かれる固定プレビューのため、指1本のパンは無効のまま
+        // (外側のスクロールと競合する)。ピンチ(2本指)のズームだけは独立したジェスチャーなので
+        // 有効化しても外側のスクロールを妨げない。
         mapView.isScrollEnabled = false
-        mapView.isZoomEnabled = false
+        mapView.isZoomEnabled = true
         mapView.overrideUserInterfaceStyle = .light
 
         mapView.addAnnotations(annotations())
@@ -736,4 +743,309 @@ struct QuestPrefectureOverviewMapView: UIViewRepresentable {
             mapView.deselectAnnotation(spotAnnotation, animated: true)
         }
     }
+}
+
+// MARK: - Japan Overview Map (日本全体Map)
+
+/// 都道府県ごとの「だいたいの県庁所在地」に基づいた、実在のMapKit地図。
+/// 以前はQuestMapGeoData(簡略化した自作ポリゴン)で日本全体を塗り絵表示していたが、
+/// 拡大して見ると形の粗さが「地図として信用できない」という指摘を受けたため、
+/// 実座標のMapKit上に都道府県バッジを重ねる表現へ置き換えた。バッジの位置はあくまで
+/// 「その県のだいたいの場所」を示す目安であり、行政境界を正確に表すものではない
+/// (県境そのものは描画しない)。訪問済みはteal/mint/lavenderのバッジ+チェックマーク、
+/// 未訪問は控えめなグレーの小さいバッジで表す。QuestMapGeoData.swiftの簡略ポリゴンは
+/// 削除せず、スポットデータがまだ無い県の準備中カード(QuestPrefectureSubMapView)専用として
+/// 引き続き使う。
+struct QuestJapanOverviewMapView: UIViewRepresentable {
+    let visitedPrefectureIds: Set<String>
+    let onSelect: (QuestPrefecture) -> Void
+
+    func makeUIView(context: Context) -> MKMapView {
+        let mapView = MKMapView()
+
+        mapView.delegate = context.coordinator
+        mapView.mapType = .mutedStandard
+        mapView.pointOfInterestFilter = .excludingAll
+        mapView.showsCompass = false
+        mapView.showsScale = false
+        mapView.showsTraffic = false
+        mapView.showsBuildings = false
+        mapView.showsUserLocation = false
+        mapView.isRotateEnabled = false
+        mapView.isPitchEnabled = false
+        // ピンチでの拡大・縮小、指1本でのパンをどちらも許可する。
+        mapView.isZoomEnabled = true
+        mapView.isScrollEnabled = true
+        mapView.overrideUserInterfaceStyle = .light
+
+        mapView.addAnnotations(annotations())
+        fitMainlandRegion(on: mapView, animated: false)
+
+        return mapView
+    }
+
+    func updateUIView(_ mapView: MKMapView, context: Context) {
+        context.coordinator.parent = self
+
+        guard context.coordinator.renderedVisitedIds != visitedPrefectureIds else {
+            return
+        }
+        context.coordinator.renderedVisitedIds = visitedPrefectureIds
+
+        mapView.removeAnnotations(mapView.annotations.filter { !($0 is MKUserLocation) })
+        mapView.addAnnotations(annotations())
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    private func annotations() -> [QuestPrefectureOverviewAnnotation] {
+        QuestPrefectureGeoCenters.all.map { entry in
+            QuestPrefectureOverviewAnnotation(
+                prefectureId: entry.id,
+                name: entry.name,
+                coordinate: entry.coordinate,
+                isVisited: visitedPrefectureIds.contains(entry.id)
+            )
+        }
+    }
+
+    /// 沖縄は本州から大きく離れているため、初期表示は北海道〜九州が収まる範囲に合わせる
+    /// (実際の地図アプリで日本全体を見た時と同じ振る舞い)。沖縄はピンチアウト/スクロールで見える。
+    private func fitMainlandRegion(on mapView: MKMapView, animated: Bool) {
+        var rect = MKMapRect.null
+
+        for entry in QuestPrefectureGeoCenters.all where entry.id != "okinawa" {
+            let point = MKMapPoint(entry.coordinate)
+            rect = rect.union(MKMapRect(x: point.x, y: point.y, width: 1, height: 1))
+        }
+
+        guard !rect.isNull else { return }
+
+        mapView.setVisibleMapRect(
+            rect,
+            edgePadding: UIEdgeInsets(top: 36, left: 28, bottom: 36, right: 28),
+            animated: animated
+        )
+    }
+
+    final class Coordinator: NSObject, MKMapViewDelegate {
+        var parent: QuestJapanOverviewMapView
+        var renderedVisitedIds: Set<String>
+
+        /// 未訪問バッジ用の、控えめなslate gray(訪問済みのteal/mint/lavenderと明確に区別する)。
+        private static let unvisitedBadgeColor = UIColor(red: 0.62, green: 0.65, blue: 0.70, alpha: 1)
+
+        init(parent: QuestJapanOverviewMapView) {
+            self.parent = parent
+            self.renderedVisitedIds = parent.visitedPrefectureIds
+        }
+
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            if let clusterAnnotation = annotation as? MKClusterAnnotation {
+                let identifier = "QuestPrefectureOverviewClusterBadge"
+
+                let markerView = mapView.dequeueReusableAnnotationView(
+                    withIdentifier: identifier
+                ) as? MKMarkerAnnotationView ?? MKMarkerAnnotationView(
+                    annotation: annotation,
+                    reuseIdentifier: identifier
+                )
+
+                markerView.annotation = annotation
+                markerView.canShowCallout = false
+                markerView.animatesWhenAdded = true
+                markerView.displayPriority = .required
+                markerView.transform = .identity
+                markerView.glyphImage = nil
+                markerView.glyphText = "\(clusterAnnotation.memberAnnotations.count)"
+                markerView.glyphTintColor = .white
+
+                // 全員訪問済みならteal、1人でも訪問済みがいれば「ここに進捗がある」ことを
+                // 伝えるmint、全員未訪問ならslate grayで統一する(単体バッジと同じ3配色)。
+                let members = clusterAnnotation.memberAnnotations.compactMap { $0 as? QuestPrefectureOverviewAnnotation }
+                let allVisited = !members.isEmpty && members.allSatisfy { $0.isVisited }
+                let anyVisited = members.contains { $0.isVisited }
+
+                if allVisited {
+                    markerView.markerTintColor = UIColor(PictriLightTheme.teal)
+                } else if anyVisited {
+                    markerView.markerTintColor = UIColor(PictriLightTheme.mint)
+                } else {
+                    markerView.markerTintColor = Self.unvisitedBadgeColor
+                }
+
+                return markerView
+            }
+
+            guard let prefAnnotation = annotation as? QuestPrefectureOverviewAnnotation else {
+                return nil
+            }
+
+            let identifier = "QuestPrefectureOverviewBadge"
+
+            let markerView = mapView.dequeueReusableAnnotationView(
+                withIdentifier: identifier
+            ) as? MKMarkerAnnotationView ?? MKMarkerAnnotationView(
+                annotation: annotation,
+                reuseIdentifier: identifier
+            )
+
+            markerView.annotation = annotation
+            markerView.canShowCallout = true
+            markerView.animatesWhenAdded = true
+            markerView.titleVisibility = .adaptive
+            markerView.subtitleVisibility = .hidden
+            markerView.clusteringIdentifier = "questJapanOverviewBadge"
+
+            if prefAnnotation.isVisited {
+                markerView.markerTintColor = UIColor(PictriLightTheme.visitedPrefectureColor(id: prefAnnotation.prefectureId))
+                markerView.glyphTintColor = .white
+                markerView.glyphImage = UIImage(systemName: "checkmark")
+                markerView.displayPriority = .required
+                markerView.transform = .identity
+            } else {
+                markerView.markerTintColor = Self.unvisitedBadgeColor
+                markerView.glyphTintColor = .white
+                markerView.glyphImage = nil
+                markerView.displayPriority = .defaultLow
+                markerView.transform = CGAffineTransform(scaleX: 0.72, y: 0.72)
+            }
+
+            return markerView
+        }
+
+        func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+            if let cluster = view.annotation as? MKClusterAnnotation {
+                zoomIntoCluster(cluster, on: mapView)
+                return
+            }
+
+            guard let prefAnnotation = view.annotation as? QuestPrefectureOverviewAnnotation else {
+                return
+            }
+
+            selectPrefecture(id: prefAnnotation.prefectureId)
+            mapView.deselectAnnotation(prefAnnotation, animated: true)
+        }
+
+        /// クラスタタップでは(スポットの県内クラスタと違い)特定の県へいきなり遷移せず、
+        /// まずズームインして個々の県バッジへ分離させる(隣接県を間違って選んでしまうのを防ぐ)。
+        private func zoomIntoCluster(_ cluster: MKClusterAnnotation, on mapView: MKMapView) {
+            var rect = MKMapRect.null
+
+            for member in cluster.memberAnnotations {
+                let point = MKMapPoint(member.coordinate)
+                rect = rect.union(MKMapRect(x: point.x, y: point.y, width: 1, height: 1))
+            }
+
+            let clusterCenter = MKMapPoint(x: rect.midX, y: rect.midY).coordinate
+            let minSpan = 120_000 * MKMapPointsPerMeterAtLatitude(clusterCenter.latitude)
+            if rect.width < minSpan {
+                rect = rect.insetBy(dx: -(minSpan - rect.width) / 2, dy: 0)
+            }
+            if rect.height < minSpan {
+                rect = rect.insetBy(dx: 0, dy: -(minSpan - rect.height) / 2)
+            }
+
+            mapView.setVisibleMapRect(
+                rect,
+                edgePadding: UIEdgeInsets(top: 40, left: 32, bottom: 40, right: 32),
+                animated: true
+            )
+            mapView.deselectAnnotation(cluster, animated: true)
+        }
+
+        private func selectPrefecture(id: String) {
+            let prefecture = mockQuestPrefectures.first(where: { $0.id == id })
+                ?? questPrefectureShapes.first(where: { $0.id == id }).map {
+                    QuestPrefecture(id: $0.id, name: $0.name, englishName: $0.id, totalSpotCount: 0)
+                }
+
+            guard let prefecture else { return }
+            parent.onSelect(prefecture)
+        }
+    }
+}
+
+final class QuestPrefectureOverviewAnnotation: NSObject, MKAnnotation {
+    let prefectureId: String
+    let nameText: String
+    let coordinate: CLLocationCoordinate2D
+    let isVisited: Bool
+
+    var title: String? { nameText }
+    var subtitle: String? { nil }
+
+    init(prefectureId: String, name: String, coordinate: CLLocationCoordinate2D, isVisited: Bool) {
+        self.prefectureId = prefectureId
+        self.nameText = name
+        self.coordinate = coordinate
+        self.isVisited = isVisited
+    }
+}
+
+// MARK: - Prefecture Geo Centers (実座標)
+
+/// 47都道府県の「だいたいの県庁所在地」に基づく実世界の緯度経度。QuestMapGeoData.swiftの
+/// 簡略ポリゴン(共有キャンバス座標・行政境界の簡易近似)とは別物で、こちらは日本全体Map
+/// (MapKitベース)のバッジ配置専用。行政境界の正確な表現ではなく、あくまで
+/// 「その県のだいたいの位置」を示す目安値。
+enum QuestPrefectureGeoCenters {
+    struct Entry {
+        let id: String
+        let name: String
+        let coordinate: CLLocationCoordinate2D
+    }
+
+    static let all: [Entry] = [
+        Entry(id: "hokkaido", name: "北海道", coordinate: .init(latitude: 43.0642, longitude: 141.3469)),
+        Entry(id: "aomori", name: "青森", coordinate: .init(latitude: 40.8244, longitude: 140.7400)),
+        Entry(id: "iwate", name: "岩手", coordinate: .init(latitude: 39.7036, longitude: 141.1527)),
+        Entry(id: "miyagi", name: "宮城", coordinate: .init(latitude: 38.2682, longitude: 140.8694)),
+        Entry(id: "akita", name: "秋田", coordinate: .init(latitude: 39.7186, longitude: 140.1024)),
+        Entry(id: "yamagata", name: "山形", coordinate: .init(latitude: 38.2404, longitude: 140.3633)),
+        Entry(id: "fukushima", name: "福島", coordinate: .init(latitude: 37.7500, longitude: 140.4677)),
+        Entry(id: "ibaraki", name: "茨城", coordinate: .init(latitude: 36.3418, longitude: 140.4468)),
+        Entry(id: "tochigi", name: "栃木", coordinate: .init(latitude: 36.5658, longitude: 139.8836)),
+        Entry(id: "gunma", name: "群馬", coordinate: .init(latitude: 36.3906, longitude: 139.0608)),
+        Entry(id: "saitama", name: "埼玉", coordinate: .init(latitude: 35.8617, longitude: 139.6455)),
+        Entry(id: "chiba", name: "千葉", coordinate: .init(latitude: 35.6074, longitude: 140.1065)),
+        Entry(id: "tokyo", name: "東京", coordinate: .init(latitude: 35.6762, longitude: 139.6503)),
+        Entry(id: "kanagawa", name: "神奈川", coordinate: .init(latitude: 35.4437, longitude: 139.6380)),
+        Entry(id: "niigata", name: "新潟", coordinate: .init(latitude: 37.9026, longitude: 139.0232)),
+        Entry(id: "toyama", name: "富山", coordinate: .init(latitude: 36.6953, longitude: 137.2113)),
+        Entry(id: "ishikawa", name: "石川", coordinate: .init(latitude: 36.5613, longitude: 136.6562)),
+        Entry(id: "fukui", name: "福井", coordinate: .init(latitude: 36.0652, longitude: 136.2216)),
+        Entry(id: "yamanashi", name: "山梨", coordinate: .init(latitude: 35.6642, longitude: 138.5686)),
+        Entry(id: "nagano", name: "長野", coordinate: .init(latitude: 36.6513, longitude: 138.1810)),
+        Entry(id: "gifu", name: "岐阜", coordinate: .init(latitude: 35.3912, longitude: 136.7223)),
+        Entry(id: "shizuoka", name: "静岡", coordinate: .init(latitude: 34.9769, longitude: 138.3831)),
+        Entry(id: "aichi", name: "愛知", coordinate: .init(latitude: 35.1815, longitude: 136.9066)),
+        Entry(id: "mie", name: "三重", coordinate: .init(latitude: 34.7303, longitude: 136.5086)),
+        Entry(id: "shiga", name: "滋賀", coordinate: .init(latitude: 35.0045, longitude: 135.8686)),
+        Entry(id: "kyoto", name: "京都", coordinate: .init(latitude: 35.0116, longitude: 135.7681)),
+        Entry(id: "osaka", name: "大阪", coordinate: .init(latitude: 34.6937, longitude: 135.5023)),
+        Entry(id: "hyogo", name: "兵庫", coordinate: .init(latitude: 34.6901, longitude: 135.1955)),
+        Entry(id: "nara", name: "奈良", coordinate: .init(latitude: 34.6851, longitude: 135.8048)),
+        Entry(id: "wakayama", name: "和歌山", coordinate: .init(latitude: 34.2260, longitude: 135.1675)),
+        Entry(id: "tottori", name: "鳥取", coordinate: .init(latitude: 35.5039, longitude: 134.2381)),
+        Entry(id: "shimane", name: "島根", coordinate: .init(latitude: 35.4723, longitude: 133.0505)),
+        Entry(id: "okayama", name: "岡山", coordinate: .init(latitude: 34.6551, longitude: 133.9195)),
+        Entry(id: "hiroshima", name: "広島", coordinate: .init(latitude: 34.3853, longitude: 132.4553)),
+        Entry(id: "yamaguchi", name: "山口", coordinate: .init(latitude: 34.1859, longitude: 131.4714)),
+        Entry(id: "tokushima", name: "徳島", coordinate: .init(latitude: 34.0658, longitude: 134.5593)),
+        Entry(id: "kagawa", name: "香川", coordinate: .init(latitude: 34.3401, longitude: 134.0434)),
+        Entry(id: "ehime", name: "愛媛", coordinate: .init(latitude: 33.8416, longitude: 132.7657)),
+        Entry(id: "kochi", name: "高知", coordinate: .init(latitude: 33.5597, longitude: 133.5311)),
+        Entry(id: "fukuoka", name: "福岡", coordinate: .init(latitude: 33.5904, longitude: 130.4017)),
+        Entry(id: "saga", name: "佐賀", coordinate: .init(latitude: 33.2494, longitude: 130.2989)),
+        Entry(id: "nagasaki", name: "長崎", coordinate: .init(latitude: 32.7448, longitude: 129.8737)),
+        Entry(id: "kumamoto", name: "熊本", coordinate: .init(latitude: 32.7898, longitude: 130.7417)),
+        Entry(id: "oita", name: "大分", coordinate: .init(latitude: 33.2382, longitude: 131.6126)),
+        Entry(id: "miyazaki", name: "宮崎", coordinate: .init(latitude: 31.9111, longitude: 131.4239)),
+        Entry(id: "kagoshima", name: "鹿児島", coordinate: .init(latitude: 31.5602, longitude: 130.5581)),
+        Entry(id: "okinawa", name: "沖縄", coordinate: .init(latitude: 26.2124, longitude: 127.6809)),
+    ]
 }

@@ -199,79 +199,37 @@ private struct QuestJapanOverviewScreen: View {
         }
     }
 
+    /// 以前は自作の簡略ポリゴン(QuestJapanMapView)で日本全体を塗り絵表示していたが、
+    /// 拡大して見ると形の粗さが「地図として信用できない」という指摘を受けたため、
+    /// 実在のMapKit地図に県ごとのバッジを重ねるQuestJapanOverviewMapView(実座標ベース)へ
+    /// 置き換えた。ピンチでの拡大・縮小に対応し、タップで従来通り県詳細へ遷移する。
     private var japanMapPanel: some View {
-        ZStack(alignment: .bottomTrailing) {
-            QuestJapanMapView(
-                visitedPrefectureIds: visitedPrefectureIds,
-                onSelect: onSelectPrefecture
-            )
-            .padding(.vertical, 10)
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .bottomTrailing) {
+                QuestJapanOverviewMapView(
+                    visitedPrefectureIds: visitedPrefectureIds,
+                    onSelect: onSelectPrefecture
+                )
+                .frame(height: 380)
+                .padding(.vertical, 10)
 
-            Button {
-                showRegionList = true
-            } label: {
-                PictriLightFloatingPill(text: "地域一覧", systemImage: "list.bullet")
+                Button {
+                    showRegionList = true
+                } label: {
+                    PictriLightFloatingPill(text: "地域一覧", systemImage: "list.bullet")
+                }
+                .padding(16)
             }
-            .padding(16)
+
+            Text("ピンチで拡大・タップで都道府県へ")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(PictriLightTheme.textFaint)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 14)
         }
         .background(PictriLightTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .shadow(color: PictriLightTheme.shadow, radius: 18, x: 0, y: 8)
-    }
-}
-
-/// 47都道府県を1枚の日本地図として描画する。訪問済みは淡いteal/mint/sky blue、
-/// 未訪問はlight grayで塗り分け、タップで県詳細へ遷移する。
-private struct QuestJapanMapView: View {
-    let visitedPrefectureIds: Set<String>
-    let onSelect: (QuestPrefecture) -> Void
-
-    var body: some View {
-        GeometryReader { proxy in
-            let scale = proxy.size.width / QuestJapanMapMetrics.canvasWidth
-
-            ZStack(alignment: .topLeading) {
-                decorations(scale: scale)
-
-                ForEach(questPrefectureShapes) { shape in
-                    let isVisited = visitedPrefectureIds.contains(shape.id)
-                    let fillColor = isVisited
-                        ? PictriLightTheme.visitedPrefectureColor(id: shape.id)
-                        : PictriLightTheme.unvisitedFill
-
-                    ZStack {
-                        QuestScaledShapePath(points: shape.points, scale: scale)
-                            .fill(fillColor)
-
-                        QuestScaledShapePath(points: shape.points, scale: scale)
-                            .stroke(PictriLightTheme.unvisitedStroke, lineWidth: 1)
-                    }
-                    .contentShape(QuestScaledShapePath(points: shape.points, scale: scale))
-                    .onTapGesture {
-                        let prefecture = mockQuestPrefectures.first(where: { $0.id == shape.id })
-                            ?? QuestPrefecture(id: shape.id, name: shape.name, englishName: shape.id, totalSpotCount: 0)
-                        onSelect(prefecture)
-                    }
-                    .accessibilityLabel("\(shape.name)、\(isVisited ? "訪問済み" : "未訪問")")
-                }
-            }
-            .frame(width: proxy.size.width, height: QuestJapanMapMetrics.canvasHeight * scale)
-        }
-        .aspectRatio(QuestJapanMapMetrics.canvasWidth / QuestJapanMapMetrics.canvasHeight, contentMode: .fit)
-    }
-
-    /// 海や余白に控えめに置く木・波のモチーフ。以前Cameraのプレースホルダーで
-    /// 「灰色の矩形が壊れて見える」問題が起きた反省から、極薄い不透明度に留めている。
-    private func decorations(scale: CGFloat) -> some View {
-        ZStack {
-            PictriPineTreeMotif().position(x: 34 * scale, y: 96 * scale)
-            PictriPineTreeMotif().position(x: 50 * scale, y: 132 * scale)
-            PictriWaveMotif(width: 30).position(x: 290 * scale, y: 160 * scale)
-            PictriWaveMotif(width: 26).position(x: 290 * scale, y: 260 * scale)
-            PictriWaveMotif(width: 22).position(x: 232 * scale, y: 355 * scale)
-        }
-        .opacity(0.32)
-        .allowsHitTesting(false)
     }
 }
 

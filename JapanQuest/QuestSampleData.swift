@@ -194,6 +194,42 @@ let mockQuestSpots: [QuestSpot] = [
         gridIndex: 11,
         category: .nature
     ),
+    QuestSpot(
+        id: "senshu_university_ikuta",
+        prefectureId: "kanagawa",
+        name: "専修大学",
+        englishName: "senshu",
+        areaName: "生田",
+        latitude: 35.5985,
+        longitude: 139.5432,
+        unlockRadiusMeters: 250,
+        gridIndex: 12,
+        category: .landmark
+    ),
+    QuestSpot(
+        id: "mukogaoka_yuen_station",
+        prefectureId: "kanagawa",
+        name: "向ヶ丘遊園駅",
+        englishName: "mukogaoka",
+        areaName: "向ヶ丘遊園",
+        latitude: 35.6012,
+        longitude: 139.5427,
+        unlockRadiusMeters: 200,
+        gridIndex: 13,
+        category: .landmark
+    ),
+    QuestSpot(
+        id: "noborito_station",
+        prefectureId: "kanagawa",
+        name: "登戸駅",
+        englishName: "noborito",
+        areaName: "登戸",
+        latitude: 35.6142,
+        longitude: 139.5773,
+        unlockRadiusMeters: 200,
+        gridIndex: 14,
+        category: .landmark
+    ),
 
     // MARK: 東京 (MapKit詳細Map汎用化の検証用サンプル。件数はMVP範囲に留める)
     QuestSpot(
@@ -303,6 +339,18 @@ let mockQuestSpots: [QuestSpot] = [
         unlockRadiusMeters: 200,
         gridIndex: 8,
         category: .cafe
+    ),
+    QuestSpot(
+        id: "shinjuku_station",
+        prefectureId: "tokyo",
+        name: "新宿駅",
+        englishName: "shinjuku",
+        areaName: "新宿",
+        latitude: 35.6896,
+        longitude: 139.7006,
+        unlockRadiusMeters: 250,
+        gridIndex: 9,
+        category: .landmark
     ),
 
     // MARK: 京都
