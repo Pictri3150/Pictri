@@ -421,15 +421,17 @@ struct QuestCameraView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
     }
 
+    // Explore Detailの内カメサムネ(innerCameraThumbnail)と同じPictriTheme.cornerSmallに
+    // 揃える。同じ「内カメの顔プレビュー」というUI概念が画面ごとに違う角丸(18)だったため。
     private func frontMiniPreview(image: UIImage) -> some View {
         Image(uiImage: image)
             .resizable()
             .scaledToFill()
             .frame(width: 96, height: 132)
             .clipped()
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerSmall, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: PictriTheme.cornerSmall, style: .continuous)
                     .stroke(.white.opacity(0.88), lineWidth: 2)
             }
             .overlay(alignment: .bottomLeading) {

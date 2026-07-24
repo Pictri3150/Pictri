@@ -969,7 +969,13 @@ struct QuestSpotDetailView: View {
         }
         .padding(16)
         .background(cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 24))
+        // CameraのPictriStatusCardと同じcornerMedium(20)+borderに揃える。
+        // 以前は24という、白基調/暗色どちらのトークン体系にも属さない孤立値だった。
+        .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous)
+                .stroke(.white.opacity(0.08), lineWidth: 1)
+        }
         .accessibilityElement(children: .combine)
         .animation(.easeInOut(duration: 0.3), value: isUnlocked)
     }
@@ -1110,6 +1116,7 @@ struct QuestSpotDetailView: View {
                 .font(.system(size: 20, weight: .bold))
                 .foregroundStyle(primaryText)
 
+            // statusCardと同じcornerMedium(20)に揃える(以前は24という孤立値だった)。
             if let image = memoryStore.image(for: spot) {
                 ZStack(alignment: .bottomLeading) {
                     Image(uiImage: image)
@@ -1117,14 +1124,14 @@ struct QuestSpotDetailView: View {
                         .scaledToFill()
                         .frame(height: 260)
                         .clipped()
-                        .clipShape(RoundedRectangle(cornerRadius: 24))
+                        .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous))
 
                     PictriGlassPill(text: spot.englishName.lowercased(), tone: .muted)
                         .padding(14)
                 }
             } else {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 24)
+                    RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous)
                         .fill(cardBackground)
                         .frame(height: 220)
 

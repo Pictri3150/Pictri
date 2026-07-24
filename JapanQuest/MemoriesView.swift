@@ -38,10 +38,13 @@ struct MemoriesView: View {
             ZStack {
                 // CollectはMapと同じ白基調、Exploreは写真が主役の深いindigo基調のまま維持する。
                 // 2つのモードで背景トーンが違うのは意図的("記録棚"と"写真ビューア"の切り替え)。
+                // ExploreはCamera/SpotDetailと同じphotoDepthに揃える。以前はAppBackground
+                // (より黒に寄ったグラデーション)のままで、Cameraから遷移した時に画面だけ
+                // 急に暗く沈んで見えていた。
                 if viewMode == .collect {
                     PictriLightTheme.background.ignoresSafeArea()
                 } else {
-                    AppBackground()
+                    PictriLightTheme.photoDepth.ignoresSafeArea()
                 }
 
                 if viewMode == .collect {
@@ -191,24 +194,16 @@ struct MemoriesView: View {
         .frame(height: cardHeight + 20)
     }
 
+    // Home/AccountのPictriEmptyState(isLight: false)をそのまま使う。以前は独自実装
+    // (背景カードなしで浮いたアイコン+テキスト)だったため、他の空状態と質感が違って見えていた。
     private var exploreEmptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "map")
-                .font(.system(size: 52, weight: .thin))
-                .foregroundStyle(.white.opacity(0.28))
-
-            VStack(spacing: 8) {
-                Text("まだ写真がありません")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.75))
-
-                Text("Mapでスポットを訪れて\n最初の記録を残しましょう")
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundStyle(.white.opacity(0.42))
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .frame(maxWidth: .infinity)
+        PictriEmptyState(
+            systemImage: "map",
+            title: "まだ写真がありません",
+            message: "Mapでスポットを訪れて\n最初の記録を残しましょう",
+            isLight: false
+        )
+        .padding(.horizontal, 24)
         .padding(.bottom, 90)
     }
 
@@ -377,9 +372,11 @@ struct ExplorePhotoCard: View {
                 .padding(10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 22))
+        // SpotDetailのstatusCard/memoryPreviewと同じcornerMedium(20)に揃える
+        // (以前は22という、暗色カード体系のどのトークンとも一致しない孤立値だった)。
+        .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 22)
+            RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous)
                 .stroke(PictriLightTheme.lavender.opacity(0.22), lineWidth: 1)
         }
         .shadow(color: .black.opacity(0.32), radius: 14, y: 6)
@@ -893,7 +890,9 @@ private struct ExplorePhotoDetailSheet: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Color.black.ignoresSafeArea()
+            // Camera/SpotDetailと同じphotoDepthを土台にする(写真が無い箇所でのみ見える程度だが、
+            // 純黒からCamera側のトーンへ揃えることで暗色画面全体の世界観を統一する)。
+            PictriLightTheme.photoDepth.ignoresSafeArea()
 
             photoLayer
 
@@ -920,7 +919,7 @@ private struct ExplorePhotoDetailSheet: View {
         }
         .presentationDragIndicator(.visible)
         .presentationDetents([.large])
-        .presentationBackground(.black)
+        .presentationBackground(PictriLightTheme.photoDepth)
         .onAppear {
             withAnimation(.easeIn(duration: 0.28).delay(0.08)) {
                 captionVisible = true

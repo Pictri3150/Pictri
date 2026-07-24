@@ -915,7 +915,8 @@ struct PictriLightNudgeCard: View {
         }
         .padding(14)
         .background(PictriLightTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        // 他の白基調rowと同じrowCornerRadius(20)に揃える(以前は18で微妙にズレていた)。
+        .clipShape(RoundedRectangle(cornerRadius: PictriLightTheme.rowCornerRadius, style: .continuous))
         .shadow(color: PictriLightTheme.shadow, radius: 10, x: 0, y: 4)
         .accessibilityElement(children: .combine)
     }
