@@ -550,6 +550,84 @@ enum PictriLightTheme {
         let sum = id.unicodeScalars.reduce(0) { $0 + Int($1.value) }
         return palette[sum % palette.count]
     }
+
+    /// 白基調画面(Home/Map/Memories Collect/Account)全体で使う角丸の3段階。
+    /// 以前は画面ごとに18/20/22/24/26/28がバラバラに直書きされており、
+    /// カードの角丸だけで「同じアプリ」に見えない一因になっていたため、
+    /// hero(主役パネル) > card(標準カード) > row(リスト行・小カード) の3段だけに統一する。
+    static let heroCornerRadius: CGFloat = 28
+    static let cardCornerRadius: CGFloat = 24
+    static let rowCornerRadius: CGFloat = 20
+}
+
+// MARK: - Light Card (白基調画面の共通カード)
+
+/// Home Hero / Map progress card / Memories県カード / Account cardなど、白基調画面の
+/// 「カード」に共通する背景・角丸・border・shadowをまとめたモディファイア。
+/// 個別に.background().clipShape().overlay{stroke}.shadow()を書き下すと、画面ごとに
+/// 角丸やshadowの強さが微妙にズレていくため、白基調カードは基本これ経由に統一する。
+struct PictriLightCardModifier: ViewModifier {
+    var cornerRadius: CGFloat = PictriLightTheme.cardCornerRadius
+    var fill: Color = PictriLightTheme.surface
+    var borderColor: Color = PictriLightTheme.surfaceBorder
+    var shadowRadius: CGFloat = 14
+
+    func body(content: Content) -> some View {
+        content
+            .background(fill)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(borderColor, lineWidth: 1)
+            }
+            .shadow(color: PictriLightTheme.shadow, radius: shadowRadius, x: 0, y: shadowRadius / 3)
+    }
+}
+
+extension View {
+    func pictriLightCard(
+        cornerRadius: CGFloat = PictriLightTheme.cardCornerRadius,
+        fill: Color = PictriLightTheme.surface,
+        borderColor: Color = PictriLightTheme.surfaceBorder,
+        shadowRadius: CGFloat = 14
+    ) -> some View {
+        modifier(
+            PictriLightCardModifier(
+                cornerRadius: cornerRadius,
+                fill: fill,
+                borderColor: borderColor,
+                shadowRadius: shadowRadius
+            )
+        )
+    }
+}
+
+// MARK: - Light CTA Button (白基調画面の主要CTA)
+
+/// Home「地図でスポットを探す」・Account「友達に追加」「承認」など、白基調画面の主要CTAを
+/// 1つの高さ・角丸・文字サイズに揃えるための共通ボタンスタイル。色(mint/coral/sand等)だけを
+/// 文脈で変え、形はPicTri全体で統一する。
+struct PictriLightCTAButtonStyle: ButtonStyle {
+    var tint: Color = PictriLightTheme.mint
+    var isDisabled: Bool = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 15, weight: .bold))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 15)
+            .background(isDisabled ? PictriLightTheme.unvisitedFill : tint)
+            .foregroundStyle(isDisabled ? PictriLightTheme.textFaint : Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: PictriLightTheme.rowCornerRadius, style: .continuous))
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+extension ButtonStyle where Self == PictriLightCTAButtonStyle {
+    static func pictriLightCTA(tint: Color = PictriLightTheme.mint, isDisabled: Bool = false) -> PictriLightCTAButtonStyle {
+        PictriLightCTAButtonStyle(tint: tint, isDisabled: isDisabled)
+    }
 }
 
 /// 「CTA=青」から脱却するための、文脈別の軽量トーン。フィルタチップやボタンなど

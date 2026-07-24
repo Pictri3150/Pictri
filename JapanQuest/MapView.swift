@@ -185,15 +185,20 @@ private struct QuestJapanOverviewScreen: View {
         }
     }
 
+    /// Home(topBar)・Memories(memoriesHeader)と同じ「30pt太字タイトル + 13pt subtitle」の
+    /// 型に揃える。以前はここだけ21pt・subtitleなしの軽い見出しで、Mapだけ他の画面より
+    /// 情報量の少ない/違うヘッダーに見えていた。
     private var header: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "mappin.and.ellipse.circle.fill")
-                .font(.system(size: 21, weight: .bold))
-                .foregroundStyle(PictriLightTheme.accent)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("PicTri")
+                    .font(.system(size: 30, weight: .bold))
+                    .foregroundStyle(PictriLightTheme.textPrimary)
 
-            Text("PicTri")
-                .font(.system(size: 21, weight: .heavy))
-                .foregroundStyle(PictriLightTheme.textPrimary)
+                Text("行けた場所が、地図に残る")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(PictriLightTheme.textSecondary)
+            }
 
             Spacer()
         }
@@ -227,9 +232,7 @@ private struct QuestJapanOverviewScreen: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 14)
         }
-        .background(PictriLightTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .shadow(color: PictriLightTheme.shadow, radius: 18, x: 0, y: 8)
+        .pictriLightCard(cornerRadius: PictriLightTheme.heroCornerRadius, shadowRadius: 18)
     }
 }
 
@@ -452,9 +455,7 @@ private struct QuestPrefectureDetailScreen: View {
             Spacer(minLength: 0)
         }
         .padding(16)
-        .background(PictriLightTheme.warmWhite)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: PictriLightTheme.shadow, radius: 12, x: 0, y: 4)
+        .pictriLightCard(cornerRadius: PictriLightTheme.rowCornerRadius, fill: PictriLightTheme.warmWhite, shadowRadius: 12)
     }
 
     /// 実スポットデータがある県(拡大表示され、精度が厳しく見られる)は実在のMapKit地図を、
@@ -495,9 +496,7 @@ private struct QuestPrefectureDetailScreen: View {
             }
         }
         .padding(.vertical, 10)
-        .background(PictriLightTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .shadow(color: PictriLightTheme.shadow, radius: 18, x: 0, y: 8)
+        .pictriLightCard(cornerRadius: PictriLightTheme.heroCornerRadius, shadowRadius: 18)
     }
 
     private var nextSpotsSection: some View {
@@ -1070,12 +1069,14 @@ struct QuestSpotDetailView: View {
                     Image(systemName: isUnlocked ? "camera.fill" : "location.fill")
                     Text(actionButtonLabel)
                 }
-                .font(.system(size: 17, weight: .bold))
+                // Cameraの「撮り直す」「メモリーに保存」と同じ角丸・padding・文字サイズに揃える。
+                // SpotDetailがCameraへの入口として、同じPicTriのボタンに見えるようにするため。
+                .font(.system(size: 15, weight: .bold))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+                .padding(.vertical, 15)
                 .background(actionButtonBackground)
                 .foregroundStyle(isUnlocked ? .black : .white.opacity(0.38))
-                .clipShape(RoundedRectangle(cornerRadius: 22))
+                .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous))
             }
             .disabled(!isUnlocked)
             .accessibilityLabel(isUnlocked ? "\(spot.name)でカメラを起動" : "\(spot.name)は現地に行くと撮影できます")

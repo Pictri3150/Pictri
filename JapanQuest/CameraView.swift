@@ -789,6 +789,9 @@ struct QuestCameraView: View {
         .frame(height: 96)
     }
 
+    // 「撮り直す」「メモリーに保存/で確認する」は、SpotDetailの「この場所で撮る」と
+    // 同じ.pictriSecondary/.pictriPrimaryボタンスタイル経由にする。以前は手書きの
+    // cornerRadius 18・font weight blackで、Camera独自の見た目になっていた。
     private func previewActions(previewImage: UIImage) -> some View {
         HStack(spacing: 12) {
             Button {
@@ -798,18 +801,8 @@ struct QuestCameraView: View {
                     Image(systemName: "arrow.counterclockwise")
                     Text("撮り直す")
                 }
-                .font(.system(size: 15, weight: .black))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 15)
-                .background(.white.opacity(0.12))
-                .foregroundStyle(.white)
-                .clipShape(
-                    RoundedRectangle(
-                        cornerRadius: 18,
-                        style: .continuous
-                    )
-                )
             }
+            .buttonStyle(.pictriSecondary)
 
             Button {
                 if hasSaved {
@@ -836,18 +829,8 @@ struct QuestCameraView: View {
                     Image(systemName: hasSaved ? "square.grid.2x2.fill" : "bookmark.fill")
                     Text(hasSaved ? "メモリーで確認する" : "メモリーに保存")
                 }
-                .font(.system(size: 15, weight: .black))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 15)
-                .background(.white)
-                .foregroundStyle(.black)
-                .clipShape(
-                    RoundedRectangle(
-                        cornerRadius: 18,
-                        style: .continuous
-                    )
-                )
             }
+            .buttonStyle(.pictriPrimary)
         }
     }
 }

@@ -277,6 +277,8 @@ struct HomeView: View {
 
                 // 「Mapで探す」文脈のCTAはmint(訪問・場所の色)にする。
                 // 青ボタンをHeroの主役にすると、他のSaaS/AIアプリと見分けがつかなくなるため。
+                // PictriLightCTAButtonStyle経由にすることで、Accountの「友達に追加」等と
+                // 同じ高さ・角丸・文字サイズになるよう揃えている。
                 Button {
                     selectedTab = .map
                 } label: {
@@ -284,13 +286,8 @@ struct HomeView: View {
                         Image(systemName: "mappin.and.ellipse")
                         Text("地図でスポットを探す")
                     }
-                    .font(.system(size: 15, weight: .bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(PictriLightTheme.mint)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 18))
                 }
+                .buttonStyle(.pictriLightCTA(tint: PictriLightTheme.mint))
             }
             .padding(20)
         }
@@ -382,13 +379,7 @@ struct HomeView: View {
                             .foregroundStyle(PictriLightTheme.textFaint)
                     }
                     .padding(14)
-                    .background(PictriLightTheme.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 18))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 18)
-                            .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
-                    }
-                    .shadow(color: PictriLightTheme.shadow, radius: 8, x: 0, y: 3)
+                    .pictriLightCard(cornerRadius: PictriLightTheme.rowCornerRadius, shadowRadius: 8)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(spot.name)、\(spot.areaName)。地図で見る")
@@ -551,13 +542,7 @@ struct HomeLargePostCard: View {
             postFooter
         }
         .padding(12)
-        .background(PictriLightTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 26))
-        .shadow(color: PictriLightTheme.shadow, radius: 12, x: 0, y: 4)
-        .overlay {
-            RoundedRectangle(cornerRadius: 26)
-                .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
-        }
+        .pictriLightCard(cornerRadius: PictriLightTheme.cardCornerRadius, shadowRadius: 12)
     }
 
     private var avatarAccent: Color {
@@ -1129,28 +1114,19 @@ struct JQAccountSheetView: View {
 
                 // 「友達に追加」はcoral(人の温度感)にする。Accountの主要CTAが
                 // 全部青だと、追加・承認・コピーの区別がつかず機械的に見えるため。
+                // Homeの「地図でスポットを探す」と同じPictriLightCTAButtonStyle経由にすることで、
+                // 色は違っても高さ・角丸・文字サイズは同じPicTriのボタンに見えるようにする。
                 Button {
                     friendStore.addFriend(username: addFriendText)
                     addFriendText = ""
                     selectedSection = .friends
                 } label: {
                     Text("友達に追加")
-                        .font(.system(size: 16, weight: .bold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 15)
-                        .background(PictriLightTheme.coral)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
                 }
+                .buttonStyle(.pictriLightCTA(tint: PictriLightTheme.coral))
             }
             .padding(15)
-            .background(PictriLightTheme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 22))
-            .overlay {
-                RoundedRectangle(cornerRadius: 22)
-                    .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
-            }
-            .shadow(color: PictriLightTheme.shadow, radius: 10, x: 0, y: 4)
+            .pictriLightCard(cornerRadius: PictriLightTheme.cardCornerRadius, shadowRadius: 10)
 
         case .requests:
             VStack(alignment: .leading, spacing: 12) {
@@ -1216,13 +1192,7 @@ struct JQAccountStat: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 13)
-        .background(PictriLightTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
-        }
-        .shadow(color: PictriLightTheme.shadow, radius: 8, x: 0, y: 3)
+        .pictriLightCard(cornerRadius: PictriLightTheme.rowCornerRadius, shadowRadius: 8)
     }
 }
 
@@ -1244,12 +1214,7 @@ struct JQAccountMenuRow: View {
             Spacer()
         }
         .padding(16)
-        .background(PictriLightTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
-        }
+        .pictriLightCard(cornerRadius: PictriLightTheme.rowCornerRadius, shadowRadius: 0)
     }
 }
 
@@ -1292,12 +1257,7 @@ struct JQFriendMiniRow: View {
                 .clipShape(Capsule())
         }
         .padding(13)
-        .background(PictriLightTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
-        }
+        .pictriLightCard(cornerRadius: PictriLightTheme.rowCornerRadius, shadowRadius: 0)
     }
 }
 
@@ -1334,38 +1294,31 @@ struct JQRequestMiniRow: View {
                 Spacer()
             }
 
+            // 「削除」「承認」も、Home/Accountの他CTAと同じ角丸・高さに揃える。
+            // 承認だけPictriLightCTAButtonStyle(coral)にして、追加/承認が
+            // 同じ形のボタンだと分かるようにする。
             HStack(spacing: 10) {
                 Button {
                     friendStore.decline(request)
                 } label: {
                     Text("削除")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 15, weight: .bold))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
+                        .padding(.vertical, 15)
                         .background(PictriLightTheme.unvisitedFill)
                         .foregroundStyle(PictriLightTheme.textSecondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .clipShape(RoundedRectangle(cornerRadius: PictriLightTheme.rowCornerRadius, style: .continuous))
                 }
 
                 Button {
                     friendStore.accept(request)
                 } label: {
                     Text("承認")
-                        .font(.system(size: 14, weight: .bold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
-                        .background(PictriLightTheme.coral)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
+                .buttonStyle(.pictriLightCTA(tint: PictriLightTheme.coral))
             }
         }
         .padding(13)
-        .background(PictriLightTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
-        }
+        .pictriLightCard(cornerRadius: PictriLightTheme.rowCornerRadius, shadowRadius: 0)
     }
 }
