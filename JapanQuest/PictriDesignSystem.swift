@@ -864,10 +864,13 @@ struct PictriLightSpotCard: View {
         }
         .frame(width: 148)
         .background(isSelected ? accentColor.opacity(0.10) : PictriLightTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        // Home「次に行きたい場所」・Account系rowと同じrowCornerRadiusに揃える。
+        // このカードはPrefecture detail・Area exploreの両方から共有で使われるため、
+        // ここを直すだけで両画面のスポットカードが同時に統一される。
+        .clipShape(RoundedRectangle(cornerRadius: PictriLightTheme.rowCornerRadius, style: .continuous))
         .overlay {
             if isSelected {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: PictriLightTheme.rowCornerRadius, style: .continuous)
                     .stroke(accentColor, lineWidth: 2)
             }
         }

@@ -238,30 +238,35 @@ struct MemoriesView: View {
     }
 
     private var modeToggle: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 4) {
             modeButton("コレクト", mode: .collect)
             modeButton("探索", mode: .explore)
         }
-        .padding(3)
+        .padding(4)
         .background(isCollectMode ? PictriLightTheme.unvisitedFill : .white.opacity(0.08))
         .clipShape(Capsule())
     }
 
+    /// Area exploreのPictriLightFilterChipと同じ「選択=塗り+白文字、非選択=控えめ文字」の
+    /// 配色思想に揃える(padding 14/9・選択色PictriLightTheme.teal・選択文字は白)。
+    /// 以前はPictriTheme.teal(暗色画面用の別トーン)+黒文字で、Area exploreのチップと
+    /// 微妙に違う配色になっていた。
     private func modeButton(_ label: String, mode: MemoriesViewMode) -> some View {
-        Button {
+        let isSelected = viewMode == mode
+        return Button {
             withAnimation(.easeInOut(duration: 0.22)) {
                 viewMode = mode
             }
         } label: {
             Text(label)
                 .font(.system(size: 13, weight: .bold))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(viewMode == mode ? PictriTheme.teal : .clear)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .background(isSelected ? PictriLightTheme.teal : .clear)
                 .foregroundStyle(
-                    viewMode == mode
-                        ? Color.black
-                        : (isCollectMode ? PictriLightTheme.textFaint : .white.opacity(0.55))
+                    isSelected
+                        ? Color.white
+                        : (isCollectMode ? PictriLightTheme.textSecondary : .white.opacity(0.55))
                 )
                 .clipShape(Capsule())
         }
@@ -552,12 +557,9 @@ struct PrefectureMemorySummaryCard: View {
                 PictriLightTheme.teal.opacity(visitedTintOpacity)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 24))
-        .overlay {
-            RoundedRectangle(cornerRadius: 24)
-                .stroke(borderColor, lineWidth: 1)
-        }
-        .shadow(color: PictriLightTheme.shadow, radius: 12, x: 0, y: 4)
+        // Home/Map/Accountと同じPictriLightCardModifier経由にする。tealの色づきtintは
+        // 既存の.background{}のまま残し、角丸・border・shadowだけ共通トークンに揃える。
+        .pictriLightCard(cornerRadius: PictriLightTheme.cardCornerRadius, fill: .clear, borderColor: borderColor, shadowRadius: 12)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(prefecture.name)。\(completedCount)/\(prefecture.totalSpotCount)スポット。\(achievementText)")
     }
@@ -739,7 +741,7 @@ struct FixedMemorySpotCell: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerSmall))
 
             Text(spot.name)
                 .font(.system(size: 13, weight: .bold))
@@ -750,7 +752,7 @@ struct FixedMemorySpotCell: View {
                 .padding(9)
         }
         .frame(height: 132)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerSmall))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(isUnlocked ? "\(spot.name)、撮影済み" : "\(spot.name)、未訪問")
     }
@@ -764,11 +766,11 @@ struct FixedMemorySpotCell: View {
                 .frame(height: 132)
                 .clipped()
         } else if isUnlocked {
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: PictriTheme.cornerSmall)
                 .fill(MemoryVisualStyle.gradient(for: spot))
                 .frame(height: 132)
         } else {
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: PictriTheme.cornerSmall)
                 .fill(PictriLightTheme.unvisitedFill)
                 .frame(height: 132)
         }
@@ -811,7 +813,7 @@ struct FixedEmptySpotCell: View {
         ZStack {
             // 未訪問セルは「冷たい灰色」ではなく、warm sandのほのかなグローで
             // 「行けば埋まる、行きたくなる余白」に見せる。
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: PictriTheme.cornerSmall, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [
@@ -829,7 +831,7 @@ struct FixedEmptySpotCell: View {
         }
         .frame(height: 132)
         .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: PictriTheme.cornerSmall, style: .continuous)
                 .strokeBorder(
                     style: StrokeStyle(lineWidth: 1, dash: [4, 5])
                 )

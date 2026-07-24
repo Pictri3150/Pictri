@@ -774,10 +774,22 @@ private struct QuestAreaExploreScreen: View {
                 .foregroundStyle(PictriLightTheme.textPrimary)
 
             if nearbySpots.isEmpty {
-                Text("このカテゴリのスポットはまだありません")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(PictriLightTheme.textSecondary)
-                    .padding(.vertical, 8)
+                // 冷たいグレーのText一行だけではなく、Memories未訪問セルと同じsandトーンで
+                // 「まだ無い」を軽く伝える(PictriEmptyStateほど大きくないため専用の簡易版)。
+                HStack(spacing: 10) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(PictriLightTheme.sand)
+
+                    Text("このカテゴリのスポットはまだありません")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(PictriLightTheme.textSecondary)
+
+                    Spacer(minLength: 0)
+                }
+                .padding(12)
+                .background(PictriLightTheme.sandSoft)
+                .clipShape(RoundedRectangle(cornerRadius: PictriLightTheme.rowCornerRadius, style: .continuous))
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
@@ -803,10 +815,17 @@ private struct QuestAreaExploreScreen: View {
         }
         .padding(16)
         .background(PictriLightTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        // Home/Memoriesの標準カードと同じcardCornerRadius(24)+borderに揃える。
+        // ただし地図に浮かぶ下部シートのため、shadowだけは上向き(y: -4)のまま維持する
+        // (通常カードの下向きshadowをそのまま使うと、地図側に影が落ちて不自然になる)。
+        .clipShape(RoundedRectangle(cornerRadius: PictriLightTheme.cardCornerRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: PictriLightTheme.cardCornerRadius, style: .continuous)
+                .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
+        }
         .shadow(color: PictriLightTheme.shadow, radius: 20, x: 0, y: -4)
         .padding(.horizontal, 12)
-        .padding(.bottom, JQUI.bottomBarReserve - 26)
+        .padding(.bottom, JQUI.bottomBarReserve - PictriLightTheme.cardCornerRadius)
     }
 }
 
