@@ -3,14 +3,45 @@ import UIKit
 
 // MARK: - Home
 
+// MARK: - Home (Claude Design Final Handoff — Home Vertical Slice)
+//
+// Visual Source of Truth: PictriDesignHandoffFinal/handoff/PICTRI_FINAL_DESIGN_SPEC.md
+// セクションA(HOME)。Behavior/Data Source of Truthは引き続きProduction
+// (QuestMemoryStore / QuestFriendStore / 既存のNavigationStack・sheet導線)。
+//
+// Final Design Homeのhierarchyは「1) friends' photographs 2) さいきん色づいた場所
+// 3) inline like/comment 4) header」の4つのみで、Production側に以前あった
+// 大きなhero CTAカード(「地図でスポットを探す」)・「気になるスポット」utility一覧は
+// Final Design Homeに対応する要素が存在しない
+// (Design Spec Must NOT change: 「no 「地図でみる」button on posts」「no map on Home」)。
+// これらのCTAが担っていた実際の機能(Mapタブへの遷移)は、下部タブバーのMapタブが
+// そのまま提供し続けるため、機能の欠落はない。今回のPhaseでHomeから削除した
+// (Production側のみに存在していた旧UI、詳細は最終報告に記載)。
 struct HomeView: View {
     @Binding var selectedTab: AppTab
+    /// Comment Note展開中はBottom Navigation(ContentView側の常駐要素)を隠す。
+    /// キーボードとBottom Navが挟まって見える見た目の窮屈さを解消するための
+    /// 最小限の共通配線(実体はContentView側のJQFloatingTabBar表示条件)。
+    @Binding var isBottomBarHidden: Bool
+    /// v7: Top AreaのAccountアイコンから、旧Bottom Nav 5番目タブと同じ
+    /// `JQAccountSheetView`を開くための導線(ContentView側のstate/sheetをそのまま
+    /// 再利用し、新しいAccount画面やstateは作らない)。
+    let onAccountTap: () -> Void
     @EnvironmentObject var memoryStore: QuestMemoryStore
     @EnvironmentObject var friendStore: QuestFriendStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @State private var showAccountMenu = false
-    @State private var likedPostIds: Set<String> = []
     @State private var profilePost: QuestFeedPost?
+    @StateObject private var engagement = PictriHomeEngagementStore()
+    @State private var openCommentsPostId: String?
+    /// v7 PAGINATION DOTS用。Carousel側から現在中央のREAL post id(virtual idではない)
+    /// だけを一方向で受け取る(HomeViewからCarouselのscrollPositionへ書き戻すことは
+    /// 一切しない — v5で「双方向bindingにするとcenter anchorが壊れる」ことが判明済み
+    /// のため、常にCarousel→HomeViewの一方向syncに限定する)。
+    @State private var currentPostId: String?
+    #if DEBUG
+    @State private var didOpenDebugAccountSheet = false
+    #endif
 
     private var visiblePosts: [QuestFeedPost] {
         let posts = memoryStore.visibleFeedPosts()
@@ -18,103 +49,110 @@ struct HomeView: View {
         // `-pictriHomeCommentsOpen <postId>` でコメント欄を開いた投稿カードを
         // ScrollViewの自動スクロールなしで確認できるよう、対象投稿を先頭へ並べ替える。
         // 通常操作(likedPostIds/onLike等)には一切影響しない。
+        var result = posts
         if let targetId = PictriVisualReview.homeCommentsOpenPostId,
-           let index = posts.firstIndex(where: { $0.id == targetId }) {
-            var reordered = posts
-            let target = reordered.remove(at: index)
-            reordered.insert(target, at: 0)
-            return reordered
+           let index = result.firstIndex(where: { $0.id == targetId }) {
+            let target = result.remove(at: index)
+            result.insert(target, at: 0)
         }
-        #endif
-        return posts
-    }
-
-    private var completedSpotCount: Int {
-        Set(memoryStore.memoryPhotos.map { $0.spotId }).count
-    }
-
-    private var kanagawaTotalSpotCount: Int {
-        mockQuestPrefectures.first { $0.id == "kanagawa" }?.totalSpotCount ?? 24
-    }
-
-    private var unvisitedKanagawaSpots: [QuestSpot] {
-        let completedIds = Set(memoryStore.memoryPhotos.map { $0.spotId })
-        return mockQuestSpots
-            .filter { $0.prefectureId == "kanagawa" && !completedIds.contains($0.id) }
-            .sorted { $0.gridIndex < $1.gridIndex }
-            .prefix(2)
-            .map { $0 }
-    }
-
-    /// フレンドの最新の旅の記録から、Heroカードの一言を作る。
-    /// 正確な場所は出さず、displayPlace(表示用の地名テキスト)だけを使う。
-    private var latestFriendActivityText: String? {
-        guard let latest = visiblePosts.first(where: { !$0.isMine }) else {
-            return nil
-        }
-        return "\(latest.username)が\(latest.displayPlace)で新しい記録を残したよ"
-    }
-
-    /// 直近7日で旅を残した友達(自分は除く)。Heroに「友達が生きている」感を出すための最小情報。
-    private var recentFriendUsernames: [String] {
-        var seen = Set<String>()
-        var result: [String] = []
-        for post in visiblePosts where !post.isMine {
-            guard !seen.contains(post.username) else { continue }
-            seen.insert(post.username)
-            result.append(post.username)
-            if result.count == 3 { break }
+        // `-pictriHomeFeedCount 0|1|2` でempty/1件/2件状態をQuestSampleData自体を
+        // 変更せずにスクショ確認できるようにする。
+        if let count = PictriVisualReview.homeFeedCountOverride {
+            result = Array(result.prefix(count))
         }
         return result
+        #else
+        return posts
+        #endif
     }
 
-    private var heroHeadline: String {
-        if completedSpotCount == 0 {
-            return "最初の一枚を、現地で残そう"
-        }
-        if let nextSpot = unvisitedKanagawaSpots.first {
-            return "次は\(nextSpot.name)へ行ってみる?"
-        }
-        return "次のスポットを地図で探す"
-    }
-
-    private var heroSubcopy: String {
-        if completedSpotCount == 0 {
-            if let latestFriendActivityText {
-                return latestFriendActivityText
-            }
-            return "まず1箇所、現地で写真を残してみよう。"
-        }
-        return "神奈川 \(completedSpotCount) / \(kanagawaTotalSpotCount) スポット"
-    }
-
+    /// HORIZONTAL MEMORY SOCIAL FINALIZATION: Homeの目的を「自分と友達の
+    /// 最近のMemoryを1枚ずつ丁寧に見る場所」に絞り、Vertical Feedを廃止して
+    /// Horizontal 3D Carouselへ全面置き換えた。「さいきん色づいた場所」
+    /// バナーは新しいHomeの目的(このファイル冒頭コメント参照)に含まれず、
+    /// 情報量を減らす方針とも反するため削除した(該当機能はMap/Memories
+    /// タブが引き続き提供するため、機能の欠落はない)。
     var body: some View {
         NavigationStack {
+            GeometryReader { screen in
             ZStack {
-                PictriLightTheme.background.ignoresSafeArea()
+                homeBackground
 
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 22) {
-                        topBar
-                        if !isDebugCommentsPreviewActive {
-                            questHeroCard
-                            if !unvisitedKanagawaSpots.isEmpty {
-                                nextSpotSection
-                            }
-                        }
-                        recentShareSection
+                VStack(spacing: 0) {
+                    header
+                        .padding(.horizontal, PictriFinalTheme.screenPadding)
+                        .padding(.top, 8)
+                        .padding(.bottom, 10)
 
-                        Spacer(minLength: 90)
+                    // v6 VERTICAL COMPOSITION候補比較(A: header-card間を広く
+                    // 保ちCardをNavへ寄せる / B: header-card間を狭くしCard-Nav間を
+                    // 広げる)。Bは実機でCard下に大きな空白が残り、視線が
+                    // 「何もない場所」へ流れて重心が定まらなかった。Aは
+                    // Cardが親指の届く快適ゾーン(画面中央〜やや下)に来て、
+                    // header直下の余白がブランドの「間」として機能したため採用。
+                    Spacer(minLength: 0)
+
+                    // v8 DEVICE-ADAPTIVE HERO HEIGHT CAP: 単一比率を17 Pro/SE
+                    // 両方に共有すると、画面のwidth:height比が違う端末では
+                    // どちらかが妥協になる(section9で明示的に禁止された)。
+                    // 17 Pro(874pt級の高さ)はReference aspect(0.64)へ限界まで
+                    // 寄せた0.62、SE(667pt級)はside peek/dots/dockを潰さない
+                    // 0.50を使う、実測screen高さによる分岐にした(同じ定数で
+                    // 両端末を妥協させない)。
+                    feedSection(heroMaxHeight: screen.size.height * (screen.size.height > 800 ? 0.62 : 0.50))
+
+                    // v7 PAGINATION DOTS: Referenceの「小さなdots列」を、
+                    // Circular Carouselと矛盾しない形(候補B: center dot+
+                    // subtle neighbor dots)で採用。件数が多くても際限なく
+                    // 増えないよう、表示するdotそのものをwindow(最大5個)する。
+                    paginationDots
+                        .padding(.top, 14)
+
+                    Spacer(minLength: 0).frame(maxHeight: 10)
+
+                    // v7 3-CONTROL DOCK: 旧5-tab bar(ContentView側のoverlay)とは
+                    // 異なり、HomeのVStack自身の一部として配置する(Homeだけ
+                    // 旧barを非表示にし、その代わりをこのDockが担うため、
+                    // 二重にbottom paddingを予約する必要が無い)。
+                    PictriHomeControlDock(
+                        onMapTap: { selectedTab = .map },
+                        onCameraTap: { selectedTab = .camera },
+                        onAlbumTap: { selectedTab = .memories }
+                    )
+                    .padding(.bottom, 4)
+                }
+
+                // Comment Note Scrim/Sheetは画面全体ZStackのこの階層に置く
+                // (Carousel自身の`.overlay`に置くと、scrimがCarouselの高さ分
+                // しか暗くならず、header/Action Rowが明るいまま透けて見える
+                // 不具合があったため、HomeView全体を覆える位置へ引き上げた)。
+                // SIGNATURE PHYSICAL WORLD CLOSURE: Noteを画面の絶対下端からでは
+                // なく、Cardのすぐ下あたりから現れるように見せるため、bottom
+                // paddingを画面高さの比率(GeometryReader)で計算する
+                // (固定pxだと17 Pro/SEで位置がズレるため)。
+                if let openPostId = openCommentsPostId,
+                   let post = visiblePosts.first(where: { $0.id == openPostId }) {
+                    PictriCommentNoteScrim {
+                        openCommentsPostId = nil
                     }
-                    .padding(.horizontal, 18)
-                    .padding(.top, 18)
+                    GeometryReader { proxy in
+                        PictriCommentNoteSheet(
+                            post: post,
+                            comments: engagement.comments(for: post),
+                            onSubmit: { text in engagement.addComment(text, to: post) },
+                            onClose: { openCommentsPostId = nil },
+                            autoFocusComposer: debugCommentsAutoFocus
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                        .padding(.bottom, proxy.size.height * 0.22)
+                    }
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
-            .sheet(isPresented: $showAccountMenu) {
-                JQAccountSheetView()
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-            }
+            .animation(
+                reduceMotion ? .easeInOut(duration: 0.15) : .spring(response: 0.38, dampingFraction: 0.86),
+                value: openCommentsPostId
+            )
             .sheet(item: $profilePost) { post in
                 FriendProfileSheet(post: post)
                     .presentationDetents([.medium, .large])
@@ -124,19 +162,205 @@ struct HomeView: View {
                 openDebugProfileIfRequested()
                 openDebugAccountSheetIfRequested()
             }
+            .onChange(of: openCommentsPostId) { _, newValue in
+                isBottomBarHidden = newValue != nil
+            }
+            }
+        }
+    }
+
+    /// v8 EDITORIAL TOP PLATE: v7では「PicTri + 右上Account丸」という最小限の
+    /// 構成だったが、Referenceを見ると単なるnav barではなく
+    /// 「ロゴ+短いサブテキスト」「通知+Accountを1枚のpillへ収めた右側」の
+    /// 2ブロックで構成された、雑誌の表紙のような編集的なplateだった。
+    /// 今回はPicTriを暖色グラデーションのwordmarkにし、その下へ短い
+    /// サブテキストを追加(過去ラウンドでは「文字で埋めない」方針だったが、
+    /// 今回のuser指示でReferenceのこの要素を明示的に採用対象とした)。
+    /// 右側は通知(既存`friendStore.incomingRequests`のみを使い、実体の無い
+    /// 汎用通知画面は作らない)とAccount avatarを1つのdark pillへ統合した。
+    private var header: some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("PicTri")
+                    .font(PictriTypography.display(21))
+                    .tracking(2.2)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [PictriFinalTheme.ink, PictriDarkTheme.accent.opacity(0.85)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+
+                Text("あなたの旅の記録")
+                    .font(PictriTypography.body(11, weight: .medium))
+                    .foregroundStyle(PictriFinalTheme.inkFaint)
+            }
+
+            Spacer(minLength: 0)
+
+            Button(action: onAccountTap) {
+                PictriHomeTopPill(badgeCount: friendStore.incomingRequests.count)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("アカウント")
+            .accessibilityValue(friendStore.incomingRequests.count == 0 ? "" : "フレンド申請\(friendStore.incomingRequests.count)件")
+        }
+    }
+
+    /// v5候補BG-A GRAPHITE DEPTH: 単色paperのままだと「ただの黒」に見えるという
+    /// 指摘への対応。Card中央付近だけごく弱くluminanceを持ち上げ、周辺は静かに
+    /// 落ちる(効果として名指しできる強さにはしない、purple/blue glow等は禁止)。
+    /// v5背景候補比較(A: GRAPHITE DEPTH採用 / B: MATTE DARKROOM / C: PHOTOGRAPHIC VOID)。
+    /// Bは上下端がわずかに沈むだけでCard自体の物体感には寄与しなかった。Cは
+    /// 四隅vignetteを足したが縦長画面では画角外に近く効果がほぼ体感できず、
+    /// Aと視覚的に差がつかないままcode量だけ増える不利があったため不採用。
+    /// Aは「単色paper」だったCard背後だけをごく弱く持ち上げ、Cardが暗闇に
+    /// 沈んでいた問題を、名指しできる強さのglowにせず解消する。
+    /// v8: Referenceの背景には、Card周辺の光だけでなく画面上部に極めて微弱な
+    /// 「塵」のような光点が散らばっており、それが「暗闇に空気がある」感触の
+    /// 一部を担っていた。派手なsparkle/particleにならないよう、静止した・
+    /// 極小・極薄(opacity 0.03〜0.07)のdotsを固定座標で数個だけ置く
+    /// (動かない・光らない・目立たない ― 「効果」として名指しできない密度)。
+    private static let atmosphereFlecks: [(x: CGFloat, y: CGFloat, size: CGFloat, opacity: Double)] = [
+        (0.12, 0.10, 1.6, 0.06), (0.82, 0.07, 1.2, 0.05), (0.64, 0.16, 1.8, 0.04),
+        (0.28, 0.20, 1.3, 0.05), (0.90, 0.22, 1.5, 0.04), (0.06, 0.26, 1.2, 0.05),
+        (0.50, 0.06, 1.4, 0.04), (0.72, 0.28, 1.1, 0.05)
+    ]
+
+    private var homeBackground: some View {
+        ZStack {
+            PictriFinalTheme.paper
+            RadialGradient(
+                colors: [
+                    PictriDarkTheme.surfaceRaised.opacity(0.9),
+                    PictriDarkTheme.surfaceRaised.opacity(0.0)
+                ],
+                center: UnitPoint(x: 0.5, y: 0.44),
+                startRadius: 20,
+                endRadius: 460
+            )
+            GeometryReader { proxy in
+                ForEach(Array(Self.atmosphereFlecks.enumerated()), id: \.offset) { _, fleck in
+                    Circle()
+                        .fill(Color.white.opacity(fleck.opacity))
+                        .frame(width: fleck.size, height: fleck.size)
+                        .position(x: proxy.size.width * fleck.x, y: proxy.size.height * fleck.y)
+                }
+            }
+        }
+        .ignoresSafeArea()
+    }
+
+    @ViewBuilder
+    private func feedSection(heroMaxHeight: CGFloat) -> some View {
+        if visiblePosts.isEmpty {
+            homeEmptyState
+        } else {
+            // v4 CARD-INTEGRATED ACTIONS: Like/CommentはCard自身のoverlayへ
+            // 統合したため、Home側の独立Action Rowは廃止した(「Cardから
+            // 独立したtileに見える」という指摘への対応)。feedSectionは
+            // Carousel単体になった。Comment Note展開時、Card自体がNoteに
+            // 押し出されるようにごくわずか(8pt)持ち上がることで、「Noteが
+            // 背後から引き出された」物理的な連動を作る。
+            PictriHomeCarousel(
+                posts: visiblePosts,
+                onProfileTap: { profilePost = $0 },
+                engagement: engagement,
+                openCommentsPostId: $openCommentsPostId,
+                currentPostId: $currentPostId,
+                heroMaxHeight: heroMaxHeight
+            )
+            .offset(y: openCommentsPostId != nil ? -8 : 0)
+        }
+    }
+
+    /// v7 PAGINATION DOTS(候補B採用: center dot + subtle neighbor dots)。
+    /// 件数が多くても際限なく増えないよう、表示するdot自体を最大5個へwindowする
+    /// (Circular Carouselなので「全ページ数」という概念そのものが無く、
+    /// windowなしのdotsはpostsが増えるほど無限に伸びてしまうため)。
+    @ViewBuilder
+    private var paginationDots: some View {
+        if visiblePosts.count > 1 {
+            let currentIndex = max(visiblePosts.firstIndex(where: { $0.id == currentPostId }) ?? 0, 0)
+            HStack(spacing: 6) {
+                ForEach(Self.windowedDotIndices(total: visiblePosts.count, current: currentIndex), id: \.self) { index in
+                    // v8 BUGFIX: dotsはLike/Commentと違い「常に暗い写真の上」に
+                    // 乗るわけではなく、Card/Dock間の背景(Dark/Lightで色が反転する
+                    // homeBackground)の上に直接乗る。固定`Color.white.opacity`だと
+                    // Light modeの明るい背景へ溶けて見えなくなる実機バグを確認した
+                    // ため、mode-awareな`PictriDarkTheme.textFaint`へ変更した。
+                    Circle()
+                        .fill(index == currentIndex ? PictriDarkTheme.accent : PictriDarkTheme.textFaint.opacity(0.7))
+                        .frame(width: index == currentIndex ? 6 : 5, height: index == currentIndex ? 6 : 5)
+                }
+            }
+            .animation(.easeOut(duration: 0.2), value: currentIndex)
+        }
+    }
+
+    private static func windowedDotIndices(total: Int, current: Int) -> [Int] {
+        let maxDots = 5
+        guard total > maxDots else { return Array(0..<total) }
+        let half = maxDots / 2
+        var start = current - half
+        var end = current + half
+        if start < 0 {
+            end -= start
+            start = 0
+        }
+        if end >= total {
+            start -= (end - total + 1)
+            end = total - 1
+        }
+        start = max(start, 0)
+        return Array(start...end)
+    }
+
+    /// Design Spec Empty state: 「まだ、ともだちの旅はとどいていない」+ invite affordance +
+    /// the user's own last memory。灰色イラストやスピナーだけの画面にはしない。
+    private var homeEmptyState: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            PictriHairline()
+                .padding(.top, 18)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("まだ、ともだちの旅はとどいていない")
+                    .font(PictriTypography.body(15, weight: .bold))
+                    .foregroundStyle(PictriFinalTheme.ink)
+
+                Text("友達コードを共有すると、ここに旅の記録が届くようになります。")
+                    .font(PictriTypography.body(12, weight: .medium))
+                    .foregroundStyle(PictriFinalTheme.inkSoft)
+
+                Button(action: onAccountTap) {
+                    HStack(spacing: 6) {
+                        Text("友達コードを共有する")
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(PictriTypography.body(13, weight: .bold))
+                    .foregroundStyle(PictriFinalTheme.accent)
+                }
+                .padding(.top, 2)
+            }
+            .padding(.vertical, 4)
+
+            PictriHairline()
         }
     }
 
     /// `-pictriAccountSection <section>` でJQAccountSheetViewを直接開く。
     /// 実際にどのタブが最初に開くかはJQAccountSheetView.resolveInitialSection()が
     /// 同じ起動引数を見て自分で決める(ContentView.resolveInitialTabと同じパターン)。
-    /// DEBUG限定。既存のアカウントアイコンタップ導線(showAccountMenu = true)と同じ経路。
+    /// DEBUG限定。v7: Account sheetの状態自体はContentView側が持つため、ここでは
+    /// `onAccountTap`を呼ぶだけ(二重に開かないよう1回だけに制限する)。
     private func openDebugAccountSheetIfRequested() {
         #if DEBUG
-        guard !showAccountMenu, PictriVisualReview.homeAccountSection != nil else {
+        guard !didOpenDebugAccountSheet, PictriVisualReview.homeAccountSection != nil else {
             return
         }
-        showAccountMenu = true
+        didOpenDebugAccountSheet = true
+        onAccountTap()
         #endif
     }
 
@@ -154,272 +378,65 @@ struct HomeView: View {
         #endif
     }
 
-    private func toggleLike(postId: String) {
-        if likedPostIds.contains(postId) {
-            likedPostIds.remove(postId)
-        } else {
-            likedPostIds.insert(postId)
-        }
-    }
-
-    /// `-pictriHomeCommentsOpen <postId>` の対象投稿かどうか。DEBUG限定。
-    private func isDebugCommentsOpenTarget(_ post: QuestFeedPost) -> Bool {
+    /// `-pictriHomeCommentsAutoFocus true` QAスクショ専用(DEBUG限定)。
+    private var debugCommentsAutoFocus: Bool {
         #if DEBUG
-        return PictriVisualReview.homeCommentsOpenPostId == post.id
+        return PictriVisualReview.homeCommentsAutoFocus
         #else
         return false
         #endif
     }
+}
 
-    /// `-pictriHomeCommentsOpen` 指定時はHero/気になるスポットを省略し、
-    /// スクロールなしで対象の投稿カード(コメント欄含む)をスクショ確認できるようにする。
-    /// DEBUG限定・通常起動には一切影響しない。
-    private var isDebugCommentsPreviewActive: Bool {
-        #if DEBUG
-        return PictriVisualReview.homeCommentsOpenPostId != nil
-        #else
-        return false
-        #endif
+/// v8: Referenceの「+ / bell / avatar」を1つのdark pillへ収めた右上controlを、
+/// PicTriの実データに合わせて再構成した(実機能の無い"+"は追加せず、
+/// bellは既存`friendStore.incomingRequests`のバッジのみを表示する)。
+private struct PictriHomeTopPill: View {
+    let badgeCount: Int
+
+    private var avatarAccent: Color {
+        HomeFriendColor.accent(for: "keita_travel")
     }
 
-    private var topBar: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("PicTri")
-                    .font(.system(size: 30, weight: .bold))
-                    .foregroundStyle(PictriLightTheme.textPrimary)
-
-                Text("場所で見つけて、現地で残す")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(PictriLightTheme.textSecondary)
-            }
-
-            Spacer()
-
-            Button {
-                showAccountMenu = true
-            } label: {
-                ZStack(alignment: .bottomTrailing) {
-                    Circle()
-                        .fill(PictriLightTheme.surface)
-                        .frame(width: 46, height: 46)
-                        .overlay {
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundStyle(PictriLightTheme.sand)
-                        }
-                        .shadow(color: PictriLightTheme.shadow, radius: 8, x: 0, y: 3)
-
-                    if !friendStore.incomingRequests.isEmpty {
-                        Circle()
-                            .fill(PictriLightTheme.friendWarm)
-                            .frame(width: 14, height: 14)
-                            .overlay {
-                                Text("\(friendStore.incomingRequests.count)")
-                                    .font(.system(size: 8, weight: .heavy))
-                                    .foregroundStyle(.white)
-                            }
-                            .offset(x: 1, y: 1)
-                    }
-                }
-            }
-            .accessibilityLabel("アカウント")
-            .accessibilityValue(friendStore.incomingRequests.isEmpty ? "" : "フレンド申請\(friendStore.incomingRequests.count)件")
-        }
-    }
-
-    private var questHeroCard: some View {
-        ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: PictriTheme.cornerLarge)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            PictriLightTheme.mint.opacity(0.22),
-                            PictriLightTheme.sand.opacity(0.12),
-                            PictriLightTheme.surface
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(height: 250)
-
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 5) {
-                        if !recentFriendUsernames.isEmpty {
-                            friendActivityRow
-                        }
-
-                        Text(heroHeadline)
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundStyle(PictriLightTheme.textPrimary)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.85)
-
-                        Text(heroSubcopy)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(PictriLightTheme.textSecondary)
-                            .lineSpacing(3)
-                            .lineLimit(2)
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "map.fill")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 48, height: 48)
-                        .background(PictriLightTheme.mint)
-                        .clipShape(Circle())
-                        .shadow(color: PictriLightTheme.mint.opacity(0.30), radius: 10)
-                }
-
-                // 「Mapで探す」文脈のCTAはmint(訪問・場所の色)にする。
-                // 青ボタンをHeroの主役にすると、他のSaaS/AIアプリと見分けがつかなくなるため。
-                // PictriLightCTAButtonStyle経由にすることで、Accountの「友達に追加」等と
-                // 同じ高さ・角丸・文字サイズになるよう揃えている。
-                Button {
-                    selectedTab = .map
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "mappin.and.ellipse")
-                        Text("地図でスポットを探す")
-                    }
-                }
-                .buttonStyle(.pictriLightCTA(tint: PictriLightTheme.mint))
-            }
-            .padding(20)
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: PictriTheme.cornerLarge)
-                .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
-        }
-        .shadow(color: PictriLightTheme.shadow, radius: 16, x: 0, y: 6)
-    }
-
-    /// 「友達の旅が生きている」ことを、文章より先に色とイニシャルで一目で伝える小さな列。
-    private var friendActivityRow: some View {
-        HStack(spacing: -8) {
-            ForEach(Array(recentFriendUsernames.enumerated()), id: \.offset) { index, username in
-                Circle()
-                    .fill(HomeFriendColor.accent(for: username))
+    var body: some View {
+        HStack(spacing: 10) {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: badgeCount > 0 ? "bell.fill" : "bell")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(PictriDarkTheme.textFaint)
                     .frame(width: 22, height: 22)
-                    .overlay {
-                        Text(String(username.prefix(1)).uppercased())
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-                    .overlay {
-                        Circle().stroke(PictriLightTheme.surface, lineWidth: 2)
-                    }
-                    .zIndex(Double(3 - index))
-            }
 
-            Text("友達の旅が動いてる")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(PictriLightTheme.textSecondary)
-                .padding(.leading, 12)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("友達の旅が動いています")
-    }
-
-    private var nextSpotSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            PictriSectionHeader("気になるスポット", textColor: PictriLightTheme.textPrimary) {
-                Button {
-                    selectedTab = .map
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "map.fill")
-                            .font(.system(size: 11, weight: .bold))
-                        Text("地図で見る")
-                            .font(.system(size: 12, weight: .bold))
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(PictriLightTheme.sandSoft)
-                    .foregroundStyle(PictriLightTheme.amber)
-                    .clipShape(Capsule())
+                if badgeCount > 0 {
+                    Circle()
+                        .fill(PictriDarkTheme.accent)
+                        .frame(width: 7, height: 7)
+                        .offset(x: 3, y: -1)
                 }
             }
 
-            // 「気になるスポット」=「次に行きたい場所」なので、余白トーンではなく
-            // warm sand/amberで「未訪問だけど魅力的」という温度感を出す。
-            ForEach(unvisitedKanagawaSpots) { spot in
-                Button {
-                    selectedTab = .map
-                } label: {
-                    HStack(spacing: 14) {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(PictriLightTheme.sandSoft)
-                            .frame(width: 42, height: 42)
-                            .overlay {
-                                Image(systemName: "mappin.and.ellipse")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(PictriLightTheme.amber)
-                            }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(spot.name)
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(PictriLightTheme.textPrimary)
-
-                            Text("次はここに行ってみる? ・ \(spot.areaName)")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(PictriLightTheme.textSecondary)
-                                .lineLimit(1)
-                        }
-
-                        Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(PictriLightTheme.textFaint)
-                    }
-                    .padding(14)
-                    .pictriLightCard(cornerRadius: PictriLightTheme.rowCornerRadius, shadowRadius: 8)
+            Circle()
+                .fill(avatarAccent.opacity(0.94))
+                .frame(width: 28, height: 28)
+                .overlay {
+                    Circle().strokeBorder(Color.white.opacity(0.24), lineWidth: 1)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("\(spot.name)、\(spot.areaName)。地図で見る")
-            }
-        }
-    }
-
-    private var recentShareSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            PictriSectionHeader("フレンドの旅の記録", textColor: PictriLightTheme.textPrimary) {
-                Text("7日間")
-                    .font(.system(size: 12, weight: .bold))
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 7)
-                    .background(PictriLightTheme.unvisitedFill)
-                    .foregroundStyle(PictriLightTheme.textSecondary)
-                    .clipShape(Capsule())
-            }
-
-            if visiblePosts.isEmpty {
-                PictriEmptyState(
-                    systemImage: "mappin.and.ellipse",
-                    title: "まだフレンドの記録がありません",
-                    message: "フレンドが旅先で記録を残すと、ここに表示されます。\nまずはあなたが最初の一枚を残してみよう。",
-                    actionTitle: "地図でスポットを探す",
-                    action: { selectedTab = .map },
-                    isLight: true
-                )
-            } else {
-                ForEach(visiblePosts.prefix(4)) { post in
-                    HomeLargePostCard(
-                        post: post,
-                        isLiked: likedPostIds.contains(post.id),
-                        onLike: { toggleLike(postId: post.id) },
-                        onProfileTap: { profilePost = post },
-                        initiallyCommentsOpen: isDebugCommentsOpenTarget(post)
-                    )
+                .overlay {
+                    Text("K")
+                        .font(PictriTypography.body(11.5, weight: .bold))
+                        .foregroundStyle(Color.black.opacity(0.72))
                 }
-            }
         }
+        .padding(.leading, 12)
+        .padding(.trailing, 6)
+        .padding(.vertical, 6)
+        .background {
+            Capsule()
+                .fill(PictriDarkTheme.surfaceOverlay.opacity(0.85))
+                .overlay {
+                    Capsule().strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+                }
+        }
+        .contentShape(Capsule())
     }
 }
 
@@ -440,307 +457,6 @@ enum HomeFriendColor {
         ]
         let stableSeed = username.utf8.reduce(0) { $0 + Int($1) }
         return palette[stableSeed % palette.count]
-    }
-}
-
-// MARK: - Feed Cards
-
-private struct HomeComment: Identifiable {
-    let id = UUID()
-    let username: String
-    let text: String
-}
-
-struct HomeLargePostCard: View {
-    let post: QuestFeedPost
-    var isLiked: Bool
-    var onLike: () -> Void
-    var onProfileTap: () -> Void
-
-    @EnvironmentObject var memoryStore: QuestMemoryStore
-
-    @State private var isCommentVisible: Bool
-    @State private var commentDraft = ""
-    @State private var comments: [HomeComment]
-
-    init(
-        post: QuestFeedPost,
-        isLiked: Bool,
-        onLike: @escaping () -> Void,
-        onProfileTap: @escaping () -> Void,
-        initiallyCommentsOpen: Bool = false
-    ) {
-        self.post = post
-        self.isLiked = isLiked
-        self.onLike = onLike
-        self.onProfileTap = onProfileTap
-        _isCommentVisible = State(initialValue: initiallyCommentsOpen)
-        _comments = State(initialValue: HomeLargePostCard.seedComment(for: post).map { [$0] } ?? [])
-    }
-
-    /// フィードが無言に見えないよう、投稿ごとに固定の最初のコメントを1件だけ入れておく。
-    /// stableSeedで決定論的に選ぶため、再起動しても同じ投稿には同じコメントが付く。
-    private static func seedComment(for post: QuestFeedPost) -> HomeComment? {
-        guard !post.isMine else { return nil }
-        let samples: [(String, String)] = [
-            ("haruka", "ここ気になってた、今度行ってみる"),
-            ("sora", "写真だけで空気感が伝わってくる"),
-            ("mio", "いいな、私も残しに行きたい"),
-            ("kai", "この時間帯のここ、好き")
-        ]
-        let stableSeed = post.id.utf8.reduce(0) { $0 + Int($1) }
-        let (name, text) = samples[stableSeed % samples.count]
-        return HomeComment(username: name, text: text)
-    }
-
-    private var spot: QuestSpot? {
-        mockQuestSpots.first { $0.id == post.spotId }
-    }
-
-    /// 投稿一覧っぽさを減らすための、短い旅の空気感コピー。
-    /// 投稿ごとに固定(再起動しても同じ投稿には同じ文が付く)。スポットのエリア名を
-    /// 織り込むことで、使い回しの定型文ではなく投稿固有の一言に見せる。
-    private var travelMoodCaption: String {
-        let place = spot?.areaName ?? post.displayPlace
-        let phrases = [
-            "\(place)の景色を、そのまま残した",
-            "\(place)の空気ごと持ち帰った1枚",
-            "\(place)でしか撮れない瞬間",
-            "旅の途中、\(place)で見つけた景色",
-            "少し歩いて、\(place)にたどり着いた"
-        ]
-        let stableSeed = post.id.utf8.reduce(0) { $0 + Int($1) }
-        return phrases[stableSeed % phrases.count]
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            postHeader
-
-            Text(travelMoodCaption)
-                .font(.system(size: 12, weight: .medium))
-                .italic()
-                .foregroundStyle(PictriLightTheme.textSecondary)
-
-            ZStack(alignment: .bottomLeading) {
-                postVisual
-
-                PictriGlassPill(text: "\(post.displayPlace) ・ \(post.displayDate)")
-                    .padding(16)
-
-                if post.isMine {
-                    PictriGlassPill(text: "you", tone: .strong)
-                        .padding(14)
-                        .frame(
-                            maxWidth: .infinity,
-                            maxHeight: .infinity,
-                            alignment: .topTrailing
-                        )
-                }
-            }
-
-            postFooter
-        }
-        .padding(12)
-        .pictriLightCard(cornerRadius: PictriLightTheme.cardCornerRadius, shadowRadius: 12)
-    }
-
-    private var avatarAccent: Color {
-        HomeFriendColor.accent(for: post.username)
-    }
-
-    private var postHeader: some View {
-        Button {
-            onProfileTap()
-        } label: {
-            HStack(spacing: 10) {
-                Circle()
-                    .fill(avatarAccent)
-                    .frame(width: 34, height: 34)
-                    .overlay {
-                        Text(String(post.username.prefix(1)).uppercased())
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(post.username)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(PictriLightTheme.textPrimary)
-
-                    HStack(spacing: 4) {
-                        Image(systemName: "mappin")
-                            .font(.system(size: 9, weight: .bold))
-                        Text(post.displayPlace)
-                    }
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(PictriLightTheme.textSecondary)
-                }
-
-                Spacer()
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(post.username)のプロフィールを見る")
-    }
-
-    private var postFooter: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if !comments.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(comments.prefix(3)) { comment in
-                        HStack(alignment: .top, spacing: 6) {
-                            Circle()
-                                .fill(HomeFriendColor.accent(for: comment.username))
-                                .frame(width: 6, height: 6)
-                                .padding(.top, 5)
-
-                            (
-                                Text(comment.username)
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(PictriLightTheme.textPrimary)
-                                + Text(" \(comment.text)")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(PictriLightTheme.textSecondary)
-                            )
-                            .lineLimit(3)
-                        }
-                    }
-                }
-            }
-
-            HStack(spacing: 18) {
-                Button {
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.45)) {
-                        onLike()
-                    }
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: isLiked ? "heart.fill" : "heart")
-                            .font(.system(size: 15, weight: .semibold))
-                            .scaleEffect(isLiked ? 1.08 : 1.0)
-                        Text("\(displayLikeCount)")
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                    .foregroundStyle(isLiked ? PictriLightTheme.friendWarm : PictriLightTheme.textFaint)
-                }
-                .frame(minWidth: 44, minHeight: 44, alignment: .leading)
-                .contentShape(Rectangle())
-                .accessibilityLabel(isLiked ? "いいねを取り消す" : "いいねする")
-                .accessibilityValue("\(displayLikeCount)件")
-
-                Button {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                        isCommentVisible.toggle()
-                    }
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "bubble.left")
-                            .font(.system(size: 15, weight: .semibold))
-                        Text(comments.isEmpty ? "コメント" : "\(comments.count)")
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                    .foregroundStyle(PictriLightTheme.textFaint)
-                }
-                .frame(minHeight: 44)
-                .contentShape(Rectangle())
-                .accessibilityLabel("コメント欄を開く")
-                .accessibilityValue(comments.isEmpty ? "コメントなし" : "\(comments.count)件のコメント")
-
-                Spacer()
-            }
-
-            if isCommentVisible {
-                VStack(alignment: .leading, spacing: 10) {
-                    Rectangle()
-                        .fill(PictriLightTheme.surfaceBorder)
-                        .frame(height: 1)
-
-                    HStack(spacing: 8) {
-                        TextField("コメントを入力…", text: $commentDraft)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(PictriLightTheme.textPrimary)
-                            .tint(PictriLightTheme.coral)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .background(PictriLightTheme.unvisitedFill)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .accessibilityLabel("コメントを入力")
-                            .onSubmit(submitComment)
-
-                        Button(action: submitComment) {
-                            Image(systemName: "arrow.up")
-                                .font(.system(size: 14, weight: .bold))
-                                .frame(width: 36, height: 36)
-                                .background(isCommentDraftEmpty ? PictriLightTheme.unvisitedFill : PictriLightTheme.coral)
-                                .foregroundStyle(isCommentDraftEmpty ? PictriLightTheme.textFaint : .white)
-                                .clipShape(Circle())
-                        }
-                        .disabled(isCommentDraftEmpty)
-                        .accessibilityLabel("コメントを送信")
-                    }
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-    }
-
-    private var isCommentDraftEmpty: Bool {
-        commentDraft.trimmingCharacters(in: .whitespaces).isEmpty
-    }
-
-    private func submitComment() {
-        let trimmed = commentDraft.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-            comments.append(HomeComment(username: "you", text: trimmed))
-            commentDraft = ""
-            isCommentVisible = false
-        }
-    }
-
-    @ViewBuilder
-    private var postVisual: some View {
-        if let image = memoryStore.image(for: post) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(height: 255)
-                .clipped()
-                .clipShape(RoundedRectangle(cornerRadius: 22))
-        } else {
-            RoundedRectangle(cornerRadius: 22)
-                .fill(placeholderGradient)
-                .frame(height: 255)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 22)
-                        .fill(.black.opacity(0.12))
-                }
-        }
-    }
-
-    private var placeholderGradient: LinearGradient {
-        if let spot {
-            return MemoryVisualStyle.gradient(for: spot)
-        }
-
-        return LinearGradient(
-            colors: [PictriLightTheme.lavender.opacity(0.55), Color(red: 0.14, green: 0.12, blue: 0.20)],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-    }
-
-    /// Swiftの String.hashValue はプロセスごとにランダム化されるため、
-    /// 以前はアプリを起動するたびにいいね数が変わってしまっていた。
-    /// HomeFriendColor.accent と同じUTF8バイト和方式に揃え、常に同じ投稿には同じ数を表示する。
-    private var baseLikeCount: Int {
-        let stableSeed = post.id.utf8.reduce(0) { $0 + Int($1) }
-        return (stableSeed % 17) + 3
-    }
-
-    private var displayLikeCount: Int {
-        isLiked ? baseLikeCount + 1 : baseLikeCount
     }
 }
 
@@ -805,9 +521,7 @@ struct FriendProfileSheet: View {
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundStyle(PictriLightTheme.textSecondary)
                                 .frame(width: 32, height: 32)
-                                .background(PictriLightTheme.surface)
-                                .clipShape(Circle())
-                                .shadow(color: PictriLightTheme.shadow, radius: 6, x: 0, y: 2)
+                                .pictriGlass(cornerRadius: 16, shadow: false)
                         }
                     }
 
@@ -844,41 +558,31 @@ struct FriendProfileSheet: View {
                         .foregroundStyle(PictriLightTheme.friendWarm)
                     }
 
-                    VStack(alignment: .leading, spacing: 14) {
-                        PictriCompactMetric(label: "旅の記録", value: "\(friendPosts.count)件", isLight: true)
-
-                        if !recentPlaces.isEmpty {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(recentPlaces, id: \.self) { place in
-                                        Text(place)
-                                            .font(.system(size: 12, weight: .bold))
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 7)
-                                            .background(avatarAccent.opacity(0.14))
-                                            .foregroundStyle(avatarAccent)
-                                            .clipShape(Capsule())
-                                    }
+                    // 「記録N件」というKPIカードではなく、地名だけを静かに並べる
+                    // (旅の記録という数字自体は下の写真グリッドが実質的に語るため、
+                    // ここでは独立したstat cardのchromeを持たせない)。
+                    if !recentPlaces.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(recentPlaces, id: \.self) { place in
+                                    Text(place)
+                                        .font(.system(size: 12, weight: .bold))
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 7)
+                                        .background(avatarAccent.opacity(0.14))
+                                        .foregroundStyle(avatarAccent)
+                                        .clipShape(Capsule())
                                 }
                             }
                         }
                     }
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(PictriLightTheme.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous)
-                            .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
-                    }
-                    .shadow(color: PictriLightTheme.shadow, radius: 10, x: 0, y: 4)
 
                     if !recentFriendPosts.isEmpty {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("残してきた記憶")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(PictriLightTheme.textSecondary)
+                                .font(PictriTypography.mono(11, weight: .bold))
+                                .tracking(1.0)
+                                .foregroundStyle(PictriLightTheme.textFaint)
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
                             LazyVGrid(
@@ -918,6 +622,10 @@ struct FriendProfileSheet: View {
         .frame(height: 110)
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerSmall, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: PictriTheme.cornerSmall, style: .continuous)
+                .stroke(PictriFinalTheme.line, lineWidth: 1)
+        }
     }
 }
 
@@ -926,18 +634,21 @@ struct FriendProfileSheet: View {
 struct JQAccountSheetView: View {
     @EnvironmentObject var friendStore: QuestFriendStore
     @EnvironmentObject var memoryStore: QuestMemoryStore
+    @EnvironmentObject var appearanceStore: PictriAppearanceStore
 
     @State private var selectedSection: JQAccountSection = JQAccountSheetView.resolveInitialSection()
     @State private var addFriendText = ""
     @State private var didCopyFriendCode = false
 
-    /// `-pictriAccountSection profile|friends|add|requests` で直接開くタブを指定できる。
+    /// `-pictriAccountSection friends|add|requests|settings` で直接開くタブを指定できる。
     /// DEBUG限定。ContentView.resolveInitialTab / MemoriesView.resolveInitialModeと同じパターン。
+    /// 既定は「友達」(Profileの主役はheader直下のrecentMemoriesStripであり、
+    /// tab自体は友達/共有/設定という副次的な導線のみを担う)。
     private static func resolveInitialSection() -> JQAccountSection {
         #if DEBUG
-        return PictriVisualReview.homeAccountSection ?? .profile
+        return PictriVisualReview.homeAccountSection ?? .friends
         #else
-        return .profile
+        return .friends
         #endif
     }
 
@@ -1000,10 +711,11 @@ struct JQAccountSheetView: View {
         }
     }
 
-    /// 「フォロワー数」のような公開SNS的な数字ではなく、
-    /// 自分の旅がどれだけ色づいたかを示す指標として使う。
-    private var visitedPrefectureCount: Int {
-        mockQuestPrefectures.filter { memoryStore.completedCount(prefectureId: $0.id) > 0 }.count
+    /// 最近のMemory写真(最大6件)。QuestMemoryStore.memoryPhotosから直接導出し、
+    /// 新しいSource of Truthは持たない。「自分の旅の表紙」の主役として、
+    /// header直下に置く(以前はここに写真が1枚も出てこなかった)。
+    private var recentMemoryPhotos: [QuestMemoryPhoto] {
+        Array(memoryStore.memoryPhotos.prefix(6))
     }
 
     var body: some View {
@@ -1011,9 +723,9 @@ struct JQAccountSheetView: View {
             PictriLightTheme.background.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 26) {
                     header
-                    stats
+                    recentMemoriesStrip
                     sectionTabs
                     sectionContent
 
@@ -1024,6 +736,8 @@ struct JQAccountSheetView: View {
         }
     }
 
+    /// 「自分の旅の表紙」。Settings dashboardにもSNS follower pageにもしないため、
+    /// フォロワー数的な統計カードは持たない。
     private var header: some View {
         VStack(spacing: 12) {
             Circle()
@@ -1045,37 +759,120 @@ struct JQAccountSheetView: View {
                     .foregroundStyle(PictriLightTheme.textSecondary)
             }
         }
+        .frame(maxWidth: .infinity)
     }
 
-    private var stats: some View {
-        HStack(spacing: 10) {
-            JQAccountStat(title: "友達", value: "\(friendStore.friends.count)")
-            JQAccountStat(title: "訪れた県", value: "\(visitedPrefectureCount)")
-            JQAccountStat(title: "スポット", value: "\(memoryStore.memoryPhotos.count)")
+    /// 「47県達成率」のような%やchartではなく、実際に残してきた写真を横並びで見せる。
+    /// 空の場合も大きなプレースホルダー箱は出さず、1行のテキストのみに留める。
+    @ViewBuilder
+    private var recentMemoriesStrip: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("最近の記憶")
+                .font(PictriTypography.mono(11, weight: .bold))
+                .tracking(1.0)
+                .foregroundStyle(PictriLightTheme.textFaint)
+
+            if recentMemoryPhotos.isEmpty {
+                Text("まだ記憶がありません")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(PictriLightTheme.textSecondary)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(recentMemoryPhotos) { photo in
+                            recentMemoryTile(for: photo)
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    @ViewBuilder
+    private func recentMemoryTile(for photo: QuestMemoryPhoto) -> some View {
+        ZStack {
+            if let image = memoryStore.image(for: photo) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else if let spot = mockQuestSpots.first(where: { $0.id == photo.spotId }) {
+                Rectangle().fill(MemoryVisualStyle.gradient(for: spot))
+            } else {
+                Rectangle().fill(PictriLightTheme.unvisitedFill)
+            }
+        }
+        .frame(width: 84, height: 105)
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerSmall, style: .continuous))
     }
 
     private var sectionTabs: some View {
         HStack(spacing: 8) {
-            JQAccountSectionButton(title: "概要", section: .profile, selectedSection: $selectedSection)
             JQAccountSectionButton(title: "友達", section: .friends, selectedSection: $selectedSection)
             JQAccountSectionButton(title: "追加", section: .add, selectedSection: $selectedSection)
             JQAccountSectionButton(title: "申請", section: .requests, selectedSection: $selectedSection)
+            JQAccountSectionButton(title: "設定", section: .settings, selectedSection: $selectedSection)
         }
         .padding(5)
         .background(PictriLightTheme.unvisitedFill)
         .clipShape(Capsule())
     }
 
+    /// 設定 → 外観。Dark Matte / Light Matteをその場で切り替えられる、既存の
+    /// 「設定」行を実体化したもの(旧: 装飾だけで未実装だった行を置き換えた)。
+    /// 巨大なtheme picker画面は作らず、1行のsegmented controlに留める。
+    private var appearanceRow: some View {
+        HStack {
+            Image(systemName: "circle.lefthalf.filled")
+                .frame(width: 28)
+                .foregroundStyle(PictriLightTheme.textSecondary)
+
+            Text("外観")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(PictriLightTheme.textPrimary)
+
+            Spacer()
+
+            HStack(spacing: 2) {
+                appearanceOptionButton(.dark, label: "ダーク")
+                appearanceOptionButton(.light, label: "ライト")
+            }
+            .padding(3)
+            .background(PictriLightTheme.unvisitedFill)
+            .clipShape(Capsule())
+        }
+        .padding(16)
+        .pictriLightCard(cornerRadius: PictriLightTheme.rowCornerRadius, shadowRadius: 0)
+    }
+
+    private func appearanceOptionButton(_ target: PictriAppearanceMode, label: String) -> some View {
+        let isSelected = appearanceStore.mode == target
+        return Button {
+            withAnimation(.easeOut(duration: 0.18)) {
+                appearanceStore.mode = target
+            }
+        } label: {
+            Text(label)
+                .font(.system(size: 12, weight: .bold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .foregroundStyle(isSelected ? PictriLightTheme.textPrimary : PictriLightTheme.textFaint)
+                .background(isSelected ? PictriLightTheme.surface : Color.clear)
+                .clipShape(Capsule())
+        }
+        .accessibilityLabel("外観を\(label)にする")
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+    }
+
     @ViewBuilder
     private var sectionContent: some View {
         switch selectedSection {
-        case .profile:
+        case .settings:
             VStack(spacing: 12) {
                 JQAccountMenuRow(icon: "person.crop.circle", title: "プロフィール編集")
                 JQAccountMenuRow(icon: "lock.fill", title: "友達の見え方")
                 JQAccountMenuRow(icon: "bell.fill", title: "通知")
-                JQAccountMenuRow(icon: "gearshape.fill", title: "設定")
+                appearanceRow
             }
 
         case .friends:
@@ -1149,10 +946,10 @@ struct JQAccountSheetView: View {
 }
 
 enum JQAccountSection {
-    case profile
     case friends
     case add
     case requests
+    case settings
 }
 
 struct JQAccountSectionButton: View {
@@ -1173,26 +970,6 @@ struct JQAccountSectionButton: View {
                 .clipShape(Capsule())
                 .shadow(color: selectedSection == section ? PictriLightTheme.shadow : .clear, radius: 6, x: 0, y: 2)
         }
-    }
-}
-
-struct JQAccountStat: View {
-    let title: String
-    let value: String
-
-    var body: some View {
-        VStack(spacing: 5) {
-            Text(value)
-                .font(.system(size: 21, weight: .bold))
-                .foregroundStyle(PictriLightTheme.textPrimary)
-
-            Text(title)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(PictriLightTheme.textSecondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 13)
-        .pictriLightCard(cornerRadius: PictriLightTheme.rowCornerRadius, shadowRadius: 8)
     }
 }
 

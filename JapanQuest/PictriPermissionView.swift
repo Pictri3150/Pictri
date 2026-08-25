@@ -21,6 +21,16 @@ enum PictriPermissionKind {
         }
     }
 
+    /// Visual Foundation Part C。二次画面向けの控えめなイラストアクセント
+    /// (PictriFinalTheme.secondaryXxx、「訪問実績」を語らない場所専用)。
+    /// カメラ拒否=暖色寄りのcoral、位置情報拒否=静かなlavenderで役割を分ける。
+    var accentColor: Color {
+        switch self {
+        case .cameraDenied: return PictriFinalTheme.secondaryCoral
+        case .locationDenied: return PictriFinalTheme.secondaryLavender
+        }
+    }
+
     var title: String {
         switch self {
         case .cameraDenied:
@@ -40,6 +50,12 @@ enum PictriPermissionKind {
     }
 }
 
+/// Visual Foundation Part C。以前は`.system(size:)`の生フォント+白黒ボタンで、
+/// Home/Camera本体の他の画面と地続きに見えなかった(=「よくあるAI生成アプリ」感の
+/// 出どころの1つ)。暗いカメラviewport上のオーバーレイという文脈(paper基調へは
+/// 変えられない)は維持しつつ、PictriTypography・secondaryアクセント色・
+/// Camera本体の保存ボタンと同じviolet Capsuleボタンへ揃えた。構造(icon→title→
+/// message→button)・アニメーション・タップ動線は無変更。
 struct PictriPermissionBlock: View {
     let kind: PictriPermissionKind
 
@@ -47,20 +63,25 @@ struct PictriPermissionBlock: View {
     @State private var appeared = false
 
     var body: some View {
-        VStack(spacing: 14) {
-            Image(systemName: kind.systemImage)
-                .font(.system(size: 40, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.85))
+        VStack(spacing: 16) {
+            Circle()
+                .fill(.white.opacity(0.08))
+                .frame(width: 68, height: 68)
+                .overlay {
+                    Image(systemName: kind.systemImage)
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundStyle(kind.accentColor)
+                }
                 .accessibilityHidden(true)
 
             VStack(spacing: 6) {
                 Text(kind.title)
-                    .font(.system(size: 19, weight: .bold))
+                    .font(PictriTypography.display(18))
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
 
                 Text(kind.message)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(PictriTypography.body(13, weight: .medium))
                     .foregroundStyle(.white.opacity(0.60))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
@@ -71,8 +92,14 @@ struct PictriPermissionBlock: View {
                 openSettings()
             } label: {
                 Text("設定を開く")
+                    .font(PictriTypography.body(15, weight: .bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .foregroundStyle(PictriFinalTheme.onAccent)
+                    .background(PictriFinalTheme.accent)
+                    .clipShape(Capsule())
             }
-            .buttonStyle(.pictriPrimary)
+            .buttonStyle(.plain)
             .frame(maxWidth: 220)
             .frame(minHeight: 44)
             .accessibilityLabel("設定アプリを開いて権限を許可する")

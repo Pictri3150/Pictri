@@ -7,31 +7,31 @@ import SwiftUI
 // このファイルはその上に薄く積む形で追加する。
 
 enum PictriTheme {
-    // 背景(黒だが、わずかに青みを帯びたチャコール。純黒白からの脱却)
-    static let backgroundTop = Color(red: 0.035, green: 0.04, blue: 0.058)
-    static let backgroundBottom = Color(red: 0.065, green: 0.072, blue: 0.10)
+    // Visual Direction Consolidation: このenumの色は今後PictriDarkTheme(mode-aware、
+    // PictriDarkPremiumTheme.swift)を単一の正準ソースとしてリダイレクトする。
+    // 呼び出し箇所(Home/Camera/Memories/タブバー等)は無変更のまま、Dark/Light
+    // Appearanceの切り替えに自動追従する。
+    static var backgroundTop: Color { PictriDarkTheme.surfaceBase }
+    static var backgroundBottom: Color { PictriDarkTheme.surfaceOverlay }
 
-    // サーフェス(インディゴをわずかに混ぜたカード面。単調な白透過をやめる)
-    static let surface = Color(red: 0.42, green: 0.46, blue: 0.62).opacity(0.10)
-    static let surfaceStrong = Color(red: 0.44, green: 0.48, blue: 0.64).opacity(0.16)
-    static let surfaceBorder = Color.white.opacity(0.10)
+    static var surface: Color { PictriDarkTheme.surfaceRaised }
+    static var surfaceStrong: Color { PictriDarkTheme.surfaceOverlay }
+    static var surfaceBorder: Color { PictriDarkTheme.hairline }
 
-    // テキスト
-    static let textPrimary = Color.white
-    static let textSecondary = Color.white.opacity(0.55)
-    static let textFaint = Color.white.opacity(0.36)
+    static var textPrimary: Color { PictriDarkTheme.textPrimary }
+    static var textSecondary: Color { PictriDarkTheme.textSecondary }
+    static var textFaint: Color { PictriDarkTheme.textFaint }
 
-    // アクセント(soft indigo-blue。主要インタラクション・現在地感・選択状態に使う)
-    static let accent = Color(red: 0.46, green: 0.62, blue: 0.98)
-    static let accentSoft = Color(red: 0.46, green: 0.62, blue: 0.98).opacity(0.18)
+    static var accent: Color { PictriDarkTheme.accent }
+    static var accentSoft: Color { PictriDarkTheme.accentSoft }
 
-    // Memories / 達成・完了に使うteal
-    static let teal = Color(red: 0.34, green: 0.80, blue: 0.74)
-    static let tealSoft = Color(red: 0.34, green: 0.80, blue: 0.74).opacity(0.16)
+    // Memories / 達成・完了に使うteal(dark bg向けに彩度・明度を調整、色相は維持)
+    static let teal = Color(red: 0.24, green: 0.79, blue: 0.54)
+    static let tealSoft = Color(red: 0.24, green: 0.79, blue: 0.54).opacity(0.16)
 
-    // いいね・温かみに使うcoral-amber
-    static let warm = Color(red: 0.98, green: 0.62, blue: 0.44)
-    static let warmSoft = Color(red: 0.98, green: 0.62, blue: 0.44).opacity(0.16)
+    // いいね・温かみに使うcoral-amber(dark bg向けに調整、色相は維持)
+    static let warm = Color(red: 1.00, green: 0.56, blue: 0.42)
+    static let warmSoft = Color(red: 1.00, green: 0.56, blue: 0.42).opacity(0.16)
 
     // 角丸
     static let cornerLarge: CGFloat = 28
@@ -99,8 +99,8 @@ struct PictriPrimaryButtonStyle: ButtonStyle {
             .font(.system(size: 15, weight: .bold))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 15)
-            .background(isDisabled ? .white.opacity(0.12) : .white)
-            .foregroundStyle(isDisabled ? .white.opacity(0.38) : .black)
+            .background(isDisabled ? PictriTheme.textPrimary.opacity(0.12) : PictriTheme.textPrimary)
+            .foregroundStyle(isDisabled ? PictriTheme.textPrimary.opacity(0.38) : Color(red: 0.090, green: 0.075, blue: 0.063))
             .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous))
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
@@ -162,16 +162,16 @@ enum PictriStatusTone: Equatable {
 
     var background: Color {
         switch self {
-        case .strong: return .white
-        case .neutral: return .white.opacity(0.88)
-        case .muted: return .white.opacity(0.13)
+        case .strong: return PictriTheme.textPrimary
+        case .neutral: return PictriTheme.textPrimary.opacity(0.88)
+        case .muted: return PictriTheme.textPrimary.opacity(0.13)
         }
     }
 
     var foreground: Color {
         switch self {
-        case .strong, .neutral: return .black
-        case .muted: return .white.opacity(0.68)
+        case .strong, .neutral: return Color(red: 0.090, green: 0.075, blue: 0.063)
+        case .muted: return PictriTheme.textPrimary.opacity(0.68)
         }
     }
 }
@@ -261,25 +261,6 @@ struct PictriScreenHeader: View {
 // MARK: - Compact Metric
 
 /// 距離・件数などの補助情報を、主役にせず静かに添えるための小さな数値表示。
-struct PictriCompactMetric: View {
-    let label: String
-    let value: String
-    var isLight: Bool = false
-
-    var body: some View {
-        HStack(spacing: 5) {
-            Text(label)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(isLight ? PictriLightTheme.textSecondary : .white.opacity(0.42))
-
-            Text(value)
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(isLight ? PictriLightTheme.textPrimary : .white.opacity(0.75))
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
-
 // MARK: - Accent Chip
 
 /// 白黒だけに頼らない状態表示チップ。用途に応じてPictriThemeの差し色を使う。
@@ -317,7 +298,7 @@ struct PictriAccentChip: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .background(isFilled ? accent.color : accent.color.opacity(0.16))
-        .foregroundStyle(isFilled ? Color.black : accent.color)
+        .foregroundStyle(isFilled ? Color(red: 0.090, green: 0.075, blue: 0.063) : accent.color)
         .clipShape(Capsule())
         .accessibilityElement(children: .combine)
     }
@@ -476,70 +457,76 @@ struct PictriEmptyState: View {
 // 無変更で維持し、この2つのテーマは意図的に混ぜない(黒基調の白文字をこちらで
 // 使うと白背景に白文字で読めなくなるため)。
 
+// dark premium統一(4画面再統一フェーズ)により、名称は白基調時代のまま維持しつつ
+// (呼び出し側を書き換える巨大リファクタを避けるため)、値だけをPictriDarkTheme
+// (PictriDarkPremiumTheme.swift)と同じ近似のwarm near-black / terracotta accentへ
+// 反転した。「white」「paper」的な名前が実際にはdarkな値を指す箇所が残るのは意図的な
+// トレードオフ(呼び出し箇所を全数置換しない代わりに、コメントで明示する)。
 enum PictriLightTheme {
-    static let background = Color(red: 0.985, green: 0.988, blue: 0.996)
-    /// 少しだけ暖かいoff white。カードの中にもう一段面を作りたい時(単調さを崩す用途)に使う。
-    static let warmWhite = Color(red: 0.992, green: 0.980, blue: 0.966)
-    static let surface = Color.white
-    static let surfaceBorder = Color.black.opacity(0.05)
+    // Visual Direction Consolidation: neutral/surface系はPictriDarkTheme(mode-aware)
+    // を単一の正準ソースとしてリダイレクトする(brown castの原因だった固定hexを廃止)。
+    static var background: Color { PictriDarkTheme.surfaceBase }
+    /// 旧: 少しだけ暖かいoff white。今はsurfaceよりわずかに明るいraised面。
+    static var warmWhite: Color { PictriDarkTheme.surfaceOverlay }
+    static var surface: Color { PictriDarkTheme.surfaceRaised }
+    static var surfaceBorder: Color { PictriDarkTheme.hairline }
     /// sand/coral系のカードで使う、ほんのり暖色がかった境界線。
-    static let warmBorder = Color(red: 0.80, green: 0.66, blue: 0.52).opacity(0.30)
+    static let warmBorder = Color(red: 0.80, green: 0.66, blue: 0.52).opacity(0.45)
 
-    static let textPrimary = Color(red: 0.10, green: 0.12, blue: 0.16)
-    static let textSecondary = Color.black.opacity(0.46)
-    static let textFaint = Color.black.opacity(0.28)
+    static var textPrimary: Color { PictriDarkTheme.textPrimary }
+    static var textSecondary: Color { PictriDarkTheme.textSecondary }
+    static var textFaint: Color { PictriDarkTheme.textFaint }
 
-    /// sky blueは「Map上の水・空・補助情報」限定に格下げ。主要CTAには多用しない
-    /// (青ボタンが並ぶとAIチャット/SaaSテンプレのように見えるという指摘を受けての方針転換)。
-    static let accent = Color(red: 0.18, green: 0.50, blue: 0.92)
-    static let accentSoft = Color(red: 0.18, green: 0.50, blue: 0.92).opacity(0.12)
+    /// sky blueは「Map上の水・空・補助情報」限定に格下げ。主要CTAには多用しない。
+    static var accent: Color { PictriDarkTheme.accent }
+    static var accentSoft: Color { PictriDarkTheme.accentSoft }
 
-    /// 訪問済み/保存済み/場所が色づいた状態を示すteal / mint。
-    static let teal = Color(red: 0.20, green: 0.68, blue: 0.64)
-    static let mint = Color(red: 0.46, green: 0.76, blue: 0.60)
-    static let mintSoft = Color(red: 0.46, green: 0.76, blue: 0.60).opacity(0.14)
-    static let skyBlue = Color(red: 0.44, green: 0.66, blue: 0.88)
+    /// 訪問済み/保存済み/場所が色づいた状態を示すteal / mint(dark bg向けに彩度・明度調整)。
+    static let teal = Color(red: 0.24, green: 0.79, blue: 0.54)
+    static let mint = Color(red: 0.50, green: 0.85, blue: 0.68)
+    static let mintSoft = Color(red: 0.50, green: 0.85, blue: 0.68).opacity(0.16)
+    static let skyBlue = Color(red: 0.50, green: 0.68, blue: 0.88)
 
-    /// 友達・コメント・いいね・承認など「人の温度感」に使う、白背景用の淡いコーラル。
-    static let coral = Color(red: 0.92, green: 0.53, blue: 0.44)
-    static let coralSoft = Color(red: 0.92, green: 0.53, blue: 0.44).opacity(0.14)
+    /// 友達・コメント・いいね・承認など「人の温度感」に使う、暖色のコーラル。
+    static let coral = Color(red: 1.00, green: 0.58, blue: 0.48)
+    static let coralSoft = Color(red: 1.00, green: 0.58, blue: 0.48).opacity(0.16)
 
     /// 次に行きたい場所・旅の余白・軽い誘導CTAに使う、暖かいsand。
-    static let sand = Color(red: 0.80, green: 0.65, blue: 0.46)
-    static let sandSoft = Color(red: 0.80, green: 0.65, blue: 0.46).opacity(0.16)
+    static let sand = Color(red: 0.80, green: 0.68, blue: 0.52)
+    static let sandSoft = Color(red: 0.80, green: 0.68, blue: 0.52).opacity(0.18)
 
     /// sandより一段はっきりした、行動を促すamber(名所・ちょっと強めの誘導に使う)。
-    static let amber = Color(red: 0.85, green: 0.60, blue: 0.31)
-    static let amberSoft = Color(red: 0.85, green: 0.60, blue: 0.31).opacity(0.16)
+    static let amber = Color(red: 0.92, green: 0.68, blue: 0.38)
+    static let amberSoft = Color(red: 0.92, green: 0.68, blue: 0.38).opacity(0.18)
 
-    /// 写真・思い出・Memories Exploreの余韻に使う、くすんだラベンダー。
-    static let lavender = Color(red: 0.56, green: 0.51, blue: 0.72)
-    static let lavenderSoft = Color(red: 0.56, green: 0.51, blue: 0.72).opacity(0.15)
+    /// 旧: くすんだラベンダー(紫)。「紫を主役から外す」方針により、名前は既存呼び出し
+    /// 箇所を壊さないため維持しつつ、値だけ warm copper(muted copper)へ置き換えた。
+    static let lavender = Color(red: 0.78, green: 0.55, blue: 0.38)
+    static let lavenderSoft = Color(red: 0.78, green: 0.55, blue: 0.38).opacity(0.16)
 
-    /// 未訪問(まだ埋まっていない余白)を示すlight gray。fogは同系統でわずかに暖かい変種。
-    static let unvisitedFill = Color(red: 0.91, green: 0.92, blue: 0.94)
-    static let unvisitedStroke = Color.white
-    static let fog = Color(red: 0.92, green: 0.905, blue: 0.89)
+    /// 未訪問(まだ埋まっていない余白)を示す、背景に沈む低コントラストのmuted面。
+    static var unvisitedFill: Color { PictriDarkTheme.surfaceOverlay }
+    static var unvisitedStroke: Color { surfaceBorder }
+    static var fog: Color { PictriDarkTheme.surfaceOverlay }
 
     /// 「訪問済み/記憶がある」を指す時の意味的エイリアス(実体はteal)。
     /// 「未訪問/まだ行っていない場所」を指す時の意味的エイリアス(実体はunvisitedFill)。
     /// Home/Memories側で「visited/unvisitedという名前で読みたい」箇所に使う。
-    static let visited = teal
-    static let unvisited = unvisitedFill
+    static var visited: Color { teal }
+    static var unvisited: Color { unvisitedFill }
 
     /// 旧名。coralへ統合したため以後はcoral/coralSoftを直接使う(既存コードとの後方互換のみ)。
-    static let friendWarm = coral
-    static let friendWarmSoft = coralSoft
+    static var friendWarm: Color { coral }
+    static var friendWarmSoft: Color { coralSoft }
 
-    /// 写真・夜・Camera背景に使う深いindigo/blue gray。純黒を避け、PicTriアイコンの
-    /// 紫〜青グラデーションに近いトーンにすることで、Cameraが他画面と断絶して
-    /// 見えないようにする。
-    static let photoDepth = Color(red: 0.09, green: 0.10, blue: 0.16)
+    /// 写真・夜・Camera背景に使う深いトーン。Cameraが他画面と断絶して見えないよう
+    /// 統一paletteのsurfaceBaseへ揃える。
+    static var photoDepth: Color { PictriDarkTheme.surfaceBase }
 
     /// surfaceBorderの意味的エイリアス。カード用の淡い境界線。
-    static let subtleBorder = surfaceBorder
+    static var subtleBorder: Color { surfaceBorder }
 
-    static let shadow = Color.black.opacity(0.07)
+    static var shadow: Color { PictriDarkTheme.shadowColor }
 
     /// 都道府県ごとの訪問済み配色を、idの文字コード合計から安定的に決める。
     /// Swiftの String.hashValue はプロセスごとにランダム化されるため使わず、
@@ -668,72 +655,34 @@ enum PictriLightTone {
 
 /// 「訪れた都道府県 17/47」「訪問スポット 12/20」のような、数字+バー+割合をまとめた
 /// 進捗カード。日本全体Mapと都道府県詳細の両方で同じ型を再利用する。
+/// Visual Foundation Part C。以前はKPIダッシュボード然としたカード
+/// (大きな数字+%表示+gradient progress bar+白カード影)で、PICTRI_DO_NOT_DEGRADE.md
+/// #9「No dashboard statistics — no KPI blocks, rings, charts, percentages,
+/// streaks」に反していた(=「よくあるAI生成アプリ」感の代表例)。Memories Index
+/// が既に確立している「7県・17枚 集めた」という控えめなinline text表現に揃え、
+/// カード・影・パーセンテージ・バーを廃止した。呼び出し側(icon/label/current/total)
+/// は無変更のため、Map側のコード変更は不要。
 struct PictriLightProgressCard: View {
     let icon: String
     let label: String
     let current: Int
     let total: Int
-    // 「訪れた県」「訪問スポット」など、進捗カードは基本的に訪問済みの文脈で使うため
-    // デフォルトをmintにする(青は主要ボタンから降りたため、進捗の主役にもしない)。
     var accentColor: Color = PictriLightTheme.mint
 
-    private var ratio: Double {
-        guard total > 0 else { return 0 }
-        return min(1, Double(current) / Double(total))
-    }
-
-    private var percentText: String {
-        "\(Int((ratio * 100).rounded()))%"
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(accentColor)
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(accentColor)
 
-                Text(label)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(PictriLightTheme.textSecondary)
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text("\(current)")
-                    .font(.system(size: 30, weight: .heavy))
-                    .foregroundStyle(accentColor)
-
-                Text("/ \(total)")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(PictriLightTheme.textFaint)
-            }
-
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(PictriLightTheme.unvisitedFill)
-
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [PictriLightTheme.teal, accentColor],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: proxy.size.width * ratio)
-                }
-            }
-            .frame(height: 6)
-
-            Text("訪問率 \(percentText)")
-                .font(.system(size: 12, weight: .semibold))
+            Text(label)
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(PictriLightTheme.textSecondary)
+
+            Text("\(current)/\(total)")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(PictriLightTheme.textPrimary)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(PictriLightTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: PictriLightTheme.shadow, radius: 16, x: 0, y: 6)
         .accessibilityElement(children: .combine)
     }
 }
@@ -922,49 +871,258 @@ struct PictriLightNudgeCard: View {
     }
 }
 
-// MARK: - Light Share Card
+// MARK: - Pictri Final Theme (Claude Design Final Handoff)
+//
+// /Users/takakikeita/Desktop/PictriDesignHandoffFinal/handoff/PICTRI_DESIGN_TOKENS.md の値を
+// 1:1で取り込んだ、正式なsemantic token層。既存のPictriTheme(暗色系、Camera/タブバー等が
+// 使用中)・PictriLightTheme(白基調系、青accent、Home/Memories Collect/Account等が使用中)
+// とは意図的に別のenumとして追加している。どちらも既存画面が現に参照しているため、
+// 値を書き換えるとHome/Memories/Camera/Account/タブバーの見た目が変わってしまう。
+// 今後Home/Memories等をFinal Designへ段階的に移行する際は、新しいDesign Systemを
+// 重複作成せず、この token setを正式なsourceとして参照すること。
+// 現時点ではPictriJapanCollectionMap.swift(Map)のみがこのtoken setを使用する。
+// dark premium統一(4画面再統一フェーズ)により、ink(文字)/paper(面)の意味論を反転した。
+// 元はDesign Handoffの「紙にインク」の白基調世界観だったが、4画面をdark editorial /
+// quiet luxuryへ揃えるため、ink=明るいivory(文字)・paper=暗いsurface(面)として運用する。
+// フィールド名は既存の全呼び出し箇所(Home/Camera/Memories/MapView等、90箇所以上)を
+// 壊さずに済むよう意図的に維持している(巨大リファクタを避けるための判断)。
+// 唯一の例外: PictriPhotoPrintの物理的な「影」は ink ではなく paperDeep(常に暗い側)を
+// 参照するよう修正済み(ink反転後もshadowが暗いままになるようにするため)。
+enum PictriFinalTheme {
 
-/// 「家族や友だちにシェアしよう」の軽いカード。特定ブランドのアイコンは使わず、
-/// iOS標準のShareLinkで「誰と共有するか」はユーザー自身に委ねる
-/// (LINE/Instagram等の商標アイコンを模倣しない、かつフォロー/フォロワー型SNSにしない)。
-struct PictriLightShareCard: View {
-    let shareText: String
+    // MARK: Ink & paper (base world)
+    // Visual Direction Consolidation: PictriDarkTheme(mode-aware)へリダイレクト。
+    // ink/paperという「紙にインク」の名前は維持しつつ、実体はmatte graphite/optical
+    // whiteの正準トークンとなり、Dark/Light Appearanceに自動追従する。
+    static var ink: Color { PictriDarkTheme.textPrimary }
+    static var inkSoft: Color { PictriDarkTheme.textSecondary }
+    static var inkFaint: Color { PictriDarkTheme.textFaint }
+    static var paper: Color { PictriDarkTheme.surfaceBase }
+    static var paperWarm: Color { PictriDarkTheme.surfaceRaised }
+    static var paperDeep: Color { PictriDarkTheme.surfaceOverlay }
+    static var line: Color { PictriDarkTheme.hairline }
+    static var surfaceRaised: Color { PictriDarkTheme.surfaceRaised }
+    static var surfaceInk: Color { ink }
+    static var onInk: Color { paper }
+    static let onAccent = hex(0x1A1310)
+
+    // MARK: Terracotta accent — "the actor"
+    static let accent = hex(0xD97757)
+
+    // MARK: Dormant (unvisited — never colorful)
+    static var dormant: Color { PictriDarkTheme.surfaceOverlay }
+    static var dormantDot: Color { PictriDarkTheme.hairline }
+    static var dormantInk: Color { PictriDarkTheme.textFaint }
+
+    // MARK: Memory colors (earned; a place/trip owns exactly one)
+    // dark bg向けに彩度・明度を上げた値(Run B: PictriJapanCollectionMapPalette.darkと
+    // 同一の調整値を再利用し、Map/Home/Memoriesで同じ県=同じ色に見えるよう揃えている)。
+    static let memoryShu = hex(0xFF6B47)
+    static let memoryYamabuki = hex(0xFFC93D)
+    static let memoryMidori = hex(0x3DC98A)
+    static let memoryRuri = hex(0x5C8AFF)
+    static let memoryBotan = hex(0xF073B5)
+    static let memoryColors: [Color] = [memoryShu, memoryYamabuki, memoryMidori, memoryRuri, memoryBotan]
+
+    /// 都道府県/tripが持つmemory colorを、idの文字コード合計から決定論的に割り当てる。
+    /// Swiftのhashは再起動ごとに変わるため使わない。「per prefecture/trip, stable once
+    /// assigned」という仕様を、新しい永続化を増やさずに満たすための導出。
+    static func memoryColor(for id: String) -> Color {
+        let sum = id.unicodeScalars.reduce(0) { $0 + Int($1.value) }
+        return memoryColors[sum % memoryColors.count]
+    }
+
+    /// memoryColor(for:)と同じ導出(id文字コード合計)を使うため、常に同じidには
+    /// 同じ色名が対応する(色そのものと名前が食い違わない)。
+    static let memoryColorNames: [String] = ["朱", "山吹", "緑", "瑠璃", "牡丹"]
+
+    static func memoryColorName(for id: String) -> String {
+        let sum = id.unicodeScalars.reduce(0) { $0 + Int($1.value) }
+        return memoryColorNames[sum % memoryColorNames.count]
+    }
+
+    // MARK: Semantic(dark bg向けに明度を上げて視認性を確保)
+    static let danger = hex(0xFF5C46)
+    static let success = hex(0x2FBE86)
+
+    // MARK: Secondary illustrative palette(Visual Foundation Part A)
+    //
+    // memoryColors(朱/山吹/緑/瑠璃/牡丹)は「実際に訪れて earned した」場所だけが
+    // 持てる色(DO_NOT_DEGRADE #10「No random accent colors. Only the five memory
+    // colors, and only on things that were actually visited.」)。この6色は
+    // それとは別の用途専用: paywall/permission/quota/empty stateのような、
+    // 何も「訪問実績」を語らない utility画面の、ごく控えめなイラスト・アイコン
+    // アクセントとしてのみ使う。dark bgでも視認できる程度に明度を上げつつ、彩度は
+    // 抑えたまま(neon/cyber/強いCTA色は禁止)。secondaryLavender(紫)はterracotta系
+    // のmuted copperへ置き換えた(名前は既存呼び出し箇所を壊さないため維持)。
+    static let secondaryCoral = hex(0xE0A98F)
+    static let secondarySand = hex(0xD4C3A5)
+    static let secondaryMint = hex(0xA8CBB8)
+    static let secondaryMutedGreen = hex(0x8FB08E)
+    static let secondarySoftAmber = hex(0xD9B87E)
+    static let secondaryLavender = hex(0xB99A82)
+
+    // MARK: Spacing (base 4)
+    static let screenPadding: CGFloat = 20
+    static let sectionGap: CGFloat = 28
+    static let stackGap: CGFloat = 12
+    static let tapMinimum: CGFloat = 44
+
+    // MARK: Radius roles
+    static let radiusPhotoPrint: CGFloat = 5
+    static let radiusCameraPreview: CGFloat = 10
+    static let radiusControl: CGFloat = 12
+    static let radiusGroupedBlock: CGFloat = 13
+    static let radiusPill: CGFloat = 999
+    static let radiusSheetTop: CGFloat = 22
+
+    // MARK: Motion durations (seconds)
+    static let durationPress: Double = 0.14
+    static let durationDefault: Double = 0.24
+    static let durationSlow: Double = 0.42
+    static let durationBloom: Double = 0.52
+    static let durationInkToPaper: Double = 0.5
+
+    private static func hex(_ value: UInt32) -> Color {
+        Color(
+            red: Double((value >> 16) & 0xFF) / 255,
+            green: Double((value >> 8) & 0xFF) / 255,
+            blue: Double(value & 0xFF) / 255
+        )
+    }
+}
+
+// MARK: - Pictri Typography (Claude Design Final Handoff)
+//
+// PICTRI_DESIGN_TOKENS.md「Typography」/ PICTRI_ASSET_MANIFEST.md「Type」で指定されている
+// 正式な書体は Dela Gothic One(display) / Zen Maru Gothic(body, 400/500/700/900) /
+// Space Mono(meta)。Asset Manifestではこの3書体はすべて`[X]`(=exportが必要、
+// このプロジェクトにはまだ同梱されていない)に分類されている。
+// このリポジトリ・PictriDesignHandoffFinal配下のどちらにもフォントファイル(.ttf/.otf)が
+// 存在しないことを確認済み(find済み)。ネットワークから新規に取得することはせず、
+// 未同梱のままroleだけを正式に定義する。`Font.custom(name:size:)`は指定名のフォントが
+// 見つからない場合、クラッシュせずsystem fontへ自動fallbackするため、今回はこのまま
+// buildできる(見た目は当面system fontのまま)。実フォントファイルが将来
+// target(Info.plistのUIAppFonts含む)へ追加されれば、コード変更なしで自動的に
+// 正式書体へ切り替わる。
+//
+// Home等の画面側は`.font(.system(size: ...))`をこの場で直接指定するのではなく、
+// 必ずこのenumのrole(display/title/body/caption/mono)経由にする。
+enum PictriTypography {
+    /// Google Fonts想定のPostScript名。実バイナリを同梱するまではsystem fontへ自動fallback。
+    private static let displayFamily = "DelaGothicOne-Regular"
+    private static let bodyRegularFamily = "ZenMaruGothic-Regular"
+    private static let bodyMediumFamily = "ZenMaruGothic-Medium"
+    private static let bodyBoldFamily = "ZenMaruGothic-Bold"
+    private static let bodyBlackFamily = "ZenMaruGothic-Black"
+    private static let monoRegularFamily = "SpaceMono-Regular"
+    private static let monoBoldFamily = "SpaceMono-Bold"
+
+    /// 画面タイトル・県名・「色がつく瞬間」の見出し等。短い文字列専用(段落には使わない)。
+    static func display(_ size: CGFloat) -> Font {
+        .custom(displayFamily, size: size)
+    }
+
+    /// 本文・投稿文・ラベル等、読ませるテキスト全般。weightで太さのroleだけを切り替える
+    /// (Zen Maru Gothicは400/500/700/900の4段階、中間のweightは近い段階へ丸める)。
+    static func body(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        switch weight {
+        case .black, .heavy:
+            return .custom(bodyBlackFamily, size: size)
+        case .bold, .semibold:
+            return .custom(bodyBoldFamily, size: size)
+        case .medium:
+            return .custom(bodyMediumFamily, size: size)
+        default:
+            return .custom(bodyRegularFamily, size: size)
+        }
+    }
+
+    /// 日付・座標・件数など、Latin/数字だけの小さなmetaテキスト専用
+    /// (Handoff: 「mono carries Latin/numerals only」)。
+    static func mono(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        weight == .bold || weight == .semibold || weight == .heavy || weight == .black
+            ? .custom(monoBoldFamily, size: size)
+            : .custom(monoRegularFamily, size: size)
+    }
+}
+
+// MARK: - Pictri Hairline
+//
+// PICTRI_DO_NOT_DEGRADE.md #1「Surfaces are paper with hairlines. Content is separated
+// by lines and space, not boxes.」の実装。汎用white rounded cardの代わりに、
+// セクション・投稿間の区切りとして使う1ptの罫線。
+struct PictriHairline: View {
+    var color: Color = PictriFinalTheme.line
 
     var body: some View {
-        HStack(spacing: 14) {
-            Circle()
-                .fill(PictriLightTheme.accentSoft)
-                .frame(width: 42, height: 42)
-                .overlay {
-                    Image(systemName: "person.2.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(PictriLightTheme.accent)
-                }
+        Rectangle()
+            .fill(color)
+            .frame(height: 1)
+    }
+}
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text("家族や友だちにシェアしよう")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(PictriLightTheme.textPrimary)
+// MARK: - Pictri Photo Print
+//
+// PICTRI_COMPONENT_INVENTORY.md「PhotoPrint: any photograph rendered as a physical
+// print... the ONLY approved photo container besides full-bleed.」の実装。
+// 単なるRoundedRectangle+imageではなく、paper padding・print radius・print shadow・
+// 決定論的な微小回転(±1°程度)・任意captionを持つ「印刷された写真」として描画する。
+/// rotationSeed(例: post.id)から決定論的に角度を決める。都度ランダムだと再描画のたびに
+/// 傾きが変わり「画面が毎回変わる」実装になるため禁止されている(依頼原文の通り)。
+struct PictriPhotoPrint<Content: View>: View {
+    let content: Content
+    var rotationSeed: String?
+    var caption: String?
+    var aspectRatio: CGFloat = 4.0 / 5.0
+    /// 紙の余白(Design Tokens「raised-paper padding 3-6 depending on size」)。
+    /// 既定値5はCameraの確認画面(CameraView.swift、今回のPhaseでは不可触)が
+    /// 元々使っていた値のままにして、明示的に別の値を渡さない限りその見た目が
+    /// 変わらないようにする。Home feedのような大きいprintだけ、呼び出し側で
+    /// より太い値を渡す。
+    var padding: CGFloat = 5
 
-                Text("身内だけに、旅の記録を共有できます")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(PictriLightTheme.textSecondary)
-            }
+    init(
+        rotationSeed: String? = nil,
+        caption: String? = nil,
+        aspectRatio: CGFloat = 4.0 / 5.0,
+        padding: CGFloat = 5,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.content = content()
+        self.rotationSeed = rotationSeed
+        self.caption = caption
+        self.aspectRatio = aspectRatio
+        self.padding = padding
+    }
 
-            Spacer(minLength: 8)
+    private var rotationDegrees: Double {
+        guard let rotationSeed else { return 0 }
+        let seed = rotationSeed.utf8.reduce(0) { $0 + Int($1) }
+        // -1.0...1.0度の範囲に収める(Handoff: 「≤1° rotation」)。
+        return (Double(seed % 21) - 10) / 10
+    }
 
-            ShareLink(item: shareText) {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(PictriLightTheme.accent)
-                    .frame(width: 38, height: 38)
-                    .background(PictriLightTheme.accentSoft)
-                    .clipShape(Circle())
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            content
+                .aspectRatio(aspectRatio, contentMode: .fill)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: PictriFinalTheme.radiusPhotoPrint - 2, style: .continuous))
+
+            if let caption {
+                Text(caption)
+                    .font(PictriTypography.mono(11, weight: .regular))
+                    .foregroundStyle(PictriFinalTheme.inkFaint)
             }
         }
-        .padding(14)
-        .background(PictriLightTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: PictriLightTheme.shadow, radius: 12, x: 0, y: 4)
+        .padding(padding)
+        .background(PictriFinalTheme.surfaceRaised)
+        .clipShape(RoundedRectangle(cornerRadius: PictriFinalTheme.radiusPhotoPrint, style: .continuous))
+        // 影は常にPictriDarkTheme.shadowColor(常に黒ベース)を参照する。paperDeepは
+        // mode-awareになりlight modeでは明るい値を返すため、影に使うと不具合になる。
+        .shadow(color: PictriDarkTheme.shadowColor.opacity(0.6), radius: 0, x: 0, y: 1)
+        .shadow(color: PictriDarkTheme.shadowColor, radius: 10, x: 0, y: 6)
+        .rotationEffect(.degrees(rotationDegrees))
     }
 }

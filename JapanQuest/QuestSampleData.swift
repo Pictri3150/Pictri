@@ -595,6 +595,129 @@ let mockQuestSpots: [QuestSpot] = [
         unlockRadiusMeters: 200,
         gridIndex: 9,
         category: .cafe
+    ),
+
+    // MARK: - Curated Spot Dataset Stage 4a(複数県プルーフ)
+    // 座標はすべてweb検索で確認済み(2026年時点、出典は最終報告に記載)。
+    // unlockRadiusMeatersは既存Spot(東京タワー等)と同じ既定値250mに揃え、
+    // Spotごとの特別扱いをしない。神奈川の当初推奨3件(鎌倉大仏/江の島/
+    // 横浜赤レンガ倉庫)は既存spot(kamakura_daibutsu/enoshima_coast/akarenga)と
+    // 座標がほぼ一致し重複するため、差し替えて別の実在ランドマークにした。
+    // 北海道の当初推奨2件(札幌時計台/大通公園)も既存spot(sapporo_clock_tower/
+    // odori_park)と重複するため、函館エリアの別ランドマークへ差し替えた。
+
+    // 神奈川(既存areaName「横浜」に2件追加、新規areaName「川崎」を1件追加)
+    QuestSpot(
+        id: "yokohama_chinatown",
+        prefectureId: "kanagawa",
+        name: "横浜中華街",
+        englishName: "chinatown",
+        areaName: "横浜",
+        latitude: 35.443066,
+        longitude: 139.644097,
+        unlockRadiusMeters: 250,
+        gridIndex: 15,
+        category: .photogenic
+    ),
+    QuestSpot(
+        id: "sankeien_garden",
+        prefectureId: "kanagawa",
+        name: "三溪園",
+        englishName: "sankeien",
+        areaName: "横浜",
+        latitude: 35.417047,
+        longitude: 139.658780,
+        unlockRadiusMeters: 250,
+        gridIndex: 16,
+        category: .nature
+    ),
+    QuestSpot(
+        id: "kawasaki_daishi",
+        prefectureId: "kanagawa",
+        name: "川崎大師",
+        englishName: "kawasakidaishi",
+        areaName: "川崎",
+        latitude: 35.533820,
+        longitude: 139.728887,
+        unlockRadiusMeters: 250,
+        gridIndex: 17,
+        category: .landmark
+    ),
+
+    // 大阪(新規未訪問県、areaNameはSpotごとの周辺地区名)
+    QuestSpot(
+        id: "osaka_castle",
+        prefectureId: "osaka",
+        name: "大阪城天守閣",
+        englishName: "osakacastle",
+        areaName: "大阪城",
+        latitude: 34.687383,
+        longitude: 135.525824,
+        unlockRadiusMeters: 250,
+        gridIndex: 0,
+        category: .landmark
+    ),
+    QuestSpot(
+        id: "tsutenkaku_tower",
+        prefectureId: "osaka",
+        name: "通天閣",
+        englishName: "tsutenkaku",
+        areaName: "新世界",
+        latitude: 34.652508,
+        longitude: 135.506308,
+        unlockRadiusMeters: 250,
+        gridIndex: 1,
+        category: .landmark
+    ),
+    QuestSpot(
+        id: "dotonbori_glico",
+        prefectureId: "osaka",
+        name: "道頓堀グリコサイン",
+        englishName: "dotonbori",
+        areaName: "道頓堀",
+        latitude: 34.668952,
+        longitude: 135.501044,
+        unlockRadiusMeters: 250,
+        gridIndex: 2,
+        category: .photogenic
+    ),
+
+    // 北海道(新規areaName「函館」、札幌/小樽/美瑛とは別エリア)
+    QuestSpot(
+        id: "mount_hakodate_observatory",
+        prefectureId: "hokkaido",
+        name: "函館山展望台",
+        englishName: "hakodateyama",
+        areaName: "函館",
+        latitude: 41.760887,
+        longitude: 140.714150,
+        unlockRadiusMeters: 250,
+        gridIndex: 10,
+        category: .nature
+    ),
+    QuestSpot(
+        id: "goryokaku_tower",
+        prefectureId: "hokkaido",
+        name: "五稜郭タワー",
+        englishName: "goryokaku",
+        areaName: "函館",
+        latitude: 41.794637,
+        longitude: 140.753902,
+        unlockRadiusMeters: 250,
+        gridIndex: 11,
+        category: .landmark
+    ),
+    QuestSpot(
+        id: "kanemori_akarenga",
+        prefectureId: "hokkaido",
+        name: "金森赤レンガ倉庫",
+        englishName: "kanemori",
+        areaName: "函館",
+        latitude: 41.766904,
+        longitude: 140.717765,
+        unlockRadiusMeters: 250,
+        gridIndex: 12,
+        category: .photogenic
     )
 ]
 

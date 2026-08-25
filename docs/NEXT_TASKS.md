@@ -1,8 +1,25 @@
 # NEXT_TASKS.md — ピクトリ（Pictri）次のタスク一覧
 
-最終更新: 2026-06-07（Memories Explore Stage 4 完了）
+最終更新: 2026-08-22（Visual Direction Consolidation 完了）
 
-> **プロダクト名:** ピクトリ（Pictri）— UI 上の表示名。内部プロジェクト名 JapanQuest はコード・Xcode 設定に残存中。
+> **プロダクト名:** PicTri — UI 上の表示名。内部プロジェクト名 JapanQuest はコード・Xcode 設定に残存中。
+
+---
+
+## 2026-08-22 夜間セッション後の次の候補タスク
+
+- **Camera Aperture Iris Openingの修正**: `PictriOpeningLabConcepts.swift`の
+  `PictriOpeningConceptC_ApertureIris.bladeShape`にジオメトリバグあり(外周コーナー計算が
+  誤っており巨大な棘状に破綻する)。着想としては3案中最もPicTri適合度が高いため、
+  修正できれば次点候補として再評価する価値がある。
+- **Home Memory Flip統合の実写真QA**: 今夜`QuestMemoryStore`に追加した
+  `outerOnlyImage(for post:)`/`selfieImage(for post:)`と、`HomeFeedPostRow`側の
+  flip統合(`flipBackImage`/`photoLayer`)は、実際にdual capture写真を撮影した状態での
+  目視確認がまだ。Simulatorで一度Camera撮影を実施し、Homeで裏返る挙動を確認する。
+- **developerUnlockModeのデフォルト値確認**: CLAUDE.md記載のルール通り、
+  App Store提出前に`false`へ変更されているか要再確認。
+- **今夜の変更のコミット**: ユーザー指示によりコミットはしていない。差分をレビューの上、
+  意味のある単位に分けてコミットする。
 
 ---
 

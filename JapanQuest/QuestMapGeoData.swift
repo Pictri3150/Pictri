@@ -73,5 +73,9 @@ let questPrefectureShapes: [QuestPrefectureShape] = [
 
 // 以前はここに神奈川県内の実スポットをQuestPrefectureShapeと同じ簡略座標系へ
 // 投影したquestKanagawaSpotMapPoints(県ポリゴン上に点を置くための座標)があったが、
-// 県詳細の地図表現をQuestPrefectureOverviewMapView(実在のMapKit地図)へ置き換えたため、
-// このテーブルは不要になった(MapKitは各スポットの実際の緯度経度をそのまま使う)。
+// 一時的に県詳細の地図表現を実MapKit地図(QuestPrefectureOverviewMapView、廃止済み)へ
+// 置き換えた際にこのテーブルは不要になった。県詳細のCollection panelは現在
+// PictriCollectionPrefecturePath(このファイルの簡略ポリゴンをそのまま使う)へ
+// 戻っているが、スポットの実緯度経度をこの簡略キャンバス座標へ正確に投影する
+// 手段は無いままのため、このテーブルを新規に作り直すことはしていない
+// (それらしい位置にpinを置くことは禁止。スポット選択はエリア探索画面の実MapKitで担保する)。

@@ -25,12 +25,12 @@ struct QuestMapView: View {
     @State private var path = NavigationPath()
 
     /// 訪問済み都道府県は「実際にメモリーが1枚でもある県」を基準にする。
-    /// スポットデータ(mockQuestSpots)の有無とは別の軸: 東京・京都・北海道に
-    /// スポットを追加しても、実際に写真を保存するまでは訪問済みにならない。
-    /// DEBUG限定でプレビュー用に追加の県を「訪問済みに見せる」ことができる
-    /// (memoryStoreへは一切書き込まない、表示専用の上乗せ)。
+    /// 導出の実体はQuestMemoryStore.visitedPrefectureIds(正式なSource of Truth)を
+    /// そのまま使い、ここでは重複計算しない。DEBUG限定でプレビュー用に追加の県を
+    /// 「訪問済みに見せる」上乗せだけをView側で行う(memoryStoreへは一切書き込まない、
+    /// 表示専用)。
     private var visitedPrefectureIds: Set<String> {
-        var ids = Set(memoryStore.memoryPhotos.map { $0.prefectureId })
+        var ids = memoryStore.visitedPrefectureIds
         #if DEBUG
         if let preview = PictriVisualReview.mapPreviewVisitedPrefectureIds {
             ids.formUnion(preview)
@@ -81,8 +81,21 @@ struct QuestMapView: View {
         #if DEBUG
         guard path.isEmpty else { return }
 
+        // mockQuestPrefecturesに登録されていない県(埼玉・千葉・大阪など、まだ実スポット
+        // データを持たない43県)は、以前この関数だとnilを返して何も起きなかった
+        // (DEBUG hookが実質未登録県に対応していなかった)。実際のMapタップ導線
+        // (PictriJapanCollectionMap.prefecture(for shape:))は、mockQuestPrefecturesに
+        // 無ければquestPrefectureShapesの名前からその場でQuestPrefecture(totalSpotCount: 0)を
+        // 合成しており、これと全く同じ合成ロジックをここでも使うことで、DEBUG launch arg
+        // (`-pictriMapPrefecture <id>`)から実タップと同じPrefecture Detail(準備中表示)へ
+        // 到達できるようにする。mockQuestPrefectures・QuestPrefectureモデル・本番の
+        // タップ導線は一切変更していない。
         func prefecture(for id: String) -> QuestPrefecture? {
-            mockQuestPrefectures.first { $0.id == id }
+            if let registered = mockQuestPrefectures.first(where: { $0.id == id }) {
+                return registered
+            }
+            guard let shape = questPrefectureShapes.first(where: { $0.id == id }) else { return nil }
+            return QuestPrefecture(id: shape.id, name: shape.name, englishName: shape.id, totalSpotCount: 0)
         }
 
         if let spotId = PictriVisualReview.mapSpotId,
@@ -164,10 +177,6 @@ private struct QuestJapanOverviewScreen: View {
 
                     japanMapPanel
 
-                    PictriLightShareCard(
-                        shareText: "PicTriで訪れた都道府県 \(visitedCount)/47 を記録中!"
-                    )
-
                     Spacer(minLength: JQUI.bottomBarReserve)
                 }
                 .padding(.horizontal, JQUI.sidePadding)
@@ -204,19 +213,26 @@ private struct QuestJapanOverviewScreen: View {
         }
     }
 
-    /// 以前は自作の簡略ポリゴン(QuestJapanMapView)で日本全体を塗り絵表示していたが、
-    /// 拡大して見ると形の粗さが「地図として信用できない」という指摘を受けたため、
-    /// 実在のMapKit地図に県ごとのバッジを重ねるQuestJapanOverviewMapView(実座標ベース)へ
-    /// 置き換えた。ピンチでの拡大・縮小に対応し、タップで従来通り県詳細へ遷移する。
+    /// Claude Design Final Handoff(PICTRI_DO_NOT_DEGRADE.md #4 / PICTRI_SWIFTUI_HANDOFF.md
+    /// 「Map: ...Never MapKit.」)をVisual Source of Truthとして、実MapKit版の
+    /// QuestJapanOverviewMapViewから、questPrefectureShapesを直接描画する
+    /// PictriJapanCollectionMapへ置き換えた。ピンチズームchromeは仕様上持たない
+    /// (「no zoom/pan chrome」)。タップで従来通り県詳細へ遷移する導線(onSelectPrefecture)
+    /// は完全に維持している。マップ自体は白カードで囲わない
+    /// (PICTRI_DO_NOT_DEGRADE.md #1「No generic white rounded cards」)。
     private var japanMapPanel: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .bottomTrailing) {
-                QuestJapanOverviewMapView(
+                PictriJapanCollectionMap(
                     visitedPrefectureIds: visitedPrefectureIds,
                     onSelect: onSelectPrefecture
                 )
-                .frame(height: 380)
-                .padding(.vertical, 10)
+                .frame(height: 420)
+                .clipShape(RoundedRectangle(cornerRadius: PictriLightTheme.heroCornerRadius, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: PictriLightTheme.heroCornerRadius, style: .continuous)
+                        .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
+                }
 
                 Button {
                     showRegionList = true
@@ -226,13 +242,11 @@ private struct QuestJapanOverviewScreen: View {
                 .padding(16)
             }
 
-            Text("ピンチで拡大・タップで都道府県へ")
+            Text("タップで都道府県へ")
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(PictriLightTheme.textFaint)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 14)
+                .padding(.horizontal, 4)
         }
-        .pictriLightCard(cornerRadius: PictriLightTheme.heroCornerRadius, shadowRadius: 18)
     }
 }
 
@@ -458,32 +472,42 @@ private struct QuestPrefectureDetailScreen: View {
         .pictriLightCard(cornerRadius: PictriLightTheme.rowCornerRadius, fill: PictriLightTheme.warmWhite, shadowRadius: 12)
     }
 
-    /// 実スポットデータがある県(拡大表示され、精度が厳しく見られる)は実在のMapKit地図を、
-    /// データが無い県(準備中カードのみで、拡大して精査される場面が無い)は従来の
-    /// 簡略シルエットを使う。粗いポリゴンを「拡大しても信頼できる地図」として
-    /// 見せることはしない、という今回の方針をそのまま反映している。
+    /// 実スポットデータの有無にかかわらず、Prefecture Detailの「コレクション体験」としての
+    /// 県shapeパネルは同じ見た目(QuestPrefectureSubMapView、日本全体Mapと同じ曲線shape+
+    /// paper/ink)に統一する。
+    ///
+    /// ## MapKit監査(6回目の監査で判明)
+    /// 以前は実スポットがある県(神奈川・東京・京都・北海道)だけ、ここに実在の
+    /// `QuestPrefectureOverviewMapView`(MKMapView、Apple Mapsのタイル・道路・標準ピンを
+    /// 表示)を使っていた。これはPICTRI_DO_NOT_DEGRADE.md #4「No Apple Maps / MapKit as
+    /// the map. The Japan collection map is the product.」に明確に違反しており、
+    /// 「準備中」の県(paper+shape)と「訪問対象」の県(Apple Maps)とで別アプリのように
+    /// 見た目が分断していた。この widget が担っていた機能を洗い出した結果:
+    ///   - スポットpin単体タップ→スポット詳細への直接遷移(実際の緯度経度を使用)
+    ///   - クラスタタップ→エリア探索(AreaExploreRoute)への遷移
+    ///   - 「エリア一覧」pill → エリア探索への遷移
+    /// のうち、後の2つは既にこの下の「エリア一覧」ボタン(MapKitではない、ただのボタン)
+    /// が担っている。スポットpin単体タップの直接遷移だけがこのwidget固有の機能だった。
+    /// 県shapeの簡略キャンバス座標(questPrefectureShapes)には、スポットの実緯度経度を
+    /// 正確に投影する座標変換テーブルが存在しない(QuestMapGeoData.swiftのコメント通り、
+    /// 神奈川用の投影テーブルは実MapKit採用時に廃止済み)。それらしい位置にpinを
+    /// 置くこと(fake coordinate)は禁止されているため、スポットpinをこのpanelへ
+    /// 復元することはしない。「次に行きたい場所」セクション・「エリアを探索する」
+    /// ボタン・「エリア一覧」ボタンが、実際のスポットへの導線を引き続き担保する
+    /// (エリア探索画面は本物のpan/zoom可能なMapKit実装のままで、今回変更していない
+    /// 。地図としてのCollection体験からのみApple Maps visualを排除した)。
+    @ViewBuilder
     private func prefectureSubMap(shape: QuestPrefectureShape) -> some View {
         ZStack(alignment: .bottomTrailing) {
-            if hasRealSpotData {
-                QuestPrefectureOverviewMapView(
-                    spots: spots,
-                    completedSpotIds: completedSpotIds,
-                    onSpotSelected: { spot in
-                        path.append(spot)
-                    },
-                    onClusterSelected: {
-                        path.append(AreaExploreRoute(prefecture: prefecture))
-                    }
-                )
-                .frame(height: 300)
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .padding(.horizontal, 10)
-            } else {
-                QuestPrefectureSubMapView(
-                    shape: shape,
-                    isVisited: isVisited
-                )
-                .frame(height: 300)
+            QuestPrefectureSubMapView(
+                shape: shape,
+                isVisited: isVisited
+            )
+            .frame(height: 300)
+            .clipShape(RoundedRectangle(cornerRadius: PictriFinalTheme.radiusGroupedBlock, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: PictriFinalTheme.radiusGroupedBlock, style: .continuous)
+                    .stroke(PictriFinalTheme.line, lineWidth: 1)
             }
 
             if hasRealSpotData {
@@ -495,8 +519,6 @@ private struct QuestPrefectureDetailScreen: View {
                 .padding(16)
             }
         }
-        .padding(.vertical, 10)
-        .pictriLightCard(cornerRadius: PictriLightTheme.heroCornerRadius, shadowRadius: 18)
     }
 
     private var nextSpotsSection: some View {
@@ -557,17 +579,31 @@ private struct QuestPrefectureDetailScreen: View {
     }
 }
 
-/// 実スポットデータがまだ無い県の、簡略シルエットだけのプレビュー。
-/// 拡大して精査される場面が無い(準備中カードのみで詳細情報が無い)ため、
-/// QuestMapGeoDataの簡略ポリゴンで「どの県か」を示す用途に限定している。
-/// 実スポットがある県はQuestPrefectureOverviewMapView(実在のMapKit地図)を使う。
+/// Prefecture Detailの県shapeプレビュー。実スポットデータの有無を問わず
+/// (準備中の県も、実スポットがある県も)共通で使う。以前は実スポットがある県だけ
+/// `QuestPrefectureOverviewMapView`(実在のMapKit地図、Apple Mapsタイル・道路・標準ピン)を
+/// 使っていたが、DO_NOT_DEGRADE #4「No Apple Maps / MapKit as the map」に反していたため、
+/// Collection体験としてのこのpanelからはMapKitを廃止した(スポット単位のpan/zoom地図は
+/// エリア探索画面(QuestMapKitView)にそのまま残っている、削除していない)。
+///
+/// 描画は直線ポリゴンではなく、日本全体Map(PictriJapanCollectionMap)と同じ
+/// 辺制約つき角丸めshape(PictriCollectionPrefecturePath)・同じ配色ルール
+/// (paper/dormant/memoryColor/ink)を再利用する。県詳細だけ別の描き方・別の配色にすると、
+/// 拡大されるぶん「日本全体Mapと違う県の形」に見えてしまうため。
 private struct QuestPrefectureSubMapView: View {
     let shape: QuestPrefectureShape
     let isVisited: Bool
 
+    /// PictriJapanCollectionMap.swiftのQuestPrefectureGeometryが一度だけ計算する
+    /// sanitized points(2-opt untangling済み、自己交差ゼロ)をそのまま参照する。
+    /// 日本全体Mapとhit-test/表示geometryの出所を分けない(単一のsource of truth)。
+    private var sanitizedPoints: [CGPoint] {
+        QuestPrefectureGeometry.points(for: shape)
+    }
+
     private var bounds: (minX: CGFloat, minY: CGFloat, width: CGFloat, height: CGFloat) {
-        let xs = shape.points.map { $0.x }
-        let ys = shape.points.map { $0.y }
+        let xs = sanitizedPoints.map { $0.x }
+        let ys = sanitizedPoints.map { $0.y }
         let minX = xs.min() ?? 0
         let minY = ys.min() ?? 0
         let width = max((xs.max() ?? 1) - minX, 1)
@@ -578,21 +614,28 @@ private struct QuestPrefectureSubMapView: View {
     var body: some View {
         GeometryReader { proxy in
             let box = bounds
-            let pad: CGFloat = 26
+            let pad: CGFloat = 30
             let scale = min(
                 (proxy.size.width - pad * 2) / box.width,
                 (proxy.size.height - pad * 2) / box.height
             )
             let offsetX = (proxy.size.width - box.width * scale) / 2 - box.minX * scale
             let offsetY = (proxy.size.height - box.height * scale) / 2 - box.minY * scale
-            let fillColor = isVisited ? PictriLightTheme.visitedPrefectureColor(id: shape.id) : PictriLightTheme.unvisitedFill
+            let path = PictriCollectionPrefecturePath(points: sanitizedPoints, scale: scale, offsetX: offsetX, offsetY: offsetY)
+            let fillColor = isVisited ? PictriFinalTheme.memoryColor(for: shape.id) : PictriFinalTheme.dormant
 
             ZStack {
-                QuestScaledShapePath(points: shape.points, scale: scale, offsetX: offsetX, offsetY: offsetY)
-                    .fill(fillColor)
+                PictriFinalTheme.paper
 
-                QuestScaledShapePath(points: shape.points, scale: scale, offsetX: offsetX, offsetY: offsetY)
-                    .stroke(.white, lineWidth: 1.5)
+                path
+                    .fill(fillColor)
+                    .overlay {
+                        if isVisited {
+                            path.stroke(PictriFinalTheme.ink, lineWidth: 1.4)
+                        } else {
+                            path.stroke(PictriFinalTheme.dormantDot, style: StrokeStyle(lineWidth: 1, dash: [2.5, 2]))
+                        }
+                    }
             }
         }
     }
@@ -829,8 +872,16 @@ private struct QuestAreaExploreScreen: View {
     }
 }
 
-// MARK: - Spot Detail (Cameraへの入口。既存の黒基調UIを維持)
-
+// MARK: - Spot Detail
+//
+// Secondary Experience Finalization Phase: 以前はこの画面だけ.white/.blackの
+// ハードコード配色+旧PictriTheme/PictriLightTheme.photoDepthのままで、Appearance
+// (Dark/Light)に一切追従していなかった。PictriFinalTheme/PictriDarkTheme(mode-aware)
+// ベースへ全面的に作り直す。
+//
+// Product Role: Map=場所を探す、SpotDetail=その場所を知る、Camera=そこでMemoryを残す。
+// SpotDetail = PLACE + MEMORY POSSIBILITY + UNLOCK STATE。スタンプラリー画面にはしない
+// (ロック/チェックマークバッジ・「景色→表情」ステップ予告・gaming wordingを廃止)。
 struct QuestSpotDetailView: View {
     let spot: QuestSpot
     @Binding var selectedTab: AppTab
@@ -849,304 +900,170 @@ struct QuestSpotDetailView: View {
         developerUnlockMode || locationManager.isNear(spot)
     }
 
-    private var statusText: String {
-        if developerUnlockMode {
-            return "開発モードで撮影できます"
-        }
-
-        if isUnlocked {
-            return "現地で撮影できます"
-        }
-
-        return "現地に近づくと撮影できます"
+    /// Product Decision「Camera Unlock → Spot Unlock」。Cameraはどこでも使える
+    /// (Anywhere Capture)ため、この状態はCamera自体をgateする意味を持たない、
+    /// あくまで「このSpotとしての記録が今このタイミングで成立するか」を静かに伝えるだけ。
+    /// 「ロック解除」「チャレンジ」のようなgaming wordingは使わない。
+    private var stateText: String {
+        if isCompleted { return "ここでの記憶がある" }
+        if isUnlocked { return "ここで残せます" }
+        return "まだ残していない場所"
     }
 
-    // MARK: - SpotDetail theme colors
-    private var cardBackground: Color { PictriTheme.surface }
-    private var primaryText: Color { .white }
-    private var secondaryText: Color { .white.opacity(0.48) }
-    private var dividerColor: Color { .white.opacity(0.10) }
+    private var stateIcon: String {
+        if isCompleted { return "checkmark" }
+        if isUnlocked { return "mappin" }
+        return "circle"
+    }
+
+    private var stateIconColor: Color {
+        if isCompleted { return PictriFinalTheme.accent }
+        if isUnlocked { return PictriFinalTheme.inkSoft }
+        return PictriFinalTheme.inkFaint
+    }
+
+    /// 撮影済みスポットへ戻ってきた時は「もう一枚残す」、初めてのスポットは
+    /// 「この場所で残す」。Anywhere Captureのため、CTAは状態にかかわらず常に押せる
+    /// (未unlockでも「カメラを開く」として機能し、Camera自体をgateしない)。
+    private var actionTitle: String {
+        guard isUnlocked else { return "カメラを開く" }
+        return isCompleted ? "もう一枚、ここで残す" : "この場所で残す"
+    }
 
     var body: some View {
         ZStack {
-            // Cameraへの入口の画面なので、純黒ではなくCameraと同じdeep indigoに揃える。
-            PictriLightTheme.photoDepth.ignoresSafeArea()
+            PictriFinalTheme.paper.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 18) {
-                    hero
-                    statusCard
+                VStack(alignment: .leading, spacing: 28) {
+                    identity
+                    stateRow
                     actionButton
-                    memoryPreview
+
+                    if let image = memoryStore.image(for: spot) {
+                        memoryPrint(image)
+                    }
+
                     Spacer(minLength: JQUI.bottomBarReserve)
                 }
-                .padding(16)
+                .padding(.horizontal, PictriFinalTheme.screenPadding)
+                .padding(.top, 28)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("pictri_spot_detail_\(spot.id)")
     }
 
-    private var hero: some View {
-        ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: 34)
-                .fill(MemoryVisualStyle.gradient(for: spot))
-                .frame(height: 360)
+    /// 場所のidentity。公式Spot写真がProductionに存在しないため、写真Heroの代わりに
+    /// Mapと同じ県shape(小さく・色付き、日本地図全体は再掲しない)+タイポグラフィだけで
+    /// 場所らしさを成立させる(AI生成画像は追加しない、Design Spec 13章)。
+    private var identity: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                prefectureShapeGlyph
+                    .frame(width: 34, height: 34)
 
-            LinearGradient(
-                colors: [
-                    .black.opacity(0),
-                    .black.opacity(0.68)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 34))
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text(spot.areaName)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.82))
-
-                Text(spot.name)
-                    .font(.system(size: 36, weight: .black))
-                    .foregroundStyle(.white)
-
-                HStack(spacing: 8) {
-                    Text(spot.englishName.lowercased())
-                        .font(.system(size: 13, weight: .bold, design: .monospaced))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(.white.opacity(0.16))
-                        .clipShape(Capsule())
-
-                    heroStatusChip
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(prefectureName)
+                        .font(PictriTypography.mono(11, weight: .bold))
+                        .tracking(1.0)
+                        .foregroundStyle(PictriFinalTheme.inkFaint)
+                    Text(spot.areaName)
+                        .font(PictriTypography.body(12, weight: .semibold))
+                        .foregroundStyle(PictriFinalTheme.inkSoft)
                 }
-                .foregroundStyle(.white)
             }
-            .padding(24)
+
+            Text(spot.name)
+                .font(PictriTypography.display(34))
+                .foregroundStyle(PictriFinalTheme.ink)
         }
     }
 
-    private var statusCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("撮影状態")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(secondaryText)
+    private var prefectureName: String {
+        mockQuestPrefectures.first(where: { $0.id == spot.prefectureId })?.name
+            ?? questPrefectureShapes.first(where: { $0.id == spot.prefectureId })?.name
+            ?? spot.prefectureId
+    }
 
-                    Text(statusText)
-                        .font(.system(size: 19, weight: .bold))
-                        .foregroundStyle(primaryText)
-                }
+    private var prefectureShapeGlyph: some View {
+        GeometryReader { proxy in
+            if let shape = questPrefectureShapes.first(where: { $0.id == spot.prefectureId }) {
+                let points = QuestPrefectureGeometry.points(for: shape)
+                let xs = points.map(\.x)
+                let ys = points.map(\.y)
+                let minX = xs.min() ?? 0
+                let minY = ys.min() ?? 0
+                let width = max((xs.max() ?? 1) - minX, 1)
+                let height = max((ys.max() ?? 1) - minY, 1)
+                let pad: CGFloat = 2
+                let scale = min((proxy.size.width - pad * 2) / width, (proxy.size.height - pad * 2) / height)
+                let offsetX = (proxy.size.width - width * scale) / 2 - minX * scale
+                let offsetY = (proxy.size.height - height * scale) / 2 - minY * scale
 
-                Spacer()
-
-                Image(systemName: isUnlocked ? "camera.fill" : "lock.fill")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle((isCompleted || isUnlocked) ? .black : .white.opacity(0.40))
-                    .frame(width: 46, height: 46)
-                    .background(statusIconColor)
-                    .clipShape(Circle())
+                PictriCollectionPrefecturePath(points: points, scale: scale, offsetX: offsetX, offsetY: offsetY)
+                    .fill(PictriFinalTheme.memoryColor(for: spot.prefectureId))
             }
-
-            Rectangle()
-                .fill(dividerColor)
-                .frame(height: 1)
-
-            HStack {
-                PictriCompactMetric(label: "現在地から", value: locationManager.distanceText(to: spot))
-
-                Spacer()
-
-                PictriCompactMetric(label: "メモリー", value: isCompleted ? "保存済み" : "未撮影")
-            }
-
-            Text("現地に着くと解放。正確な住所は表示されません。")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(secondaryText)
         }
-        .padding(16)
-        .background(cardBackground)
-        // CameraのPictriStatusCardと同じcornerMedium(20)+borderに揃える。
-        // 以前は24という、白基調/暗色どちらのトークン体系にも属さない孤立値だった。
-        .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous)
-                .stroke(.white.opacity(0.08), lineWidth: 1)
+    }
+
+    /// unlock状態+距離は1行の静かなテキストのみ。距離は位置情報が取れている時だけ
+    /// 補助情報として添える(取得できない時に0m等のfake distanceは出さない)。
+    private var stateRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: stateIcon)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(stateIconColor)
+
+            Text(stateText)
+                .font(PictriTypography.body(13, weight: .semibold))
+                .foregroundStyle(PictriFinalTheme.inkSoft)
+
+            if locationManager.distance(to: spot) != nil {
+                Text("・\(locationManager.distanceText(to: spot))")
+                    .font(PictriTypography.mono(12, weight: .regular))
+                    .foregroundStyle(PictriFinalTheme.inkFaint)
+            }
         }
         .accessibilityElement(children: .combine)
         .animation(.easeInOut(duration: 0.3), value: isUnlocked)
     }
 
-    /// teal=「記憶がある(isCompleted)」、accent=「今できる行動(isUnlocked)」で役割を分離する。
-    /// 現在地に関わらず、一度でも撮ったスポットは常にtealのまま。
-    /// 撮影可能だが未訪問のスポットをtealにすると「訪問済み」に見えてしまうため、
-    /// その場合はaccentを使う(Memories側のteal=訪問済みという意味と衝突させない)。
-    private var statusIconColor: Color {
-        if isCompleted { return PictriTheme.teal }
-        if isUnlocked { return PictriTheme.accent }
-        return .white.opacity(0.10)
-    }
-
-    /// Cameraの2ステップ("景色→表情")を撮影前に予告する小さなプレビュー。
-    /// SpotDetailが「地図の詳細ページ」ではなく「撮影の入口」だと視覚的につなげる役割。
-    private var captureStepsPreview: some View {
-        HStack(spacing: 8) {
-            capturePreviewPill(label: "景色", systemImage: "mountain.2.fill")
-            Image(systemName: "arrow.right")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.white.opacity(0.28))
-            capturePreviewPill(label: "表情", systemImage: "face.smiling.fill")
-        }
-        .opacity(isUnlocked ? 1 : 0.4)
-    }
-
-    private var capturePillForeground: Color {
-        guard isUnlocked else { return .white.opacity(0.42) }
-        return isCompleted ? PictriTheme.teal : PictriTheme.accent
-    }
-
-    private var capturePillBackground: Color {
-        guard isUnlocked else { return .white.opacity(0.06) }
-        return isCompleted ? PictriTheme.tealSoft : PictriTheme.accentSoft
-    }
-
-    private func capturePreviewPill(label: String, systemImage: String) -> some View {
-        HStack(spacing: 5) {
-            Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .bold))
-            Text(label)
-                .font(.system(size: 11, weight: .bold))
-        }
-        .foregroundStyle(capturePillForeground)
-        .padding(.horizontal, 11)
-        .padding(.vertical, 6)
-        .background(capturePillBackground)
-        .clipShape(Capsule())
-    }
-
-    @ViewBuilder
-    private var heroStatusChip: some View {
-        if isCompleted {
-            Label("撮影済み", systemImage: "checkmark")
-                .font(.system(size: 13, weight: .bold))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(.white)
-                .foregroundStyle(.black)
-                .clipShape(Capsule())
-        } else if isUnlocked {
-            Label("撮影可能", systemImage: "camera.fill")
-                .font(.system(size: 13, weight: .bold))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(PictriTheme.accent)
-                .foregroundStyle(.black)
-                .clipShape(Capsule())
-        } else {
-            Label("未撮影", systemImage: "circle")
-                .font(.system(size: 13, weight: .bold))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(.white.opacity(0.13))
-                .foregroundStyle(.white.opacity(0.70))
-                .clipShape(Capsule())
-        }
-    }
-
-    /// 撮影済みスポットへ戻ってきた時は「もう一枚残す」、初めてのスポットは
-    /// 「この場所で撮る」と分けることで、PicTriの「現地で残す」体験を強調する。
-    private var actionButtonLabel: String {
-        guard isUnlocked else { return "現地に行くと撮れます" }
-        return isCompleted ? "もう一枚、ここで残す" : "この場所で撮る"
-    }
-
-    /// 訪問済み(teal)でもう一枚残す場合は「記憶(teal)→次の一枚(accent)」のグラデーションのまま。
-    /// 初めて訪れる場所は記憶がまだ無いので、teal無しの単色accentにする
-    /// (accentだけの単色でも「訪問済みに見える」ほど強い印象を残さないため)。
-    private var actionButtonBackground: AnyShapeStyle {
-        guard isUnlocked else { return AnyShapeStyle(.white.opacity(0.10)) }
-        guard isCompleted else { return AnyShapeStyle(PictriTheme.accent) }
-        return AnyShapeStyle(
-            LinearGradient(
-                colors: [PictriTheme.teal, PictriTheme.accent],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        )
-    }
-
     private var actionButton: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            captureStepsPreview
-
-            Button {
-                guard isUnlocked else {
-                    return
-                }
-
-                activeCameraSpotId = spot.id
-                selectedTab = .camera
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: isUnlocked ? "camera.fill" : "location.fill")
-                    Text(actionButtonLabel)
-                }
-                // Cameraの「撮り直す」「メモリーに保存」と同じ角丸・padding・文字サイズに揃える。
-                // SpotDetailがCameraへの入口として、同じPicTriのボタンに見えるようにするため。
-                .font(.system(size: 15, weight: .bold))
+        Button {
+            // Product Decision「Camera Unlock → Spot Unlock」。isUnlocked(このSpot
+            // radius内か)にかかわらず、Cameraは常に開ける(Anywhere Capture)。
+            // このSpotとしての記録・unlockが成立するかは、Camera側が保存時点の
+            // 現在地で改めて判定する(CameraView.currentCaptureTarget参照)。
+            activeCameraSpotId = spot.id
+            selectedTab = .camera
+        } label: {
+            Text(actionTitle)
+                .font(PictriTypography.body(15, weight: .bold))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 15)
-                .background(actionButtonBackground)
-                .foregroundStyle(isUnlocked ? .black : .white.opacity(0.38))
-                .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous))
-            }
-            .disabled(!isUnlocked)
-            .accessibilityLabel(isUnlocked ? "\(spot.name)でカメラを起動" : "\(spot.name)は現地に行くと撮影できます")
-            .accessibilityIdentifier("pictri_spot_detail_camera_cta")
-            .animation(.easeInOut(duration: 0.3), value: isUnlocked)
+                .padding(.vertical, 16)
+                .background(PictriFinalTheme.accent)
+                .foregroundStyle(PictriFinalTheme.onAccent)
+                .clipShape(RoundedRectangle(cornerRadius: PictriFinalTheme.radiusControl, style: .continuous))
         }
+        .accessibilityLabel(isUnlocked ? "\(spot.name)でカメラを起動" : "カメラを起動、近づくと\(spot.name)の記録が残せます")
+        .accessibilityIdentifier("pictri_spot_detail_camera_cta")
     }
 
-    private var memoryPreview: some View {
+    /// 既存Memoryがある場合のみ表示する(無ければ何も出さない。空の枠+説明文で
+    /// 埋めない、上のCTAが既に撮影への導線を担っているため)。
+    private func memoryPrint(_ image: UIImage) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("メモリー")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(primaryText)
+            Text("この場所の記憶")
+                .font(PictriTypography.mono(11, weight: .bold))
+                .tracking(1.0)
+                .foregroundStyle(PictriFinalTheme.inkFaint)
 
-            // statusCardと同じcornerMedium(20)に揃える(以前は24という孤立値だった)。
-            if let image = memoryStore.image(for: spot) {
-                ZStack(alignment: .bottomLeading) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(height: 260)
-                        .clipped()
-                        .clipShape(RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous))
-
-                    PictriGlassPill(text: spot.englishName.lowercased(), tone: .muted)
-                        .padding(14)
-                }
-            } else {
-                ZStack {
-                    RoundedRectangle(cornerRadius: PictriTheme.cornerMedium, style: .continuous)
-                        .fill(cardBackground)
-                        .frame(height: 220)
-
-                    VStack(spacing: 10) {
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 32, weight: .regular))
-                            .foregroundStyle(.white.opacity(0.28))
-
-                        Text("ここで最初の一枚を残そう")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.55))
-                    }
-                }
+            PictriPhotoPrint(rotationSeed: spot.id, aspectRatio: 4.0 / 5.0, padding: 7) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
             }
         }
     }
-
 }
