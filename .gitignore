@@ -48,3 +48,14 @@ fastlane/test_output/
 .env
 .env.*
 GoogleService-Info.plist
+
+# Internal QA scratchpad — round-by-round screenshots, DEBUG dumps, device
+# info text (may contain device serials/UDIDs), never meant for the public
+# repo. Added for the GitHub public/job-hunt release round; not retroactive
+# (files already committed before this round are unaffected — see the
+# separate Final Report note on already-tracked files).
+scratchpad/
+
+# Internal AI-session continuity notes (not polished documentation, and can
+# contain local absolute paths with the developer's real machine username).
+docs/CLAUDE_CHECKPOINT.md

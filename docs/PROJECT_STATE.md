@@ -228,7 +228,7 @@ Reduce Motionフォールバックは前ラウンドまでに検証済みのコ�
 
 前ラウンド(Cinematic Peel Finalization、内部自己評価84/100)をユーザーが
 Visual Review(見た目)の観点で不採用と判断。今回はユーザー提供の実画像
-(6-panelストーリーボード、`/Users/takakikeita/Desktop/pictriimageopening.png`)
+(6-panelストーリーボード、ローカル design mockup `pictriimageopening.png`)
 を唯一のVisual Source of Truthとし、**前ラウンドの実装を保護対象とせず**、
 画像の実測値からOpeningを作り直した(過去ラウンドの数値・パラメータは
 一切引き継いでいない)。
