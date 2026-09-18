@@ -27,10 +27,27 @@ struct MemoriesView: View {
     @State private var showAIComingSoonAlert = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(pendingExploreSpotId: Binding<String?>, initialMode: MemoriesViewMode = .collect) {
+    /// MAP/ALBUM REFERENCE MIGRATION: 新しいAlbum top-level画面(`.collect`)が
+    /// shared Dockを使うために必要な、Home/Map同様の橋渡し。`.vlog`起動元
+    /// (呼び出し側が渡さない、既定値のまま)は今回のReference対象外のため
+    /// 影響を受けない。
+    private let selectedTabBinding: Binding<AppTab>
+    private let onAccountTap: () -> Void
+    private let notificationBadgeCount: Int
+
+    init(
+        pendingExploreSpotId: Binding<String?>,
+        initialMode: MemoriesViewMode = .collect,
+        selectedTab: Binding<AppTab> = .constant(.memories),
+        onAccountTap: @escaping () -> Void = {},
+        notificationBadgeCount: Int = 0
+    ) {
         self._pendingExploreSpotId = pendingExploreSpotId
         self.initialMode = initialMode
         self._viewMode = State(initialValue: Self.resolveInitialMode(initialMode))
+        self.selectedTabBinding = selectedTab
+        self.onAccountTap = onAccountTap
+        self.notificationBadgeCount = notificationBadgeCount
     }
 
     /// `-pictriMemoriesMode collect|vlog` でDEBUG QA時だけ強制的に上書きできる。
@@ -183,102 +200,56 @@ struct MemoriesView: View {
             }
     }
 
-    /// dormant側は日本全体(questPrefectureShapes、47都道府県の実データ)を基準にする。
-    /// mockQuestPrefectures(スポットが用意されている4県のみ)を基準にすると
-    /// 「あと40」のような文言が成立しないため。
-    private var dormantPrefectureNames: [String] {
-        questPrefectureShapes
-            .filter { !memoryStore.visitedPrefectureIds.contains($0.id) }
-            .map(\.name)
-    }
-
     private var totalMemoryCount: Int {
         memoryStore.memoryPhotos.count
     }
 
+    /// MAP/ALBUM REFERENCE MIGRATION: 旧`collectBody`(PictriFinalTheme.paper
+    /// ベースの単純な県一覧、Homeと似ていないtop language)を、新しい
+    /// `PictriAlbumScreen`(Home/Map共通Design System・Round 8 Progress
+    /// Resolver・shared Dock)へ置き換えた。`prefectureRows`/`dormantClosingBlock`/
+    /// `collectEmptyState`(旧実装)は下記`albumRows`が空データ状態も内包する
+    /// ため未使用になり、死にコードとして削除した(詳細はFinal Report)。
+    /// 県詳細への遷移(`navigationPath`への`QuestPrefecture`追加)は既存の
+    /// `navigationDestination(for: QuestPrefecture.self)`をそのまま使う
+    /// (県詳細画面`PrefectureMemoryDetailView`自体は今回変更しない)。
     private var collectBody: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 30) {
-                memoriesHeader
-
-                if totalMemoryCount == 0 {
-                    collectEmptyState
-                } else {
-                    // Visual Direction Consolidation: 日本地図(indexMapSection)は
-                    // Mapタブと役割が重複していたため削除した。「場所を見る」はMap、
-                    // 「時間・写真を振り返る」はMemoriesという役割分離に合わせ、ここは
-                    // 「今どこまで集まっているか」の要約テキストだけに留める
-                    // (memoriesHeaderの「N県・N枚 集めた」がその役割を担う)。
-                    prefectureRows
-                    dormantClosingBlock
-                }
-
-                Spacer(minLength: JQUI.bottomBarReserve)
-            }
-            .padding(.horizontal, JQUI.sidePadding)
-            .padding(.top, JQUI.screenTopPadding)
-        }
-    }
-
-    private var collectEmptyState: some View {
-        PictriEmptyState(
-            systemImage: "map",
-            title: "まだ写真がありません",
-            message: "Mapでスポットを訪れて\n最初の記録を残しましょう",
-            isLight: true
+        PictriAlbumScreen(
+            rows: albumRows,
+            completedPrefectureCount: albumCompletedPrefectureCount,
+            inProgressPrefectureCount: albumInProgressPrefectureCount,
+            totalPrefectureCount: questPrefectureShapes.count,
+            completedSpotCount: memoryStore.totalCompletedRecommendedSpotCount,
+            totalSpotCatalogCount: memoryStore.totalRecommendedSpotCatalogCount,
+            notificationBadgeCount: notificationBadgeCount,
+            onAccountTap: onAccountTap,
+            onSelectPrefecture: { navigationPath.append($0) },
+            onCameraTap: { selectedTabBinding.wrappedValue = .camera },
+            onMapTap: { selectedTabBinding.wrappedValue = .map },
+            onHomeTap: { selectedTabBinding.wrappedValue = .home }
         )
-        .padding(.horizontal, 8)
-        .padding(.top, 40)
     }
 
-    private var prefectureRows: some View {
-        VStack(spacing: 0) {
-            PictriHairline()
-            ForEach(visitedPrefectures) { prefecture in
-                NavigationLink(value: prefecture) {
-                    PrefectureMemoryRow(prefecture: prefecture)
-                }
-                .buttonStyle(.plain)
-
-                PictriHairline()
-            }
-        }
+    /// `visitedPrefectures`(既存)と`memoryStore.albumSummaries()`は共に
+    /// `questPrefectureShapes`を同じ`visitedPrefectureIds`でfilterするため、
+    /// 順序・件数が常に一致する(zip可能)。
+    private var albumRows: [(prefecture: QuestPrefecture, summary: PrefectureAlbumSummary)] {
+        let summaries = memoryStore.albumSummaries()
+        return Array(zip(visitedPrefectures, summaries))
     }
 
-    /// Design Spec「Closing dormant block: dashed border, 「まだ白地図の県、あと40」,
-    /// dormant prefecture chips, 「つぎはどこへ？ 〜」」。
-    private var dormantClosingBlock: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("まだ白地図の県、あと\(dormantPrefectureNames.count)")
-                .font(PictriTypography.body(13, weight: .bold))
-                .foregroundStyle(PictriFinalTheme.inkSoft)
+    private var albumCompletedPrefectureCount: Int {
+        albumRows.filter { $0.summary.progress.collectionLevel == .complete }.count
+    }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(dormantPrefectureNames, id: \.self) { name in
-                        Text(name)
-                            .font(PictriTypography.body(12, weight: .medium))
-                            .foregroundStyle(PictriFinalTheme.inkFaint)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .overlay {
-                                Capsule()
-                                    .strokeBorder(PictriFinalTheme.dormantDot, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                            }
-                    }
-                }
-            }
-
-            Text("つぎはどこへ？")
-                .font(PictriTypography.body(13, weight: .semibold))
-                .foregroundStyle(PictriFinalTheme.inkSoft)
-        }
-        .padding(16)
-        .overlay {
-            RoundedRectangle(cornerRadius: PictriFinalTheme.radiusGroupedBlock, style: .continuous)
-                .strokeBorder(PictriFinalTheme.dormantDot, style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
-        }
-        .accessibilityElement(children: .combine)
+    /// 「進行中」= 1件以上コンプリートしているが全達成ではない県。0件のまま
+    /// 訪問しただけの県(visitedNoSpots)は「進行中」に含めない
+    /// (Referenceの千葉県が「あと5スポット」であって「進行中」ではないことと整合)。
+    private var albumInProgressPrefectureCount: Int {
+        albumRows.filter {
+            let level = $0.summary.progress.collectionLevel
+            return level != .unvisited && level != .visitedNoSpots && level != .complete
+        }.count
     }
 
     // MARK: - Vlog
@@ -602,72 +573,6 @@ private struct VlogDayRow: View {
 }
 
 // MARK: - Prefecture Memory Row (Memories Index)
-
-/// Design Spec「Prefecture rows below, hairline-separated: prefecture shape 38 in its
-/// color · name (display 15) · place names (11 faint, single line, ellipsis) ·
-/// two 44px prints · caret」。
-private struct PrefectureMemoryRow: View {
-    let prefecture: QuestPrefecture
-    @EnvironmentObject var memoryStore: QuestMemoryStore
-
-    private var photos: [QuestMemoryPhoto] {
-        memoryStore.memoryPhotos.filter { $0.prefectureId == prefecture.id }
-    }
-
-    /// スポット単位ではなく「場所(area)」単位の名前を並べる(Section G/Hの
-    /// 「場所」の粒度に合わせる)。出現順を保ったまま重複だけ除く。
-    private var placeNamesText: String {
-        var seen = Set<String>()
-        var ordered: [String] = []
-        for photo in photos {
-            let spot = mockQuestSpots.first(where: { $0.id == photo.spotId }) ?? QuestSpot.synthesized(for: photo)
-            if seen.insert(spot.areaName).inserted {
-                ordered.append(spot.areaName)
-            }
-        }
-        return ordered.joined(separator: "・")
-    }
-
-    private var previewPhotos: [QuestMemoryPhoto] {
-        Array(photos.prefix(2))
-    }
-
-    var body: some View {
-        HStack(spacing: 14) {
-            PictriPrefectureShapeIcon(prefectureId: prefecture.id, color: PictriFinalTheme.memoryColor(for: prefecture.id))
-                .frame(width: 38, height: 38)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(prefecture.name)
-                    .font(PictriTypography.display(15))
-                    .foregroundStyle(PictriFinalTheme.ink)
-
-                Text(placeNamesText)
-                    .font(PictriTypography.body(11, weight: .medium))
-                    .foregroundStyle(PictriFinalTheme.inkFaint)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-
-            Spacer(minLength: 8)
-
-            HStack(spacing: 6) {
-                ForEach(previewPhotos) { photo in
-                    MiniMemoryPrint(photo: photo)
-                        .frame(width: 44, height: 44)
-                }
-            }
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(PictriFinalTheme.inkFaint)
-        }
-        .padding(.vertical, 14)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(prefecture.name)、\(placeNamesText)")
-    }
-}
 
 /// 44px/72pxのような極小サイズ専用の簡易プリント。PictriPhotoPrint(印刷物としての
 /// paper mat・shadow)は5pt paddingだけでもこのサイズではmatが写真本体を圧迫するため、

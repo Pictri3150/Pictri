@@ -43,8 +43,17 @@ struct PictriHomeMemoryCard: View {
 
     @State private var showFront = true
     @State private var isFlipped = false
+    /// v10 PRODUCTION HOTFIX: Reduce Motion時、旧実装は`showFront`の
+    /// crossfadeだけで「反転」を表現しており、3D回転が完全に0固定
+    /// (`outerFlipDegrees`参照)のため実質「画像が入れ替わるだけ」に
+    /// 見えていた。3D perspective/parallaxは加えず(Reduce Motionの
+    /// 意図を尊重)、affineな水平scaleだけで「一度edge-onまで潰れて
+    /// 戻る」動きを作り、Reduce Motion時でも「同じ物体が反転した」と
+    /// 分かるようにする。
+    @State private var reducedFlipSqueeze: CGFloat = 1
 
     private var flipDuration: Double { reduceMotion ? 0.001 : 0.5 }
+    private let reducedFlipHalfDuration: Double = 0.18
 
     /// 外カメラ(場所)の生画像。旧Memoryではnilになりうる。
     private var frontImage: UIImage? {
@@ -109,6 +118,29 @@ struct PictriHomeMemoryCard: View {
         photoStack
     }
 
+    /// Round 8: Anywhere Memory = neutral silver/soft-white rim、Recommended
+    /// Spot Memory = PicTri Lavenderのrim。どちらもv7で確定した「top→bottomの
+    /// 垂直方向のみ」という構造は変えず、色のstopだけを差し替える(ネオン/発光/
+    /// 太枠にはしない、既存と同じ1.25ptのまま)。
+    private var rimColors: [Color] {
+        switch post.captureKind {
+        case .recommendedSpot:
+            return [
+                PictriHomeBrandAccent.accent.opacity(0.40),  // top
+                PictriHomeBrandAccent.accent.opacity(0.16),
+                Color.black.opacity(0.10),
+                Color.black.opacity(0.22)                     // bottom
+            ]
+        case .anywhere:
+            return [
+                PictriPrefectureProgressTheme.softWhite.opacity(0.20),  // top
+                PictriPrefectureProgressTheme.softWhite.opacity(0.06),
+                Color.black.opacity(0.10),
+                Color.black.opacity(0.22)                                // bottom
+            ]
+        }
+    }
+
     @ViewBuilder
     private var photoStack: some View {
         ZStack(alignment: .top) {
@@ -120,6 +152,8 @@ struct PictriHomeMemoryCard: View {
                 }
             }
 
+            photoDepthVignette
+
             topScrim
             bottomScrim
 
@@ -128,82 +162,47 @@ struct PictriHomeMemoryCard: View {
                 .padding(.top, 14)
         }
         .clipShape(RoundedRectangle(cornerRadius: PictriHomeCardTheme.cornerRadius, style: .continuous))
-        // v8 REFERENCE FIDELITY BEZEL: 3候補を17 Pro Dark実写真で比較した。
-        // A) CURRENT RESTRAINED — 縦方向LinearGradientの2.4pt stroke(旧実装)。
-        //    厚みは出たが全周で明暗差が単調で、Referenceの「光源方向が
-        //    感じられる」質感には届かなかった。
-        // B) REFERENCE FIDELITY(採用) — AngularGradientで
-        //    top-left champagne highlight → right warm terracotta reflection →
-        //    bottom dark thickness → left neutral hairlineという方向性のある
-        //    光を作り、lineWidthも3.6ptへ拡大。実写真で見るとCurrentより
-        //    明確に「額縁」の物体感が出て、Referenceに最も近づいた。
-        // C) REFERENCE FIDELITY -15% — Bの各stop opacityとlineWidthを
-        //    約15%落とした版。悪くはないがBと並べると差が小さく、
-        //    「怖がって弱くしすぎない」という方針とBの実写真での説得力を
-        //    踏まえてBを採用した。
-        // 内側にはpaper-thickness用の2層(neutral hairline+dark stroke)を
-        // 追加し、額縁の断面のような厚みを表現している。
+        // v6 BEZEL RECONSTRUCTION: 旧実装は外周3.6pt(AngularGradient、最大opacity
+        // 0.40)+内側highlight 1pt+内側shadow 1ptの計3層・実効5.6ptぶんの
+        // strokeを全周へ均一に重ねており、これが「太いgray plastic frame」に
+        // 見える直接の原因だった(写真が無い/暗いplaceholder状態だと特に、
+        // 枠だけが目立つ額縁として浮いて見える)。層数は3→1へ削減、
+        // lineWidthも3.6→1.25pt(数px単位のmicro edge)へ縮小した。
+        //
+        // v7 BILATERAL SYMMETRY FIX: v6のAngularGradientは「upper-leftを
+        // 最も明るく、upper-rightをごく暗く」という意図でstopを置いたが、
+        // 実際のFinal screenshotをpixel計測した結果、右edgeのpeak輝度が
+        // 左edgeの約2倍(right≈65-72 / left≈28-36、TOP・CENTER・BOTTOM
+        // すべての帯で右が明るい)という明確な左右非対称になっていた。
+        // `AngularGradient(startAngle: .degrees(0), ...)`の角度原点が
+        // 「top」だという前提でstopのlocationをコメント付けしていたが、
+        // 実際の描画はその前提と一致しておらず、結果的に右側だけ強い
+        // rimになっていた(handoffされたコメントの角度対応が実際の
+        // レンダリングと食い違っていたことが根本原因)。
+        // 今回は角度ベースの構成自体をやめ、「top→bottomの垂直方向のみ」の
+        // `LinearGradient(startPoint: .top, endPoint: .bottom)`へ置き換えた。
+        // 垂直方向のみのgradientはX座標に一切依存しないため、左右対称で
+        // あることが構造的に保証される(角度の思い違いが再発しようがない)。
+        // 主光源はscreen top、下端はcontact depthといういう既存の方針
+        // (Task3)はそのまま踏襲し、左右は完全に中立(同じ値)にした。
+        // v11 ROUND 8 RIM DIFFERENTIATION: Card size/geometry/position/zIndexは
+        // 完全に凍結したまま、bezelの色相だけをcaptureKindで分岐させる。
+        // 構造(top→bottomの垂直LinearGradient、1.25pt、4 stop)はv7 BILATERAL
+        // SYMMETRY FIXのものを一切変更していない(X座標に依存しないため、
+        // 色を差し替えても左右対称性は構造的に保証されたまま)。Recommended
+        // Spotのみ`PictriHomeBrandAccent.accent`(PicTri Lavender)を薄く混ぜ、
+        // Anywhereは既存のSoft White系(neutral)のまま(太い枠・発光・
+        // グラデーション状の縁取りにはしない、あくまでmicro edgeの色差)。
         .overlay {
             RoundedRectangle(cornerRadius: PictriHomeCardTheme.cornerRadius, style: .continuous)
                 .strokeBorder(
-                    AngularGradient(
-                        stops: [
-                            .init(color: PictriHomeCardTheme.bezelHighlight, location: 0.0),
-                            .init(color: Color.white.opacity(0.30), location: 0.08),
-                            .init(color: PictriHomeCardTheme.bezelWarm.opacity(0.85), location: 0.22),
-                            .init(color: PictriHomeCardTheme.bezelWarm.opacity(0.20), location: 0.34),
-                            .init(color: Color.black.opacity(0.42), location: 0.52),
-                            .init(color: Color.black.opacity(0.30), location: 0.68),
-                            .init(color: Color.white.opacity(0.14), location: 0.85),
-                            .init(color: PictriHomeCardTheme.bezelHighlight, location: 1.0)
-                        ],
-                        center: .center,
-                        startAngle: .degrees(-90),
-                        endAngle: .degrees(270)
+                    LinearGradient(
+                        colors: rimColors,
+                        startPoint: .top,
+                        endPoint: .bottom
                     ),
-                    lineWidth: 3.6
+                    lineWidth: 1.25
                 )
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: PictriHomeCardTheme.cornerRadius - 3.6, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
-                .padding(3.6)
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: PictriHomeCardTheme.cornerRadius - 4.6, style: .continuous)
-                .strokeBorder(Color.black.opacity(0.26), lineWidth: 1)
-                .padding(4.6)
-        }
-        // 裏面表示中は内容へあらかじめ+180°の逆回転を掛け、外側の連続flip
-        // (isFlipped)と合成させて鏡像化を防ぐ(PictriMemoryFlipCardで
-        // 確立済みの手法をそのまま踏襲)。
-        .rotation3DEffect(
-            .degrees(reduceMotion ? 0 : (showFront ? 0 : 180)),
-            axis: (x: 0, y: 1, z: 0)
-        )
-        .rotation3DEffect(
-            .degrees(outerFlipDegrees),
-            axis: (x: 0, y: 1, z: 0)
-        )
-        .shadow(color: PictriHomeCardTheme.ambientShadow, radius: 34, x: 0, y: 26)
-        .shadow(color: PictriHomeCardTheme.contactShadow, radius: 6, x: 0, y: 4)
-        // Referenceの「発光ではなく、光を纏っている」空気感。中心から均等に
-        // 広がる非常に弱いwarm glowで、方向性を持たせない(方向を持たせると
-        // 「orangeのdrop shadow」に見え、禁止されているneon glowに近づく)。
-        .shadow(color: PictriDarkTheme.accent.opacity(0.14), radius: 20, x: 0, y: 0)
-        .contentShape(RoundedRectangle(cornerRadius: PictriHomeCardTheme.cornerRadius, style: .continuous))
-        .onTapGesture { flip() }
-        .accessibilityAddTraits(canFlip ? .isButton : [])
-        .accessibilityLabel(
-            canFlip
-                ? (showFront ? "写真。タップするともう一方の写真を表示" : "写真の裏。タップすると表の写真に戻る")
-                : "写真"
-        )
-        .onAppear {
-            if debugShowBackInitially {
-                showFront = false
-                isFlipped = true
-            }
         }
         // v5 #20-22是正: 旧`y: 16`は VStack(circle+count) の下端が既に
         // Card下端とほぼ揃う設計(overlay(.bottomLeading)のデフォルト位置で
@@ -227,6 +226,13 @@ struct PictriHomeMemoryCard: View {
         //    さらに絞った版も検討したが、Bの時点で既に十分quietで
         //    Referenceの主張しすぎない質感と一致したため、追加の縮小は
         //    不要と判断した。
+        //
+        // v8 BUGFIX(flip): このoverlayは元々rotation3DEffectより後段に置かれて
+        // いたため、Flip中もCapsuleだけ回転せず静止して見える(Cardが edge-on
+        // で消えてもCapsuleだけ宙に浮く)実機bugがあった。「写真に貼り付いた
+        // 物理オブジェクト」という前提上、Capsuleも写真と一緒に回転して初めて
+        // 一貫するため、rotation3DEffectより前段(bezel overlay群と同じ位置)へ
+        // 移動した。
         .overlay(alignment: .bottomLeading) {
             if !isCommentNoteOpen {
                 PictriMemorySocialCapsule(
@@ -238,6 +244,53 @@ struct PictriHomeMemoryCard: View {
                 )
                 .padding(.leading, 14)
                 .padding(.bottom, 14)
+            }
+        }
+        // v9 Phase 3 ROOT CAUSE FIX: 旧実装(PictriMemoryFlipCardから踏襲)は
+        // 「裏面コンテンツへの+180°逆回転」と「外側の連続flip回転」という
+        // 2つのrotation3DEffectを直列に重ねていた。rotation3DEffectは
+        // それぞれが独自にperspective投影を行うため、2つを重ねると単一の
+        // 連続回転とは数学的に等価にならない。特に裏面逆回転は showFront
+        // 切り替え(アニメーション中間点、outerFlipDegrees≈90°付近)で
+        // 0°→180°へ「離散的に」ジャンプするため、そのジャンプと外側の
+        // 連続回転(独立した2つ目のperspective投影)が合成された瞬間、
+        // Card全体が一度縮んでから別サイズに戻ったように見える実機不具合の
+        // 原因になっていた(静止した0°/180°ではframeサイズが一致していた
+        // ため、Phase 2時点では検出できなかった)。
+        //
+        // 修正: 3D回転(perspective投影)はこの1つのrotation3DEffectだけに
+        // 統合する。裏面の鏡像化補正は、perspectiveを持たないaffineな
+        // scaleEffect(x: -1)へ置き換えた。affine変換はperspective項を
+        // 持たないため、外側の3D回転と重ねても二重投影による歪みが発生
+        // しない(静止時の見え方はscaleEffect(-1) + 180°回転 = 元の
+        // 「+180°逆回転 + 180°回転」と数学的に同じ結果になるため、
+        // front/back静止状態の見え方はPhase 2から変更なし)。
+        .scaleEffect(x: (reduceMotion ? reducedFlipSqueeze : (showFront ? 1 : -1)), y: 1)
+        .rotation3DEffect(
+            .degrees(outerFlipDegrees),
+            axis: (x: 0, y: 1, z: 0)
+        )
+        // v9 POST QUALITY / BEZEL CLOSURE: 旧v8はここへさらに
+        // `PictriHomeBrandAccent.accent.opacity(0.14)`の全方位shadow(radius20,
+        // y:0)を重ね、「光を纏っている空気感」を狙っていたが、実際には
+        // Card全体を均等に紫へ滲ませる「発光」そのものであり、今回明示的に
+        // 禁止された「紫の強い発光」に該当するため削除した。深さは
+        // 「接地に近い小さいshadow」+「弱いambient shadow」の2層だけで表現する
+        // (Glowではなく物理的な浮きの表現)。
+        .shadow(color: PictriHomeCardTheme.ambientShadow, radius: 24, x: 0, y: 16)
+        .shadow(color: PictriHomeCardTheme.contactShadow, radius: 6, x: 0, y: 3)
+        .contentShape(RoundedRectangle(cornerRadius: PictriHomeCardTheme.cornerRadius, style: .continuous))
+        .onTapGesture { flip() }
+        .accessibilityAddTraits(canFlip ? .isButton : [])
+        .accessibilityLabel(
+            canFlip
+                ? (showFront ? "写真。タップするともう一方の写真を表示" : "写真の裏。タップすると表の写真に戻る")
+                : "写真"
+        )
+        .onAppear {
+            if debugShowBackInitially {
+                showFront = false
+                isFlipped = true
             }
         }
     }
@@ -268,6 +321,23 @@ struct PictriHomeMemoryCard: View {
         .frame(maxHeight: .infinity, alignment: .bottom)
     }
 
+    /// POST QUALITY: 写真に色を足すfilterではなく、四隅の黒レベルだけを
+    /// ごくわずかに沈める(multiply)。写真が背景の黒とほぼ同輝度で
+    /// 混ざり合い「枠だけが浮いた輪郭」に見える/背景へ溶けて奥行きが
+    /// 消える、という2つの失敗を避け、写真自体に「物として占有する
+    /// 領域」の分離を与える。色相・彩度は一切変更しない(neutral black
+    /// のみ)。
+    private var photoDepthVignette: some View {
+        RadialGradient(
+            colors: [Color.clear, Color.black.opacity(0.16)],
+            center: .center,
+            startRadius: 40,
+            endRadius: 260
+        )
+        .blendMode(.multiply)
+        .allowsHitTesting(false)
+    }
+
     @ViewBuilder
     private func photoLayer(_ image: UIImage?) -> some View {
         if let image {
@@ -275,15 +345,37 @@ struct PictriHomeMemoryCard: View {
                 .resizable()
                 .scaledToFill()
         } else {
-            LinearGradient(
-                colors: [PictriHomeCardTheme.placeholderTop, PictriHomeCardTheme.placeholderBottom],
-                startPoint: .top, endPoint: .bottom
-            )
+            // v6 TASK3 MISSING PHOTO QUALITY: 旧実装は`surfaceRaised→
+            // surfaceOverlay`(値の近い2色)だけの縦グラデーションで、
+            // ほぼ無地に近く「巨大な黒いRectangle」に見えていた。
+            // アイコン・「No Image」文字・派手なgradient borderは追加せず、
+            // 1) 既存の縦グラデーションはそのまま基調として維持し、
+            // 2) 中央よりやや上に、ごく低振幅(opacity 0.05)のradial sheenを
+            //    1層重ねるだけで、「面」ではなく「光を受ける面」に見える
+            //    最小限の depth cueを足す(実写真があるProductionでは
+            //    このViewは一切描画されないため、既存の写真表示に干渉しない)。
+            ZStack {
+                LinearGradient(
+                    colors: [PictriHomeCardTheme.placeholderTop, PictriHomeCardTheme.placeholderBottom],
+                    startPoint: .top, endPoint: .bottom
+                )
+                RadialGradient(
+                    colors: [Color.white.opacity(0.05), Color.clear],
+                    center: UnitPoint(x: 0.5, y: 0.36),
+                    startRadius: 8,
+                    endRadius: 280
+                )
+            }
         }
     }
 
     /// capsule背景を廃し、avatar+文字を直接scrimの上に乗せる(参考画像の
     /// 一体感を踏襲)。
+    /// v6 TASK4 IDENTITY HEADER: サイズ・位置は不変。avatarのring opacityを
+    /// 下げ内側にごく薄いshadowを足して「バッジ」ではなく物の縁として
+    /// 沈める。username/relative timeへ微小なtracking(0.2/0.5)を加え、
+    /// 汎用UIフォントの並びではなく組版された「metadata」に近づけた
+    /// (font size/weight/色そのものは変更していない)。
     private var identityRow: some View {
         Button(action: onProfileTap) {
             HStack(spacing: 9) {
@@ -291,7 +383,13 @@ struct PictriHomeMemoryCard: View {
                     .fill(HomeFriendColor.accent(for: post.username).opacity(0.94))
                     .frame(width: 30, height: 30)
                     .overlay {
-                        Circle().strokeBorder(Color.white.opacity(0.22), lineWidth: 1)
+                        Circle().strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
+                    }
+                    .overlay {
+                        Circle()
+                            .strokeBorder(Color.black.opacity(0.18), lineWidth: 1)
+                            .blur(radius: 0.5)
+                            .padding(0.5)
                     }
                     .overlay {
                         Text(String(post.username.prefix(1)).uppercased())
@@ -302,11 +400,13 @@ struct PictriHomeMemoryCard: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(post.username)
                         .font(PictriTypography.body(13.5, weight: .bold))
+                        .tracking(0.2)
                         .foregroundStyle(.white)
                         .shadow(color: .black.opacity(0.4), radius: 3, x: 0, y: 1)
                     Text(post.relativeTimeText)
                         .font(PictriTypography.mono(10, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.78))
+                        .tracking(0.5)
+                        .foregroundStyle(.white.opacity(0.74))
                         .shadow(color: .black.opacity(0.4), radius: 2, x: 0, y: 1)
                 }
 
@@ -321,10 +421,22 @@ struct PictriHomeMemoryCard: View {
     private func flip() {
         guard canFlip else { return }
         if reduceMotion {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                showFront.toggle()
+            // v10 PRODUCTION HOTFIX: 3D rotationは使わず(Reduce Motionの
+            // 意図を尊重)、水平scaleを1→ほぼ0→1と動かすaffineな squeeze
+            // だけで「一度edge-onまで潰れて裏返る」動きを表現する。
+            // 内容の切替(showFront)はsqueezeの最小点(前半終了時点)で
+            // 行い、通常版と同じ「edge-on付近でだけ中身を差し替える」
+            // 原則を保つ。
+            withAnimation(.easeInOut(duration: reducedFlipHalfDuration)) {
+                reducedFlipSqueeze = 0.04
             }
-            isFlipped.toggle()
+            DispatchQueue.main.asyncAfter(deadline: .now() + reducedFlipHalfDuration) {
+                showFront.toggle()
+                isFlipped.toggle()
+                withAnimation(.easeInOut(duration: reducedFlipHalfDuration)) {
+                    reducedFlipSqueeze = 1
+                }
+            }
             return
         }
         withAnimation(.easeInOut(duration: flipDuration)) {
@@ -356,16 +468,47 @@ extension QuestFeedPost {
 
 // MARK: - Shared color tokens
 
+/// v8.2 ICON PALETTE ALIGNMENT: 新AppIcon(黒背景+柔らかいLavenderの発光する
+/// 2つのpebble)から実測抽出したbrand accent。旧`PictriDarkTheme.accent`
+/// (terracotta 0xD97757)はMap等アプリ全体で使われているため危険な一括置換は
+/// せず、Home専用のこのtokenだけを新設して、Home内でterracottaが使われて
+/// いた箇所(Like active / Pagination active dot / Camera Lens / Hero Bezel
+/// 右辺反射 / Wordmark / Notification dot)を個別に置き換える。
+///
+/// 3候補をiPhone 17 Pro Darkで比較した:
+/// A) ICON DIRECT #C28BE1 — アイコンから実測したLavenderをそのまま使用。
+///    Camera Lensで見ると彩度が高く、やや「pink-magentaの発光ボタン」に
+///    寄って見えた。
+/// B) MUTED LAVENDER #C093D9(彩度-18%) — Aよりは落ち着いたが、Camera
+///    Lensのハイライトが依然「均一に光るlavenderの円盤」に見え、A/Bを
+///    並べてもズームすると差がほぼ分からなかった。
+/// C) LAVENDER + PEARL(採用) — PrimaryはB、Camera Lensの中心ハイライトを
+///    Cool Pearl(#EDEAF5、アイコンの白いhighlightに由来)に変更。実写真で
+///    A/Bと並べると、レンズが「均一発光」から「中心に光を受けた半透明の
+///    lens」へ明確に変わり、狙い通り「黒いDockにはめ込まれたLavender
+///    Lens」に見えたため採用した(Wordmark/Like/Pagination/Bezel反射は
+///    Bと同じMuted Lavenderのまま)。
+enum PictriHomeBrandAccent {
+    /// Primary。Like active / Pagination active dot / Wordmark / Notification
+    /// dot / Camera Lens本体色に使う、Muted Lavender。
+    static let accent = Color(red: 192 / 255, green: 147 / 255, blue: 217 / 255)
+    /// 光が当たる箇所専用のCool Pearl(アイコンの白いhighlightに由来)。
+    /// 巨大な発光には使わず、Camera Lensの中心やBezel左上等、狭い範囲のみ。
+    static let pearl = Color(red: 237 / 255, green: 234 / 255, blue: 245 / 255)
+    /// Accent地の上に乗せる文字・glyph用。Lavenderは中間輝度のため、
+    /// 旧`PictriDarkTheme.onAccent`と同じ暗いinkでAA相当のコントラストを保つ。
+    static let onAccent = Color(red: 26 / 255, green: 19 / 255, blue: 16 / 255)
+}
+
 enum PictriHomeCardTheme {
     /// v8: 26→24。CardをHeroとしてさらに拡大した際、26のままだと角が
     /// 「アプリアイコン的」に丸すぎて見えたため、写真としてのproportionに
     /// 近い24へわずかに絞った(22/24/26を比較、24採用の詳細は最終報告)。
     static let cornerRadius: CGFloat = 24
+    /// v9: 34→24、opacity0.5のまま、y26→16。「Depthであり、巨大なblur
+    /// shadowではない」という要求に合わせ、広がりと落下距離を絞った。
     static var ambientShadow: Color { Color.black.opacity(0.5) }
     static var contactShadow: Color { Color.black.opacity(0.6) }
     static var placeholderTop: Color { PictriDarkTheme.surfaceRaised }
     static var placeholderBottom: Color { PictriDarkTheme.surfaceOverlay }
-    /// v8 PHYSICAL PHOTOGRAPHY BEZEL用トークン。
-    static var bezelHighlight: Color { Color.white.opacity(0.85) }
-    static var bezelWarm: Color { PictriDarkTheme.accent }
 }

@@ -873,7 +873,7 @@ struct PictriLightNudgeCard: View {
 
 // MARK: - Pictri Final Theme (Claude Design Final Handoff)
 //
-// /Users/takakikeita/Desktop/PictriDesignHandoffFinal/handoff/PICTRI_DESIGN_TOKENS.md の値を
+// ローカルのDesign Handoff資料(PICTRI_DESIGN_TOKENS.md)の値を
 // 1:1で取り込んだ、正式なsemantic token層。既存のPictriTheme(暗色系、Camera/タブバー等が
 // 使用中)・PictriLightTheme(白基調系、青accent、Home/Memories Collect/Account等が使用中)
 // とは意図的に別のenumとして追加している。どちらも既存画面が現に参照しているため、
@@ -888,6 +888,110 @@ struct PictriLightNudgeCard: View {
 // 壊さずに済むよう意図的に維持している(巨大リファクタを避けるための判断)。
 // 唯一の例外: PictriPhotoPrintの物理的な「影」は ink ではなく paperDeep(常に暗い側)を
 // 参照するよう修正済み(ink反転後もshadowが暗いままになるようにするため)。
+/// Round 8「Prefecture Progress System」専用の6段階color token。
+/// `PictriFinalTheme.memoryColor`(既存、47県のearned tripを5色でローテーションする
+/// 別用途。MapView/MemoriesView/CameraViewが使用中で、今回は一切変更しない)とは
+/// 完全に独立した新設token setで、Home Mapの「Collection Summary」表示専用に使う。
+/// Goldは「県内のおすすめSpotを全てコンプリート」した場合にのみ使う(Memory Card/
+/// Camera/Dock/ボタン等では絶対に使わない、Round 8の明示的な制約)。
+/// 白は`#FFFFFF`ではなくSoft White、金は彩度を抑えたMuted Goldにしている。
+/// Round「HOME MAP FINAL VISUAL CORRECTION」で確定した、Home Map最終Visual
+/// Directionのtoken。直前Round(HOME WHITE MAP REDESIGN)で作った
+/// `PictriHomeMapCanvasTheme`(白いmap canvas前提のtoken)/`PictriRegionPalette`は
+/// ユーザーの明示的な却下(「White Map Canvas / White Rounded Cardは不採用」)を
+/// 受けて廃止し、この1つのtoken setへ統合した。
+///
+/// 最終方針: Home地図はbackground(海も含めた矩形全体)を`.clear`にし、Home自身の
+/// dark backgroundをそのまま透過させる。ここに並ぶのは「都道府県polygonの塗り・
+/// 県境線」だけの値で、地図専用の背景色は一切持たない。
+///
+/// 状態判定順序(仕様通り、Viewはこの順序をそのまま使う):
+///   1. !hasVisited            → unvisited (soft white)
+///   2. completedSpotIDs.isEmpty → anywhereVisited (dark charcoal)
+///   3. isComplete             → complete (gold)
+///   4. それ以外                → regionColor(regionId)
+enum PictriHomeMapTheme {
+    /// STATE 0 — 未訪問。純白(#FFFFFF)は使わず、既存のsoft white token
+    /// (`PictriPrefectureProgressTheme.softWhite`)をそのまま再利用する
+    /// (Home地図専用に別の白を新設しない)。日本列島全体の輪郭が常に
+    /// はっきり見える、という要求を満たす主要な塗り。
+    static var unvisited: Color { PictriPrefectureProgressTheme.softWhite }
+
+    /// STATE 1 — Anywhere撮影のみ(おすすめSpot未達成)。dark charcoal。
+    /// 背景(Homeのdark surface)と完全同化しないよう、surfaceより
+    /// 一段明るい値にする。
+    static let anywhereVisited = Color(red: 46 / 255, green: 46 / 255, blue: 51 / 255)
+
+    /// STATE 3 — コンプリート。既存のcompletionGoldをそのまま参照する
+    /// (Goldの実体を複数箇所へ増やさない、Album等と完全に同じ値)。
+    static var complete: Color { PictriPrefectureProgressTheme.completionGold }
+
+    // STATE 2 — 地方色(9区分固定)。`QuestPrefectureShape.region`をそのまま
+    // lookup keyにする(新しい地理データやprefecture→region対応表は追加しない)。
+    // 実機確認(前Round)で「黄系の地方色はcompletionGold(#D6B65A、色相約43°)と
+    // 混同する」ことが判明したため、9色いずれも43°付近を明確に避けている。
+    // 彩度・明度は「若者向けで可愛いが子供っぽくない」範囲(概ね彩度30-45%・
+    // 明度55-65%)に抑え、NEONは使わない。
+    static let hokkaido = Color(red: 150 / 255, green: 140 / 255, blue: 180 / 255)   // muted lavender
+    static let tohoku = Color(red: 130 / 255, green: 165 / 255, blue: 205 / 255)     // soft blue
+    static let kanto = Color(red: 130 / 255, green: 190 / 255, blue: 165 / 255)      // mint / soft green
+    static let chubu = Color(red: 165 / 255, green: 195 / 255, blue: 120 / 255)      // fresh yellow-green
+    static let kansai = Color(red: 185 / 255, green: 110 / 255, blue: 95 / 255)      // warm terracotta(goldとの衝突回避のためyellowから振替)
+    static let chugoku = Color(red: 110 / 255, green: 175 / 255, blue: 175 / 255)    // soft teal(kansai/kyushuの暖色帯と被らないよう、暖色系からteal寄りへ振替)
+    static let shikoku = Color(red: 215 / 255, green: 140 / 255, blue: 150 / 255)    // coral / pink
+    static let kyushu = Color(red: 200 / 255, green: 110 / 255, blue: 135 / 255)     // rose
+    static let okinawa = Color(red: 180 / 255, green: 90 / 255, blue: 140 / 255)     // magenta / deep pink
+
+    static func regionColor(forRegion region: String) -> Color {
+        switch region {
+        case "hokkaido": return hokkaido
+        case "tohoku": return tohoku
+        case "kanto": return kanto
+        case "chubu": return chubu
+        case "kansai": return kansai
+        case "chugoku": return chugoku
+        case "shikoku": return shikoku
+        case "kyushu": return kyushu
+        case "okinawa": return okinawa
+        default: return kanto
+        }
+    }
+
+    /// 未訪問(soft white)地の上の県境。中間の neutral gray。
+    static let unvisitedBorder = Color(red: 119 / 255, green: 119 / 255, blue: 127 / 255)
+    /// 訪問済み(charcoal/地方色/gold、いずれの塗りでも共通)の県境。charcoalの
+    /// ような暗い塗りの上でも沈まないよう、白寄りの半透明にする
+    /// (単色の暗いstrokeだと、暗いcharcoal塗りの上で輪郭が消えてしまうため)。
+    static let visitedBorder = Color.white.opacity(0.55)
+}
+
+enum PictriPrefectureProgressTheme {
+    /// 訪問済みだが、おすすめSpotをまだ1件もコンプリートしていない県。
+    static let softWhite = Color(red: 233 / 255, green: 233 / 255, blue: 236 / 255)
+    /// 1/5相当。
+    static let paleLavender = Color(red: 227 / 255, green: 213 / 255, blue: 250 / 255)
+    /// 2/5相当。
+    static let lightLavender = Color(red: 201 / 255, green: 172 / 255, blue: 242 / 255)
+    /// 3/5相当。
+    static let lavender = Color(red: 169 / 255, green: 130 / 255, blue: 227 / 255)
+    /// 4/5相当。
+    static let deepLavender = Color(red: 131 / 255, green: 97 / 255, blue: 198 / 255)
+    /// 5/5(コンプリート)専用。他のどこにも使わない。
+    static let completionGold = Color(red: 214 / 255, green: 182 / 255, blue: 90 / 255)
+
+    static func color(for level: PrefectureProgress.CollectionLevel, dormantFallback: Color) -> Color {
+        switch level {
+        case .unvisited: return dormantFallback
+        case .visitedNoSpots: return softWhite
+        case .level1: return paleLavender
+        case .level2: return lightLavender
+        case .level3: return lavender
+        case .level4: return deepLavender
+        case .complete: return completionGold
+        }
+    }
+}
+
 enum PictriFinalTheme {
 
     // MARK: Ink & paper (base world)

@@ -2,6 +2,19 @@ import SwiftUI
 
 @main
 struct JapanQuestApp: App {
+    init() {
+        #if DEBUG
+        if PictriVisualReview.carouselMetricsSelfTestRequested {
+            let (passed, failures) = PictriHomeCarouselLayoutMetricsSelfTest.run()
+            print("[CarouselMetricsSelfTest] passed=\(passed) failed=\(failures.count)")
+            for failure in failures {
+                print("[CarouselMetricsSelfTest] \(failure)")
+            }
+            print(failures.isEmpty ? "[CarouselMetricsSelfTest] ALL PASS" : "[CarouselMetricsSelfTest] FAILURES PRESENT")
+        }
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup {
             rootView
@@ -36,10 +49,13 @@ struct JapanQuestApp: App {
 private struct PictriRootWithOpening: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    // Reduce Motion時は`PictriOpeningView`側が`PictriFocusHandoffReducedFallback`
-    // (短いtimeline: stillnessEnd 0.80 / revealDuration 0.55 / 合計1.55秒)へ
-    // 切り替わるため、Home側のoptical stateとtotalDurationも同じ短い
-    // timelineへ揃える(揃えないとOpening完了後もHomeのblurが残ってしまう)。
+    // v16 P1: Reduce Motion時は`PictriOpeningView`側が
+    // `PictriFocusHandoffReducedFallback`へ切り替わるが、v16以降は
+    // そちらのtimeline定数(stillnessEnd/revealDuration/totalDuration)を
+    // フル尺(`pictriNoPeel*`)と完全に同じ値へ揃えたため、Home側の
+    // optical stateだけ計算式が異なる(blur/brightnessの動かし方が違う)
+    // 別関数を使う一方、totalDurationは両方とも`pictriNoPeelTotalDuration`
+    // で揃うようになった。
     private var homeState: (Double) -> PictriHomeOpticalState {
         if reduceMotion {
             return { elapsed in pictriHandoffHomeStateReduced(elapsed: elapsed) }
@@ -49,7 +65,7 @@ private struct PictriRootWithOpening: View {
     }
 
     private var openingTotalDuration: Double {
-        reduceMotion ? 1.55 : pictriNoPeelTotalDuration
+        pictriNoPeelTotalDuration
     }
 
     var body: some View {

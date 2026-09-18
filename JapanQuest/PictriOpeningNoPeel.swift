@@ -35,20 +35,26 @@ struct PictriHomeOpticalState {
 
 // MARK: - 共有タイムライン定数(Timing T2)
 
-let pictriNoPeelDarkness = 0.45
-let pictriNoPeelEmergenceEnd = 1.30
-let pictriNoPeelSharpLockEnd = 1.50
-// v6 HOLD TIMING MICRO FIX: 「PicTriが完成してからHomeへ移り始めるまでが
-// 短すぎる」という実機フィードバックを受け、sharpLockEnd→stillnessEndの
-// HOLD区間を0.40秒(旧1.90-1.50)から0.80秒へ拡大した。0.55/0.80/1.05の
-// 3候補を比較し、0.55は既存とほぼ体感差が無く、1.05は「止まった」と
-// 感じられるリスクが高いと判断、ユーザー希望レンジ(0.75〜0.90秒)の
-// 中心である0.80を採用した。Darkness/emergence/sharpLock/reveal choreography
-// 自体(pictriHandoffWordmark/pictriHandoffHomeState)には一切手を入れて
-// いない(タイミングの数値だけを変更)。
-let pictriNoPeelStillnessEnd = 2.30 // = reveal開始(HOLD = stillnessEnd - sharpLockEnd = 0.80秒)
-let pictriNoPeelRevealDuration = 1.30 // reveal終了 = 3.60
-let pictriNoPeelTotalDuration = 3.90 // reveal完了後、旧比と同じ0.30秒のsettle余白を維持
+// v16 P1 LAUNCH DURATION FIX: 実機動画計測で、アプリ内Launch演出が実質
+// 約1.2〜1.3秒しかなく、PicTriロゴを認識する前にHomeへ切り替わっている
+// ことが判明した(アイコンタップ2.0秒→Opening出現2.25秒→Home表示3.5秒、
+// という動画上の絶対時刻から逆算)。前ラウンド(v10)でstillnessEnd/
+// totalDurationを延長したはずが、実機では反映されていなかった(実機側の
+// Reduce Motion設定や古いBuildが動いていた可能性がある)。今回は
+// 「0.00-0.20暗闇 → 0.20-0.90出現 → 0.90-1.80保持 → 1.80-2.60 Homeへ
+// クロスフェード、合計2.6秒」という明示的な目標タイムラインに合わせて
+// 数値を作り直した。emergence/reveal自体のcurve(`pictriTypographyFinalGold`
+// の内部0.80秒assembly、`pictriNoPeelEase`のsmootherstep)は変更していない
+// (タイミングの窓=定数だけを変更)。
+//
+// 旧`pictriNoPeelEmergenceEnd`/`pictriNoPeelSharpLockEnd`はどの計算式からも
+// 参照されていない死にコードだったため削除した(grep で使用箇所ゼロを確認)。
+let pictriNoPeelDarkness = 0.20
+let pictriNoPeelStillnessEnd = 1.80 // = reveal開始(暗闇0.20 + 出現/保持で1.60秒)
+let pictriNoPeelRevealDuration = 0.80 // reveal終了 = 2.60
+let pictriNoPeelTotalDuration = 2.60 // 目標2.6秒(許容範囲2.4〜2.8秒)ちょうど。
+// reveal完了時点で既にveilが透明・wordmarkが不可視になるため、旧v10のような
+// 追加settle余白(0.30秒)は今回付けない(合計を2.6秒に収めるため)。
 
 /// 中盤が急すぎない、なだらかなsmootherstep。Peelのような物理的な
 /// 「持ち上がり」ではなく、光学的な変化(focus/exposure)にふさわしい
@@ -258,18 +264,43 @@ func pictriHandoffHomeState(elapsed: Double, style: PictriFocusHandoffStyle) -> 
 }
 
 /// Reduce Motion版のHome光学状態(Focus Handoff採用案用)。`PictriFocusHandoffReducedFallback`の
-/// 短いtimeline(stillnessEnd 0.80 / revealDuration 0.55)と同期させる。
+/// timeline(stillnessEnd 1.80 / revealDuration 0.80)と同期させる。
 /// v6 HOLD TIMING MICRO FIX: この関数はPictriFocusHandoffReducedFallbackの
 /// private定数とは別に0.65をハードコードしていたため、そちらのstillnessEndを
 /// 0.65→0.80へ変更した際に見落とすとHome側のblur解除タイミングだけズレて
 /// 残る(Wordmarkは長く保持されるのにHomeだけ先にsharpになる)desyncが
 /// 起きるところだった。値を揃えて同期させる。
+/// v16 P1 LAUNCH DURATION FIX: 「Reduce Motionを理由に起動演出を大幅短縮
+/// しない、最小表示時間はフル尺と同程度(約2.4〜2.6秒)を維持する」という
+/// 明示的な要求を受け、stillnessEnd/revealDurationをフル尺(1.80/0.80)と
+/// 揃えた(v10までの「Reduce Motionは控えめに短くする」方針から転換)。
+/// blur自体は視差を伴わない単純なopacity変化として維持する(scale/blurの
+/// 大きな動きは追加しない)。
 func pictriHandoffHomeStateReduced(elapsed: Double) -> PictriHomeOpticalState {
-    let t = pictriNoPeelEase(min(max((elapsed - 0.80 - pictriHandoffHomeLeadDelay) / (0.55 - pictriHandoffHomeLeadDelay), 0), 1))
+    let t = pictriNoPeelEase(min(max((elapsed - 1.80 - pictriHandoffHomeLeadDelay) / (0.80 - pictriHandoffHomeLeadDelay), 0), 1))
     return PictriHomeOpticalState(
         blur: 24 * (1 - t), brightness: -0.18 * (1 - t),
         saturation: 0.85 + 0.15 * t, contrast: 1.0, scale: 1.0
     )
+}
+
+/// v16 P1 LAUNCH DURATION FIX: 「Launch演出の最小表示時間」と「実際の
+/// アプリ初期化完了」の両方を待つ、という要求に対応する薄いゲート。
+/// このアプリのHome初期表示(`QuestMemoryStore`等)は現時点ではすべて
+/// 同期処理(モックデータ/ローカルファイルの同期読み込みのみ、
+/// ネットワーク待ちは存在しない)であるため、`isReady()`は事実上
+/// 即座に完了する。ここで構造だけ「両方待つ(async letで並行に走らせ、
+/// 両方await)」形にしておくことで、将来Home初期化に本当に時間の掛かる
+/// 非同期処理(例: 大量の実写真読み込み)が追加された場合も、
+/// Opening側のコードを変更せずに「初期化が長ければその完了を待つ」
+/// 挙動へ自然に拡張できる。
+enum PictriLaunchReadiness {
+    static func waitUntilAppIsReady() async {
+        // 現時点では待つべき非同期初期化が存在しないため、1 tickだけ
+        // Task schedulerへ制御を返す(Thread.sleep等でmain threadを
+        // ブロックしない、というルールを形式的にも満たすための最小待機)。
+        await Task.yield()
+    }
 }
 
 struct PictriFocusHandoffEngine: View {
@@ -295,7 +326,11 @@ struct PictriFocusHandoffEngine: View {
             guard !hasStarted else { return }
             hasStarted = true
             startDate = Date()
-            try? await Task.sleep(for: .seconds(totalDuration))
+            // 「最小表示時間」と「初期化完了」を並行に走らせ、両方が終わる
+            // まで待つ(片方が終わったら即座に進む、というraceにはしない)。
+            async let minimumDisplay: Void = { try? await Task.sleep(for: .seconds(totalDuration)) }()
+            async let appReady: Void = PictriLaunchReadiness.waitUntilAppIsReady()
+            _ = await (minimumDisplay, appReady)
             onComplete()
         }
     }
@@ -321,14 +356,18 @@ struct PictriFocusHandoffReducedFallback: View {
     @State private var hasStarted = false
     @State private var startDate: Date?
 
-    // v6 HOLD TIMING MICRO FIX: Reduce Motion版もフル尺と同じ趣旨で
-    // hold(stillnessEnd)を0.65→0.80秒へ延長。ただし「通常版ほど長い
-    // holdにしなくてよい」という方針通り、フル尺の+0.40秒よりずっと
-    // 控えめな+0.15秒に留めた(0.35〜0.50秒レンジの上寄り)。
-    private let assemblyBaseDelay = 0.20
-    private let stillnessEnd = 0.80
-    private let revealDuration = 0.55
-    private let totalDuration = 1.55
+    // v16 P1 LAUNCH DURATION FIX: 「Reduce Motionを理由に起動演出を0.5〜1秒へ
+    // 短縮しない、最小表示時間はフル尺と同程度(約2.4〜2.6秒)を維持する」
+    // という明示的な要求を受け、stillnessEnd/revealDuration/totalDurationを
+    // フル尺(`pictriNoPeelStillnessEnd`/`pictriNoPeelRevealDuration`/
+    // `pictriNoPeelTotalDuration`)と完全に同じ値へ揃えた(v6〜v10までの
+    // 「Reduce Motionは控えめに短くする」方針から転換)。動きの大きい
+    // scale/blurは使わず、下記bodyでも`.blur`を撤去してopacityのみの
+    // 変化にした(3D回転・parallaxは元から使っていない)。
+    private let assemblyBaseDelay = pictriNoPeelDarkness
+    private let stillnessEnd = pictriNoPeelStillnessEnd
+    private let revealDuration = pictriNoPeelRevealDuration
+    private let totalDuration = pictriNoPeelTotalDuration
 
     var body: some View {
         TimelineView(.animation) { context in
@@ -338,8 +377,9 @@ struct PictriFocusHandoffReducedFallback: View {
             let opacity = 1 - t * t * t
             ZStack {
                 PictriDarkTheme.openingSurface.opacity(1 - t)
+                // v16: 動きの大きいscale/blurを追加しない方針のため、
+                // 旧`.blur(radius: 6.0 * t)`を撤去しopacityのみの変化にした。
                 pictriTypographyFinalGold(elapsed: fragElapsed, fontSize: finalWordmarkFont)
-                    .blur(radius: 6.0 * t)
                     .opacity(opacity)
             }
         }
@@ -349,7 +389,9 @@ struct PictriFocusHandoffReducedFallback: View {
             guard !hasStarted else { return }
             hasStarted = true
             startDate = Date()
-            try? await Task.sleep(for: .seconds(totalDuration))
+            async let minimumDisplay: Void = { try? await Task.sleep(for: .seconds(totalDuration)) }()
+            async let appReady: Void = PictriLaunchReadiness.waitUntilAppIsReady()
+            _ = await (minimumDisplay, appReady)
             onComplete()
         }
     }
@@ -415,8 +457,24 @@ struct PictriNoPeelRoot<OpeningContent: View>: View {
             }
 
             if isOpeningActive {
-                opening { isOpeningActive = false }
-                    .zIndex(10)
+                // v10 HARD CUT FIX: 完了時点では数値上すでにveil/wordmarkの
+                // opacityはほぼ0まで収束しているはずだが(reveal自体の
+                // curveで消えている)、`isOpeningActive`をfalseにした瞬間
+                // このView自体がZStackから即座に取り除かれる(=SwiftUIの
+                // 通常の条件分岐は暗黙にはアニメーションしない)ため、
+                // タイミングの微小なズレ(Task.sleepとTimelineViewの
+                // clockのわずかな差等)があった場合に「パッと切り替わる」
+                // hard cutとして体感されるリスクが残っていた。
+                // `.transition(.opacity)` + `withAnimation`で除去自体を
+                // 必ず滑らかなcross-fadeにし、curve側の精度に依存せず
+                // 「別画面へ突然切り替わる」体感を構造的に防ぐ。
+                opening {
+                    withAnimation(.easeOut(duration: 0.35)) {
+                        isOpeningActive = false
+                    }
+                }
+                .zIndex(10)
+                .transition(.opacity)
             }
         }
         .statusBarHidden(isOpeningActive)

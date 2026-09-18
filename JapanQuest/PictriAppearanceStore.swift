@@ -38,12 +38,17 @@ final class PictriAppearanceStore: ObservableObject {
     /// `PictriDarkTheme`等、View階層の外(static computed property)からも参照できるよう、
     /// 現在のmodeをsharedな場所にも保持する。Source of TruthはこのStoreのインスタンスのみ
     /// (sharedは「今どのmodeか」を読むための窓口であり、書き込みは常にこのStore経由)。
+    ///
+    /// v9 Phase 2 — DARK ONLY POLICY: PicTriは正式にDark Onlyへ移行した
+    /// (ユーザーの明示的決定)。UserDefaultsに旧いLight/system値が残っている
+    /// 端末でも次回起動時にLightへ戻ることが無いよう、ここを唯一の
+    /// Single Source of Truthとして無条件で`.dark`を返す。UserDefaultsの
+    /// 読み取りコードは削除せず残しているが(Release前の別工程でのcleanup
+    /// 対象)、戻り値には一切使わない。`ContentView`の
+    /// `.preferredColorScheme(appearanceStore.mode.colorScheme)`がこの値を
+    /// 直接読むため、端末の外観設定がLightでもPicTriは常にDarkで描画される。
     static var current: PictriAppearanceMode {
-        if let raw = UserDefaults.standard.string(forKey: storageKey),
-           let mode = PictriAppearanceMode(rawValue: raw) {
-            return mode
-        }
-        return .dark
+        .dark
     }
 
     @Published var mode: PictriAppearanceMode {

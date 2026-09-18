@@ -46,6 +46,121 @@ struct QuestCaptureTarget {
     }
 }
 
+/// Round 8「Prefecture Progress System」。都道府県ごとの「おすすめSpot
+/// コンプリート進捗」を表す値型。Viewが`memoryPhotos`配列を直接何度も
+/// scanしないよう、この1つの構造体へ集約する(Progress Resolver抽象化)。
+/// `completedRecommendedSpotIDs`はcurated QuestSpot(おすすめSpot)の
+/// **ユニークなspotId**の集合であり、同じSpotで何枚撮っても1件のまま
+/// (枚数ではなくSpot単位でカウントする、というRound 8の核心ルール)。
+/// Anywhere capture(`freeform_<uuid>`のspotId)はこのSetに一切含めない。
+struct PrefectureProgress {
+    let prefectureID: String
+    let hasVisited: Bool
+    let completedRecommendedSpotIDs: Set<String>
+    let totalRecommendedSpotCount: Int
+
+    var completedCount: Int { completedRecommendedSpotIDs.count }
+
+    /// v1は「1県あたりおすすめSpot ~5件」を前提にした6段階color mappingだが、
+    /// 実データ(mockQuestSpots)は県によって件数がバラバラ(kanagawa=30〜
+    /// 未整備=0)なため、固定の5分岐ではなく常にratio(completedCount /
+    /// totalRecommendedSpotCount)で最も近い段階へ写像する。件数が変わっても
+    /// 壊れない。
+    enum CollectionLevel {
+        /// 未訪問(県に一度もMemoryが無い)
+        case unvisited
+        /// 訪問済みだが、おすすめSpotのcurated登録が0件、またはまだ1件も
+        /// コンプリートしていない
+        case visitedNoSpots
+        case level1
+        case level2
+        case level3
+        case level4
+        /// 全おすすめSpotをコンプリート。Goldはこの状態専用(他では絶対に使わない)。
+        case complete
+    }
+
+    var collectionLevel: CollectionLevel {
+        guard hasVisited else { return .unvisited }
+        guard totalRecommendedSpotCount > 0, completedCount > 0 else { return .visitedNoSpots }
+        if completedCount >= totalRecommendedSpotCount { return .complete }
+
+        let ratio = Double(completedCount) / Double(totalRecommendedSpotCount)
+        switch ratio {
+        case ..<0.25: return .level1
+        case ..<0.50: return .level2
+        case ..<0.75: return .level3
+        default: return .level4
+        }
+    }
+}
+
+/// MAP/ALBUM REFERENCE MIGRATION — Album screen専用のderived model。
+/// Round 8の`PrefectureProgress`をそのまま内包し、Albumが必要とする追加情報
+/// (代表Memory・思い出枚数・直近のRecommended Spot写真)だけを足す。Viewは
+/// `memoryPhotos`を直接scanせず、必ず`QuestMemoryStore.albumSummaries()`
+/// 経由でこの値を得る(Round 8のProgress Resolver抽象化と同じ方針)。
+struct PrefectureAlbumSummary: Identifiable {
+    let prefectureID: String
+    var id: String { prefectureID }
+    let prefectureName: String
+    let memoryCount: Int
+    let progress: PrefectureProgress
+    /// 県Card左側の代表写真。優先順位(spec「REPRESENTATIVE MEMORY」通り):
+    /// 1. 直近のRecommended Spot Memory(コンプリート後の最後の達成も、
+    ///    進行中の最新達成も、どちらも「直近のRecommended Spot Memory」に
+    ///    帰着するため同じロジックで表現できる)
+    /// 2. Recommended Spot Memoryが無ければ、直近のAnywhere Memory
+    /// 3. 写真が1枚も無ければnil(呼び出し側でintentional placeholderを描く)
+    let representativeMemory: QuestMemoryPhoto?
+    /// Card右側のRecommended Spot達成サムネイル行(最大4枚、直近優先)。
+    let recentRecommendedMemories: [QuestMemoryPhoto]
+}
+
+extension QuestMemoryStore {
+    /// 訪問済み県すべてのAlbum summaryを返す(訪問済み=`visitedPrefectureIds`)。
+    func albumSummaries() -> [PrefectureAlbumSummary] {
+        let visitedIds = visitedPrefectureIds
+        return questPrefectureShapes
+            .filter { visitedIds.contains($0.id) }
+            .map { albumSummary(forPrefectureId: $0.id, fallbackName: $0.name) }
+    }
+
+    /// `memoryPhotos`は`saveMemoryPhoto`が常に`insert(at: 0)`するため、配列順が
+    /// そのまま「新しい順」になっている(Source: QuestMemoryStore.saveMemoryPhoto)。
+    /// ここでは新しい日付文字列をparseし直さず、この既存の並び順をそのまま利用する。
+    func albumSummary(forPrefectureId prefectureId: String, fallbackName: String? = nil) -> PrefectureAlbumSummary {
+        let photos = memoryPhotos.filter { $0.prefectureId == prefectureId }
+        let recommendedPhotos = photos.filter { $0.isCuratedSpotMemory }
+        let anywherePhotos = photos.filter { !$0.isCuratedSpotMemory }
+        let representative = recommendedPhotos.first ?? anywherePhotos.first
+        let name = mockQuestPrefectures.first(where: { $0.id == prefectureId })?.name
+            ?? fallbackName
+            ?? prefectureId
+
+        return PrefectureAlbumSummary(
+            prefectureID: prefectureId,
+            prefectureName: name,
+            memoryCount: photos.count,
+            progress: prefectureProgress(for: prefectureId),
+            representativeMemory: representative,
+            recentRecommendedMemories: Array(recommendedPhotos.prefix(4))
+        )
+    }
+
+    /// Album summary row「おすすめ達成 x/y」用。xは全訪問県のcompletedRecommendedSpotIDs
+    /// の合計(重複spotなし、Round 8の一意カウントルールをそのまま継承)、yは
+    /// `mockQuestSpots`の総数(現在データが揃っている県だけの実件数、47県×5の
+    /// 捏造ではない)。
+    var totalCompletedRecommendedSpotCount: Int {
+        albumSummaries().reduce(0) { $0 + $1.progress.completedCount }
+    }
+
+    var totalRecommendedSpotCatalogCount: Int {
+        mockQuestSpots.count
+    }
+}
+
 final class QuestMemoryStore: ObservableObject {
     @Published var memoryPhotos: [QuestMemoryPhoto] = []
     @Published var feedPosts: [QuestFeedPost] = []
@@ -307,6 +422,27 @@ final class QuestMemoryStore: ObservableObject {
         return true
     }
 
+    /// Round 8 Progress Resolver。Viewが`memoryPhotos`を直接filterするのではなく、
+    /// 必ずこの1つの入口を経由して`PrefectureProgress`を得る。おすすめSpotの
+    /// ユニークspotId数だけをcountし(枚数ではない)、Anywhere capture
+    /// (`freeform_<uuid>`のspotId、`isCuratedSpotMemory == false`)は含めない。
+    func prefectureProgress(for prefectureId: String) -> PrefectureProgress {
+        let hasVisited = visitedPrefectureIds.contains(prefectureId)
+        let completedIds = Set(
+            memoryPhotos
+                .filter { $0.prefectureId == prefectureId && $0.isCuratedSpotMemory }
+                .map { $0.spotId }
+        )
+        let total = mockQuestSpots.filter { $0.prefectureId == prefectureId }.count
+
+        return PrefectureProgress(
+            prefectureID: prefectureId,
+            hasVisited: hasVisited,
+            completedRecommendedSpotIDs: completedIds,
+            totalRecommendedSpotCount: total
+        )
+    }
+
     func completedCount(prefectureId: String) -> Int {
         let spotIds = memoryPhotos
             .filter { $0.prefectureId == prefectureId }
@@ -433,6 +569,36 @@ final class QuestMemoryStore: ObservableObject {
     }
 
     #if DEBUG
+    /// `-pictriHomeSeedAnywhereQA true` Round 8専用。既定の`mockQuestFeedPosts`
+    /// 3件は全てcurated QuestSpot(spotIdがmockQuestSpotsに実在)のため、
+    /// Anywhere Memory(curated Spot外で撮った投稿)のCard rim(neutral silver/
+    /// soft-white)をQAで見せる材料が無かった。spotIdを`qa_freeform_`prefixの
+    /// 非実在idにすることで、`isCuratedSpotMemory`(mockQuestSpotsとの一致判定)が
+    /// 確実にfalseになる = captureKind == .anywhereになる1件だけを追加する。
+    /// 本番`mockQuestFeedPosts`・本番RecommendedSpot catalogは一切変更しない。
+    private static var homeAnywhereCaptureQAPost: QuestFeedPost {
+        QuestFeedPost(
+            id: "qa_anywhere_riku_yokohama",
+            userId: "user_riku_qa",
+            username: "riku",
+            spotId: "qa_freeform_yokohama_streetcorner",
+            prefectureId: "kanagawa",
+            createdAt: Calendar.current.date(byAdding: .hour, value: -3, to: Date()) ?? Date(),
+            expiresAt: Calendar.current.date(byAdding: .day, value: 6, to: Date()) ?? Date(),
+            displayDate: currentDateTextStatic(),
+            displayPlace: "yokohama",
+            isMine: false
+        )
+    }
+
+    private static func currentDateTextStatic() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy/MM/dd"
+        return formatter.string(from: Date())
+    }
+    #endif
+
+    #if DEBUG
     /// `-pictriHomeSeedExtraFeed true`専用。双方向Swipeの実装がFeed端の仕様
     /// (最初/最後の投稿では片側にしかsideカードが無い)なのか、Carousel自体の
     /// bugなのかを切り分けるためだけの、Release非同梱の一時データ。本番の
@@ -477,6 +643,9 @@ final class QuestMemoryStore: ObservableObject {
             feedPosts = mockQuestFeedPosts
             if PictriVisualReview.homeSeedExtraFeedRequested {
                 feedPosts += Self.homeBidirectionalSwipeQAPosts
+            }
+            if PictriVisualReview.homeSeedAnywhereQARequested {
+                feedPosts.insert(Self.homeAnywhereCaptureQAPost, at: 0)
             }
             return
         }
@@ -530,7 +699,13 @@ final class QuestMemoryStore: ObservableObject {
         let fileName = "\(UUID().uuidString).jpg"
         let url = documentsDirectory().appendingPathComponent(fileName)
 
-        guard let data = image.jpegData(compressionQuality: 0.88) else {
+        // CAMERA / POST IMAGING ROUND「PART 6 — JPEG QUALITY AUDIT」。0.88→0.92。
+        // これが保存パイプライン唯一のJPEGエンコード箇所(QuestDualPhotoComposer.
+        // compose()はUIGraphicsImageRenderer/CGContextでビットマップを合成する
+        // だけでJPEG化はしない、二重圧縮なし)。実機比較(髪/文字/夜景等の細部)は
+        // 本Roundの実機QAで実施予定——シミュレータのカメラ出力はダミー画像のため
+        // ここでは「輪郭を再現前提に妥当な値へ引き上げる」候補値として採用。
+        guard let data = image.jpegData(compressionQuality: 0.92) else {
             return nil
         }
 

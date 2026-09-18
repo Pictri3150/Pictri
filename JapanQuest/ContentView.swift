@@ -1,6 +1,7 @@
 import SwiftUI
 import CoreLocation
 import Combine
+import MapKit
 
 #if DEBUG
 /// DEBUGビルド限定・目視QA専用の起動引数を1箇所にまとめたもの。
@@ -114,6 +115,37 @@ enum PictriVisualReview {
         value(for: "-pictriMapDebugFocus")
     }
 
+    /// `-pictriWorldMapDebugRegion japan|korea|asia|world|tokyo` Map Round 2専用。
+    /// 実際のpinch/pan gestureをSimulator上で連続再現するのは不安定なため、
+    /// QA screenshot用にcamera regionを直接指定できるようにする。DEBUG限定。
+    /// 省略時はProduction初期経路(`PictriWorldMapCamera.initial()`、現在地優先/
+    /// 日本全体fallback)のまま、このフラグは一切影響しない。
+    static var worldMapDebugRegionKey: String? {
+        value(for: "-pictriWorldMapDebugRegion")
+    }
+
+    /// `-pictriWorldMapDebugSearchQuery <text>` Map Round 3専用。Simulatorでは
+    /// 実際のtext入力(candidate補完を伴う)を自動化しにくいため、QA screenshot用に
+    /// 検索queryとfocus状態を起動時に直接与える。DEBUG限定。省略時はProduction
+    /// 初期状態(空queryのcompact capsule)のまま。
+    static var worldMapDebugSearchQuery: String? {
+        value(for: "-pictriWorldMapDebugSearchQuery")
+    }
+
+    /// `-pictriWorldMapDebugSelectSpot <spotId>` Map Round 3専用。実際にmarkerを
+    /// tapせずにSpot選択状態(selected marker + compact Spot Card)を再現する。
+    /// DEBUG限定。
+    static var worldMapDebugSelectSpotId: String? {
+        value(for: "-pictriWorldMapDebugSelectSpot")
+    }
+
+    /// `-pictriWorldMapDebugOpenDetail true` Map Round 4専用。
+    /// `-pictriWorldMapDebugSelectSpot`と併用し、実際にPreview Cardをtapせずに
+    /// Spot Detail sheetを直接開いた状態を再現する。DEBUG限定。
+    static var worldMapDebugOpenDetail: Bool {
+        value(for: "-pictriWorldMapDebugOpenDetail") == "true"
+    }
+
     /// `-pictriMapAreaLevel prefecture|area|spots` でエリア探索Mapのズーム段階を
     /// 直接指定してスクショ確認できるようにする。DEBUG限定。
     /// 自動ピンチズームが難しいため、実際のズーム操作を経由せずに
@@ -186,6 +218,17 @@ enum PictriVisualReview {
     /// Camera側には影響しないため、役割を分けて別引数にしている。
     static var cameraSpotId: String? {
         value(for: "-pictriCameraSpot")
+    }
+
+    /// CAMERA ROUND 2「STEP 17 NESTED SPOT INTERACTIVE QA」専用。
+    /// `-pictriCameraSpot <id> -pictriCameraSpotExplicit true`と
+    /// `xcrun simctl location <device> set <lat,lon>`を組み合わせることで、
+    /// 実際にMapで「ここで撮る」をタップした状態(activeCameraSpotIsExplicit=true)を
+    /// UI操作なしで再現し、Selected Spot Priorityの実効果をSimulatorで確認できる
+    /// ようにする。DEBUG限定、本番の`activeCameraSpotIsExplicit`の既定値(false)や
+    /// 通常のMap導線には一切影響しない。
+    static var cameraSpotIsExplicit: Bool {
+        value(for: "-pictriCameraSpotExplicit") == "true"
     }
 
     /// `-pictriVlogDay <yyyy-MM-dd>` でその日のVlog再生画面を直接開けるようにする。DEBUG限定。
@@ -266,6 +309,24 @@ enum PictriVisualReview {
         }
     }
 
+    /// CAMERA ROUND 1 QA専用。`-pictriCameraReviewShowBack true`でReview画面の
+    /// two-sided cardを最初から裏(内カメラ/selfie側)表示で確認できるようにする。
+    /// Home側の`-pictriHomeFlipShowBack`と同じ考え方(DEBUG限定、既存の
+    /// flip実装自体には触れない)。
+    static var cameraReviewShowBack: Bool {
+        value(for: "-pictriCameraReviewShowBack") == "true"
+    }
+
+    /// CAMERA ROUND 1 QA専用。`-pictriCameraStyle standard|scenery|digicam`で
+    /// 起動直後のCamera Styleを直接指定する(標準/風景/デジカメのスクショ確認用)。
+    static var cameraStyleOverride: PictriCameraStyle? {
+        switch value(for: "-pictriCameraStyle") {
+        case "standard": return .standard
+        case "digicam": return .digicam
+        default: return nil
+        }
+    }
+
     /// `-pictriCameraAutoSave true`。Anywhere Capture Phase「Spot Unlock
     /// Architecture」のQA専用。GUIタップ自動化がこの開発環境では信頼できないため、
     /// `xcrun simctl location`で設定した現在地に対して、currentCaptureTargetが
@@ -311,6 +372,33 @@ enum PictriVisualReview {
     /// 本番のCold Launch経路には一切影響しない。
     static var openingPreviewRequested: Bool {
         value(for: "-pictriOpening") == "true"
+    }
+
+    /// `-pictriRunCarouselMetricsSelfTest true` — v15 Phase 7専用。起動直後に
+    /// `PictriHomeCarouselLayoutMetricsSelfTest.run()`を実行し、結果を
+    /// consoleへ出力する(XCTestターゲットが存在しないプロジェクトのため、
+    /// 既存のDEBUG launch flag QAパターンを踏襲した簡易自己検証)。
+    static var carouselMetricsSelfTestRequested: Bool {
+        value(for: "-pictriRunCarouselMetricsSelfTest") == "true"
+    }
+
+    /// `-pictriHomeCarouselDragFraction <value>` — v16 Carousel Engine
+    /// QAスクショ専用(DEBUG限定)。実gestureを介さず、指定した
+    /// itemStep倍率でCarouselのdragTranslationを直接固定し、drag中間状態を
+    /// 画面上で確認できるようにする。
+    static var homeCarouselDebugDragFraction: String? {
+        value(for: "-pictriHomeCarouselDragFraction")
+    }
+
+    /// `-pictriReduceMotionOverride true|false` — v16 Carousel Engine
+    /// QAスクショ専用(DEBUG限定)。実機のAccessibility設定を変更せずに
+    /// Reduce Motion ON/OFF両方の描画を検証できるようにする。
+    static var reduceMotionDebugOverride: Bool? {
+        switch value(for: "-pictriReduceMotionOverride") {
+        case "true": return true
+        case "false": return false
+        default: return nil
+        }
     }
 
     /// `-pictriAppearance dark|light` で起動時のAppearanceを直接指定する。DEBUG限定、
@@ -396,10 +484,46 @@ enum PictriVisualReview {
         value(for: "-pictriHomeFeedCount").flatMap(Int.init)
     }
 
+    /// `-pictriHomeMode map|recent` v10専用: 実gestureのtapを介さず、Home起動時の
+    /// `homeMode`をQA用に直接指定する(simctlにはtap自動化が無いため)。DEBUG限定、
+    /// 指定が無い/不正な値の場合は通常の既定値(`.map`)のまま。
+    static var homeModeOverride: PictriHomeMode? {
+        switch value(for: "-pictriHomeMode") {
+        case "map": return .map
+        case "recent": return .recent
+        default: return nil
+        }
+    }
+
+    /// `-pictriMapProgressOverrides "tokyo:5:12,osaka:3,kyoto:15:15"` Round 8 QA専用、
+    /// HOME WHITE MAP REDESIGNで10〜15件容量に対応させた。`県id:達成数[:総数]`形式
+    /// (総数省略時は12、将来の10〜15件運用を見越した既定値)。Home Mapの都道府県
+    /// ごとの「おすすめSpot達成数/総数」を実際のMemoryデータと無関係に強制表示する。
+    /// 複数の状態を同時に1枚のスクリーンショットへ収めるためのDEBUG限定
+    /// オーバーライドで、QuestMemoryStore/UserDefaults・本番RecommendedSpot
+    /// catalogには一切書き込まない(表示のみの上乗せ)。
+    static var mapProgressOverrides: [String: (completed: Int, total: Int)] {
+        guard let raw = value(for: "-pictriMapProgressOverrides") else { return [:] }
+        var result: [String: (completed: Int, total: Int)] = [:]
+        for pair in raw.split(separator: ",") {
+            let parts = pair.split(separator: ":")
+            guard parts.count >= 2, let completed = Int(parts[1]) else { continue }
+            let total = parts.count >= 3 ? (Int(parts[2]) ?? 12) : 12
+            result[String(parts[0])] = (completed: completed, total: total)
+        }
+        return result
+    }
+
     /// `-pictriHomeSeedExtraFeed true` で、双方向Swipe QA専用の追加投稿を
     /// (本番`mockQuestFeedPosts`自体は変更せず)一時的に足す。デフォルトの
     /// mockデータは有効投稿が2件しかなく、中央indexの両側にside cardが
     /// 実在する状態を検証できないため。DEBUGビルド限定、Releaseには一切含まれない。
+    /// `-pictriHomeSeedAnywhereQA true` Round 8専用。Anywhere Memory Card rim
+    /// (neutral silver/soft-white)をQAで確認するための1件だけの追加投稿。
+    static var homeSeedAnywhereQARequested: Bool {
+        value(for: "-pictriHomeSeedAnywhereQA") == "true"
+    }
+
     static var homeSeedExtraFeedRequested: Bool {
         value(for: "-pictriHomeSeedExtraFeed") == "true"
     }
@@ -431,6 +555,15 @@ enum PictriCameraVisualScenario: Equatable {
 struct ContentView: View {
     @State private var selectedTab: AppTab = ContentView.resolveInitialTab()
     @State private var activeCameraSpotId: String = ContentView.resolveInitialCameraSpotId()
+    /// CAMERA ROUND 1「CRITICAL FIX — MAP SELECTED SPOT」。Source of Truthは
+    /// ここ(ContentView)。MapView.swiftの「ここで撮る」導線でだけtrueになり、
+    /// QuestCameraView自身がCameraを離れるたびに必ずfalseへ戻す(詳細はCameraView.swift参照)。
+    @State private var activeCameraSpotIsExplicit: Bool = ContentView.resolveInitialCameraSpotIsExplicit()
+    /// Round「WORLD INTERACTIVE MAP」: MapタブのInteractive World Mapの
+    /// camera位置。`QuestMapView`自身はタブ切り替えのたびに作り直されるため、
+    /// Source of TruthをContentView(常駐)へ上げ、Map→Home→Mapを繰り返しても
+    /// 直前のcamera位置(pan/zoom)が保持されるようにする。
+    @State private var mapCameraPosition: MapCameraPosition = PictriWorldMapCamera.initial()
     /// Camera保存直後に「メモリーで確認する」から遷移した時だけ使う一時的な受け渡し。
     /// MemoriesViewはこれを見て、保存した記憶をExplore Detailで直接開く。
     /// 通常のタブバー操作では常にnilのままなので、既存のCollect/Explore遷移には影響しない。
@@ -455,8 +588,18 @@ struct ContentView: View {
     /// HomeView自身が持つ`PictriHomeControlDock`(Map/Camera/Album)へ
     /// 置き換えたため、Home表示中もこの旧barを隠す。Map/Camera/Memoriesは
     /// 変更せず、引き続きこの旧barからHomeへ戻れる(最小安全変更)。
+    /// MAP/ALBUM REFERENCE MIGRATION: Map(`.map`)/Album(`.memories`)もHomeと
+    /// 同様、自分自身の`PictriHomeControlDock`(shared Dock)を持つようになった
+    /// ため、この旧`JQFloatingTabBar`はそれらのtabでも隠す(画面ごとに2つの
+    /// Dockが二重に表示されることを防ぐ、G06「shared Dock使用」に対応)。
+    /// `.vlog`だけは今回のReference対象外(Memories内部のmode切り替えからのみ
+    /// 到達する既存経路、DEBUG専用)のため、旧barのまま維持する。
     private var isTabBarVisible: Bool {
-        selectedTab != .camera && selectedTab != .home && !isBottomBarHidden
+        selectedTab != .camera
+            && selectedTab != .home
+            && selectedTab != .map
+            && selectedTab != .memories
+            && !isBottomBarHidden
     }
 
     var body: some View {
@@ -633,6 +776,16 @@ struct ContentView: View {
     /// `-pictriCameraSpot <spotId>` でCamera起動時のspotを直接指定する。DEBUG限定。
     /// 指定spotIdがmockQuestSpotsに存在しない場合は既存デフォルト(enoshima_coast)へ
     /// フォールバックする。通常操作(タブ間の実際のスポット選択)には一切影響しない。
+    /// CAMERA ROUND 2 QA専用。`-pictriCameraSpotExplicit true`指定時のみtrueで
+    /// 起動する(通常起動は常にfalse、Map「ここで撮る」導線とは無関係)。
+    private static func resolveInitialCameraSpotIsExplicit() -> Bool {
+        #if DEBUG
+        return PictriVisualReview.cameraSpotIsExplicit
+        #else
+        return false
+        #endif
+    }
+
     private static func resolveInitialCameraSpotId() -> String {
         #if DEBUG
         if let spotId = PictriVisualReview.cameraSpotId,
@@ -657,23 +810,40 @@ struct ContentView: View {
 
         case .map:
             // 同上。MapDarkViewもAppearance機構へ統合した。
+            // MAP/ALBUM REFERENCE MIGRATION: root画面がHome同様のshared Dock/
+            // top languageへ移行したため、onAccountTapもHomeと同じ経路
+            // (既存JQAccountSheetView)へ橋渡しする。
+            // Round「WORLD INTERACTIVE MAP / DIRECT HOME NAVIGATION」:
+            // onHomeTapはAdaptive 3-slot Dockの「ホームへ戻る」slot用
+            // (Cameraを経由せず1tapでHomeへ戻る、Navigation root causeの修正)。
             QuestMapView(
                 selectedTab: $selectedTab,
-                activeCameraSpotId: $activeCameraSpotId
+                activeCameraSpotId: $activeCameraSpotId,
+                activeCameraSpotIsExplicit: $activeCameraSpotIsExplicit,
+                onAccountTap: { showAccountMenu = true },
+                onHomeTap: { selectedTab = .home },
+                worldMapCameraPosition: $mapCameraPosition
             )
 
         case .camera:
             QuestCameraView(
                 selectedTab: $selectedTab,
                 selectedSpotId: $activeCameraSpotId,
-                pendingExploreSpotId: $pendingExploreSpotId
+                pendingExploreSpotId: $pendingExploreSpotId,
+                selectedSpotIsExplicit: $activeCameraSpotIsExplicit
             )
 
         case .vlog:
             MemoriesView(pendingExploreSpotId: $pendingExploreSpotId, initialMode: .vlog)
 
         case .memories:
-            MemoriesView(pendingExploreSpotId: $pendingExploreSpotId, initialMode: .collect)
+            MemoriesView(
+                pendingExploreSpotId: $pendingExploreSpotId,
+                initialMode: .collect,
+                selectedTab: $selectedTab,
+                onAccountTap: { showAccountMenu = true },
+                notificationBadgeCount: friendStore.incomingRequests.count
+            )
         }
     }
 }

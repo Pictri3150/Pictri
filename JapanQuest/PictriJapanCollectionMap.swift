@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Pictri Japan Collection Map
 //
-// Claude Design Final Handoff(/Users/takakikeita/Desktop/PictriDesignHandoffFinal/handoff/)を
+// Claude Design Final Handoff(ローカルのdesign handoff資料一式)を
 // Visual Source of Truthとして実装した、日本全体Mapの正式なコレクションマップ。
 // PICTRI_DO_NOT_DEGRADE.md #4「No Apple Maps / MapKit as the map. The Japan collection
 // map is the product.」およびPICTRI_SWIFTUI_HANDOFF.md「Map: a shape-per-prefecture
@@ -100,6 +100,23 @@ enum QuestPrefectureGeometry {
 
     static func points(for shape: QuestPrefectureShape) -> [CGPoint] {
         sanitizedPointsById[shape.id] ?? shape.points
+    }
+
+    /// v4: `questPrefectureIslandShapes`(本土から離れた有人島)用の同じsanitizeパイプライン。
+    /// 本体の47都道府県キャッシュとは別のdictionaryにし、既存の`sanitizedPointsById`
+    /// (47件前提の箇所が万一あっても)件数を変えない。
+    static let islandSanitizedPointsById: [String: [CGPoint]] = {
+        var result: [String: [CGPoint]] = [:]
+        for island in questPrefectureIslandShapes {
+            let sanitized = twoOptUntangle(island.points)
+            assert(!hasSelfIntersection(sanitized), "2-opt untangle did not converge for \(island.id)")
+            result[island.id] = sanitized
+        }
+        return result
+    }()
+
+    static func points(for island: QuestPrefectureIslandShape) -> [CGPoint] {
+        islandSanitizedPointsById[island.id] ?? island.points
     }
 
     /// 非隣接edge(A,B)と(C,D)が交差している場合、AとDの間の頂点列(B..C)をreverseして
@@ -211,10 +228,36 @@ struct PictriJapanCollectionMapPalette {
     }
 }
 
+/// Round「HOME MAP OKINAWA REPOSITION」: 1つの県(本体shape+その離島すべて)を
+/// 1つの剛体として動かすための、scale+translationのみの変換。回転・非一様な
+/// 伸縮は持たない(=形状を歪めない、という要求をtype自体で保証する)。
+struct PictriMapRegionOverride {
+    /// この県の重心(本体+離島全点の平均)を軸にした追加scale。1.0で無変化。
+    var scale: CGFloat = 1.0
+    /// canvas座標系での追加平行移動量。
+    var translation: CGSize = .zero
+}
+
 struct PictriJapanCollectionMap: View {
     let visitedPrefectureIds: Set<String>
     let onSelect: (QuestPrefecture) -> Void
     var palette: PictriJapanCollectionMapPalette = .light
+    /// Round 8: Homeの「旅の地図」はpinch-zoom/panを持たない純粋な
+    /// Collection Summaryにする必要がある一方、Map本画面(MapView.swift、
+    /// 未変更呼び出し)は従来通りズーム/パン可能なままにする。既定値`true`で
+    /// 全既存呼び出し元の挙動を変えず、Home側だけ`false`を渡す。
+    var interactionEnabled: Bool = true
+    /// Round 8: 渡された場合、VoiceOverラベルを「訪問済み/未訪問」の2値だけでなく
+    /// おすすめSpotの進捗(例:「東京都、訪問済み、おすすめスポット3/5」)まで含める。
+    /// `nil`(既定)ではMap本画面と完全に同じ旧来のラベルのまま(未変更)。
+    var progressResolver: ((String) -> PrefectureProgress)? = nil
+    /// Round「HOME MAP OKINAWA REPOSITION」: 特定の県(現状はHomeの沖縄のみ)を
+    /// scale+translationだけで再配置するための、Home専用のoptionalな上書き。
+    /// key は`prefectureId`(shapeの`id`、islandの`prefectureId`と一致)。
+    /// 既定は空dictで、この場合すべての県は従来通り`QuestPrefectureGeometry`の
+    /// 座標をそのまま使う(Map本画面が仮にこのcomponentを再利用しても、この
+    /// 引数を渡さなければ挙動は一切変わらない)。
+    var regionLayoutOverrides: [String: PictriMapRegionOverride] = [:]
 
     /// ポリゴンのどこにも当たらなかった場合に、最寄りの県を採用する許容距離(canonical space, pt)。
     private static let missToleranceRadius: CGFloat = 22
@@ -241,6 +284,52 @@ struct PictriJapanCollectionMap: View {
         visitedPrefectureIds.contains(id)
     }
 
+    // MARK: - Region layout override (Home Okinawa reposition)
+
+    /// 描画・hit-testing・accessibility・重心計算のすべてがこの1つの入口を
+    /// 経由する(`QuestPrefectureGeometry.points(for:)`を直接呼ぶ箇所を無くし、
+    /// 「見た目の位置」と「タップ判定/VoiceOver位置」が食い違わないようにする)。
+    /// `regionLayoutOverrides`が空(既定)の場合は`QuestPrefectureGeometry`の
+    /// 座標をそのまま返す(既存の全呼び出し元は無変更)。
+    private func canvasPoints(for shape: QuestPrefectureShape) -> [CGPoint] {
+        let base = QuestPrefectureGeometry.points(for: shape)
+        guard let override = regionLayoutOverrides[shape.id] else { return base }
+        return applyRegionOverride(override, to: base, pivot: regionPivot(for: shape.id))
+    }
+
+    private func canvasPoints(for island: QuestPrefectureIslandShape) -> [CGPoint] {
+        let base = QuestPrefectureGeometry.points(for: island)
+        guard let override = regionLayoutOverrides[island.prefectureId] else { return base }
+        return applyRegionOverride(override, to: base, pivot: regionPivot(for: island.prefectureId))
+    }
+
+    /// 本体shape+その県に属する離島すべての全点の単純平均(重心近似)。
+    /// scale/translationの基準点として使う——真の面積重心である必要はなく、
+    /// 「本体+離島群がひとまとまりとして自然に動く軸」であれば十分。
+    private func regionPivot(for prefectureId: String) -> CGPoint {
+        var points: [CGPoint] = []
+        if let shape = questPrefectureShapes.first(where: { $0.id == prefectureId }) {
+            points += QuestPrefectureGeometry.points(for: shape)
+        }
+        for island in questPrefectureIslandShapes where island.prefectureId == prefectureId {
+            points += QuestPrefectureGeometry.points(for: island)
+        }
+        guard !points.isEmpty else { return .zero }
+        let sumX = points.reduce(0) { $0 + $1.x }
+        let sumY = points.reduce(0) { $0 + $1.y }
+        return CGPoint(x: sumX / CGFloat(points.count), y: sumY / CGFloat(points.count))
+    }
+
+    /// pivotを中心にscaleし、その後translationを加える。回転・非一様な軸別
+    /// scaleは行わない(=形状を歪めない)。
+    private func applyRegionOverride(_ override: PictriMapRegionOverride, to points: [CGPoint], pivot: CGPoint) -> [CGPoint] {
+        points.map { point in
+            let scaledX = pivot.x + (point.x - pivot.x) * override.scale
+            let scaledY = pivot.y + (point.y - pivot.y) * override.scale
+            return CGPoint(x: scaledX + override.translation.width, y: scaledY + override.translation.height)
+        }
+    }
+
     var body: some View {
         GeometryReader { proxy in
             let fitScale = min(
@@ -250,19 +339,44 @@ struct PictriJapanCollectionMap: View {
             let offsetX = (proxy.size.width - QuestJapanMapMetrics.canvasWidth * fitScale) / 2
             let offsetY = (proxy.size.height - QuestJapanMapMetrics.canvasHeight * fitScale) / 2
 
-            ZStack {
-                mapContent(fitScale: fitScale, offsetX: offsetX, offsetY: offsetY)
-                    .scaleEffect(currentScale, anchor: .center)
-                    .offset(currentOffset)
-            }
-            .frame(width: proxy.size.width, height: proxy.size.height)
-            .clipped()
-            .contentShape(Rectangle())
-            .gesture(panGesture(containerSize: proxy.size))
-            .simultaneousGesture(magnifyGesture(containerSize: proxy.size))
-            .onTapGesture(coordinateSpace: .local) { rawLocation in
-                let canonical = inverseTransform(rawLocation, containerSize: proxy.size)
-                handleTap(at: canonical, scale: fitScale, offsetX: offsetX, offsetY: offsetY)
+            Group {
+                if interactionEnabled {
+                    // 実Map画面(将来のズーム/パン再導入時)専用の経路。現在の
+                    // production呼び出しはHomeのみで`interactionEnabled: false`
+                    // のため、この分岐は現状previewのみで到達する。
+                    ZStack {
+                        mapContent(fitScale: fitScale, offsetX: offsetX, offsetY: offsetY)
+                            .scaleEffect(currentScale, anchor: .center)
+                            .offset(currentOffset)
+                    }
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .clipped()
+                    .contentShape(Rectangle())
+                    .gesture(panGesture(containerSize: proxy.size))
+                    .simultaneousGesture(magnifyGesture(containerSize: proxy.size))
+                    .onTapGesture(coordinateSpace: .local) { rawLocation in
+                        let canonical = inverseTransform(rawLocation, containerSize: proxy.size)
+                        handleTap(at: canonical, scale: fitScale, offsetX: offsetX, offsetY: offsetY)
+                    }
+                } else {
+                    // HOME MAP REDESIGN: Round 8以降`interactionEnabled: false`で
+                    // pan/magnify/tapのstate更新自体は既にno-op化していたが、
+                    // `.gesture(panGesture(...))`という「plain .gesture」の
+                    // DragGestureがView階層に存在し続けていたことが、Homeの縦
+                    // ScrollView(Vertical Paging)との真のroot causeだった。
+                    // SwiftUIは同種のgesture(drag)が親子で競合する場合、より
+                    // 深い(=このMap上の)plain `.gesture`を優先しがちで、地図の
+                    // 上をなぞった時だけ縦スワイプが「反応しない」不具合として
+                    // 現れていた。interactionEnabled=falseの間はgesture
+                    // recognizerそのものを一切アタッチしないことで、Home上の
+                    // 縦ページングが地図領域を含め画面のどこでも均一に反応する
+                    // ようにする(非インタラクティブ=見るだけの地図、という
+                    // 今回の明示的な製品方針とも一致)。
+                    mapContent(fitScale: fitScale, offsetX: offsetX, offsetY: offsetY)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                        .allowsHitTesting(false)
+                }
             }
             .onAppear {
                 applyDebugZoomIfRequested(containerSize: proxy.size, fitScale: fitScale, offsetX: offsetX, offsetY: offsetY)
@@ -286,7 +400,7 @@ struct PictriJapanCollectionMap: View {
             return
         }
 
-        let points = QuestPrefectureGeometry.points(for: shape)
+        let points = canvasPoints(for: shape)
         guard !points.isEmpty else { return }
         let avgX = points.reduce(0) { $0 + $1.x } / CGFloat(points.count)
         let avgY = points.reduce(0) { $0 + $1.y } / CGFloat(points.count)
@@ -308,6 +422,12 @@ struct PictriJapanCollectionMap: View {
                 prefectureVisual(shape, scale: fitScale, offsetX: offsetX, offsetY: offsetY)
             }
 
+            // v4: 本土から離れた有人島(佐渡・淡路・対馬・五島列島・沖縄離島群等)。
+            // 親県と同じvisited色/lineを`prefectureId`経由で共有する。
+            ForEach(questPrefectureIslandShapes) { island in
+                islandVisual(island, scale: fitScale, offsetX: offsetX, offsetY: offsetY)
+            }
+
             // Accessibility専用レイヤー。視覚的な塗り・線は一切持たず、VoiceOverの
             // フォーカス順・.accessibilityActionだけでonSelectを起動する
             // (ズーム状態に関わらず常に正しい県を選択できる)。
@@ -323,9 +443,11 @@ struct PictriJapanCollectionMap: View {
     private func magnifyGesture(containerSize: CGSize) -> some Gesture {
         MagnifyGesture()
             .updating($pinchScale) { value, state, _ in
+                guard interactionEnabled else { return }
                 state = value.magnification
             }
             .onEnded { value in
+                guard interactionEnabled else { return }
                 let proposed = baseScale * value.magnification
                 baseScale = proposed.clamped(to: Self.minScale...Self.maxScale)
                 baseOffset = clampedOffset(baseOffset, scale: baseScale, containerSize: containerSize)
@@ -333,14 +455,16 @@ struct PictriJapanCollectionMap: View {
     }
 
     /// 1本指パン。最小移動量を設けることでシンプルなtapとの競合を避ける。
+    /// Round 8: `interactionEnabled == false`(Home)ではstate更新自体を
+    /// 一切行わない(pinch/pan無し=純粋なCollection Summaryにする要求)。
     private func panGesture(containerSize: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 12)
             .updating($panTranslation) { value, state, _ in
-                guard currentScale > Self.minScale + 0.01 else { return }
+                guard interactionEnabled, currentScale > Self.minScale + 0.01 else { return }
                 state = value.translation
             }
             .onEnded { value in
-                guard currentScale > Self.minScale + 0.01 else { return }
+                guard interactionEnabled, currentScale > Self.minScale + 0.01 else { return }
                 let proposed = CGSize(
                     width: baseOffset.width + value.translation.width,
                     height: baseOffset.height + value.translation.height
@@ -379,6 +503,12 @@ struct PictriJapanCollectionMap: View {
             onSelect(prefecture(for: shape))
             return
         }
+        // v4: 本土shapeでヒットしなかった場合、離島(佐渡・対馬・沖縄離島群等)も
+        // 同じpolygon-containsで判定する(親県のprefectureIdで選択を解決)。
+        if let island = islandPolygonHit(at: location, scale: scale, offsetX: offsetX, offsetY: offsetY) {
+            onSelect(prefecture(forPrefectureId: island.prefectureId))
+            return
+        }
         if let shape = nearestShapeWithinTolerance(to: location, scale: scale, offsetX: offsetX, offsetY: offsetY) {
             onSelect(prefecture(for: shape))
         }
@@ -386,9 +516,19 @@ struct PictriJapanCollectionMap: View {
 
     private func polygonHit(at location: CGPoint, scale: CGFloat, offsetX: CGFloat, offsetY: CGFloat) -> QuestPrefectureShape? {
         for shape in questPrefectureShapes {
-            let path = PictriCollectionPrefecturePath(points: QuestPrefectureGeometry.points(for: shape), scale: scale, offsetX: offsetX, offsetY: offsetY)
+            let path = PictriCollectionPrefecturePath(points: canvasPoints(for: shape), scale: scale, offsetX: offsetX, offsetY: offsetY)
             if path.path(in: .zero).contains(location) {
                 return shape
+            }
+        }
+        return nil
+    }
+
+    private func islandPolygonHit(at location: CGPoint, scale: CGFloat, offsetX: CGFloat, offsetY: CGFloat) -> QuestPrefectureIslandShape? {
+        for island in questPrefectureIslandShapes {
+            let path = PictriCollectionPrefecturePath(points: canvasPoints(for: island), scale: scale, offsetX: offsetX, offsetY: offsetY)
+            if path.path(in: .zero).contains(location) {
+                return island
             }
         }
         return nil
@@ -404,7 +544,7 @@ struct PictriJapanCollectionMap: View {
         var nearestDistance = CGFloat.greatestFiniteMagnitude
 
         for shape in questPrefectureShapes {
-            let bounds = screenBounds(for: QuestPrefectureGeometry.points(for: shape), scale: scale, offsetX: offsetX, offsetY: offsetY)
+            let bounds = screenBounds(for: canvasPoints(for: shape), scale: scale, offsetX: offsetX, offsetY: offsetY)
             let dx = max(bounds.minX - location.x, 0, location.x - bounds.maxX)
             let dy = max(bounds.minY - location.y, 0, location.y - bounds.maxY)
             let distance = (dx * dx + dy * dy).squareRoot()
@@ -428,25 +568,59 @@ struct PictriJapanCollectionMap: View {
         offsetY: CGFloat
     ) -> some View {
         let visited = isVisited(shape.id)
-        let path = PictriCollectionPrefecturePath(points: QuestPrefectureGeometry.points(for: shape), scale: scale, offsetX: offsetX, offsetY: offsetY)
+        let path = PictriCollectionPrefecturePath(points: canvasPoints(for: shape), scale: scale, offsetX: offsetX, offsetY: offsetY)
         let fillColor = visited ? palette.memoryColor(shape.id) : palette.dormantFill
 
         path
             .fill(fillColor)
             .overlay {
+                // v5 TASK2 STROKE HIERARCHY: 旧`dash:[2.5,2]`は簡略化された頂点列と
+                // 組み合わさると「細切れの破線が大量に散らばる」ノイズに見えていた
+                // (特に四国・九州・離島密集地帯で顕著、Final screenshot監査で確認)。
+                // 座標は一切変更せず、stroke styleだけをsolidへ変更する
+                // (Ramer-Douglas-Peuckerの点密度自体は平均47.6点/県で過不足なし、
+                // 詳細はQuestMapGeoData.swift冒頭コメント参照)。visited/dormantで
+                // lineWidthを変え、「fillが主役、lineは輪郭の説明役」という階層を
+                // 明確にする(白い太線だけが主役にならないよう、visitedも1.0pt止まり)。
                 if visited {
-                    path.stroke(palette.visitedStroke, lineWidth: 1.4)
+                    path.stroke(palette.visitedStroke, style: StrokeStyle(lineWidth: 1.0, lineCap: .round, lineJoin: .round))
                 } else {
-                    path.stroke(palette.dormantStroke, style: StrokeStyle(lineWidth: 1, dash: [2.5, 2]))
+                    path.stroke(palette.dormantStroke, style: StrokeStyle(lineWidth: 0.75, lineCap: .round, lineJoin: .round))
                 }
             }
             .overlay {
                 if visited {
-                    let centroid = centroid(of: QuestPrefectureGeometry.points(for: shape), scale: scale, offsetX: offsetX, offsetY: offsetY)
+                    let centroid = centroid(of: canvasPoints(for: shape), scale: scale, offsetX: offsetX, offsetY: offsetY)
                     Circle()
                         .fill(palette.centroidDot)
                         .frame(width: 4, height: 4)
                         .position(centroid)
+                }
+            }
+            .allowsHitTesting(false)
+    }
+
+    /// v4: 島(`QuestPrefectureIslandShape`)の見た目。塗り・線は親県(`prefectureId`)の
+    /// visited状態・色をそのまま共有する。中心dotは島には付けない(本土側と同じく
+    /// `palette.centroidDot`はvisited県の本土にのみ表示する既存挙動を維持)。
+    @ViewBuilder
+    private func islandVisual(
+        _ island: QuestPrefectureIslandShape,
+        scale: CGFloat,
+        offsetX: CGFloat,
+        offsetY: CGFloat
+    ) -> some View {
+        let visited = isVisited(island.prefectureId)
+        let path = PictriCollectionPrefecturePath(points: canvasPoints(for: island), scale: scale, offsetX: offsetX, offsetY: offsetY)
+        let fillColor = visited ? palette.memoryColor(island.prefectureId) : palette.dormantFill
+
+        path
+            .fill(fillColor)
+            .overlay {
+                if visited {
+                    path.stroke(palette.visitedStroke, style: StrokeStyle(lineWidth: 0.75, lineCap: .round, lineJoin: .round))
+                } else {
+                    path.stroke(palette.dormantStroke, style: StrokeStyle(lineWidth: 0.6, lineCap: .round, lineJoin: .round))
                 }
             }
             .allowsHitTesting(false)
@@ -462,7 +636,7 @@ struct PictriJapanCollectionMap: View {
         offsetY: CGFloat
     ) -> some View {
         let visited = isVisited(shape.id)
-        let bounds = screenBounds(for: QuestPrefectureGeometry.points(for: shape), scale: scale, offsetX: offsetX, offsetY: offsetY)
+        let bounds = screenBounds(for: canvasPoints(for: shape), scale: scale, offsetX: offsetX, offsetY: offsetY)
 
         Color.clear
             .frame(width: max(bounds.width, 1), height: max(bounds.height, 1))
@@ -470,17 +644,48 @@ struct PictriJapanCollectionMap: View {
             .position(x: bounds.midX, y: bounds.midY)
             .accessibilityElement(children: .ignore)
             .accessibilityAddTraits(.isButton)
-            .accessibilityLabel("\(shape.name)・\(visited ? "いろづいた" : "まだ")")
+            .accessibilityLabel(accessibilityLabelText(for: shape, visited: visited))
             .accessibilityAction {
                 onSelect(prefecture(for: shape))
             }
     }
 
+    /// Round 8: `progressResolver`が無ければMap本画面と全く同じ旧来のラベルを返す
+    /// (未変更)。渡された場合のみ、おすすめSpotのコンプリート進捗を読み上げる。
+    private func accessibilityLabelText(for shape: QuestPrefectureShape, visited: Bool) -> String {
+        guard let progressResolver else {
+            return "\(shape.name)・\(visited ? "いろづいた" : "まだ")"
+        }
+
+        let progress = progressResolver(shape.id)
+        guard progress.hasVisited else {
+            return "\(shape.name)、未訪問"
+        }
+        guard progress.totalRecommendedSpotCount > 0 else {
+            return "\(shape.name)、訪問済み"
+        }
+        if progress.completedCount >= progress.totalRecommendedSpotCount {
+            return "\(shape.name)、コンプリート、\(progress.completedCount)/\(progress.totalRecommendedSpotCount)"
+        }
+        return "\(shape.name)、訪問済み、おすすめスポット\(progress.completedCount)/\(progress.totalRecommendedSpotCount)"
+    }
+
     // MARK: - Shared helpers
 
     private func prefecture(for shape: QuestPrefectureShape) -> QuestPrefecture {
-        mockQuestPrefectures.first(where: { $0.id == shape.id })
-            ?? QuestPrefecture(id: shape.id, name: shape.name, englishName: shape.id, totalSpotCount: 0)
+        prefecture(forPrefectureId: shape.id, fallbackName: shape.name)
+    }
+
+    /// v4: 島タップ時、親県の`QuestPrefecture`を解決する(`questPrefectureShapes`から
+    /// 本土名を引く。島専用の別名称は持たない)。
+    private func prefecture(forPrefectureId id: String, fallbackName: String? = nil) -> QuestPrefecture {
+        mockQuestPrefectures.first(where: { $0.id == id })
+            ?? QuestPrefecture(
+                id: id,
+                name: fallbackName ?? questPrefectureShapes.first(where: { $0.id == id })?.name ?? id,
+                englishName: id,
+                totalSpotCount: 0
+            )
     }
 
     private func screenBounds(for points: [CGPoint], scale: CGFloat, offsetX: CGFloat, offsetY: CGFloat) -> CGRect {

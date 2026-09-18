@@ -468,9 +468,8 @@ struct PictriPeelConceptCinematicFinal: View {
 
 // MARK: - IMAGE-FIRST IMPLEMENTATION(2026-08-23、続きのラウンド)
 //
-// Visual Source of Truth: /Users/takakikeita/Desktop/pictriimageopening.png
-// (6-panel storyboard、実測結果は /tmp/pictri_opening_reference_match/
-// REFERENCE_GEOMETRY.md 等を参照)。
+// Visual Source of Truth: local design mockup (pictriimageopening.png)
+// (6-panel storyboard、実測結果はローカルQA計測ログを参照)。
 //
 // 最重要の発見: (1) wordmarkは寒色ivoryではなく暖色gold(#D6C79A)の
 // engraved-metal表現。(2) Peelは水平ではなく、右下から左上へ向かう

@@ -28,20 +28,26 @@ struct PictriMemorySocialCapsule: View {
                 HStack(spacing: 5) {
                     Image(systemName: isLiked ? "heart.fill" : "heart")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(isLiked ? PictriDarkTheme.accent : Color.white.opacity(0.92))
+                        // v8.2: Like activeを旧terracottaからHome brand accent
+                        // (muted lavender)へ。派手な紫Heartにならないよう、
+                        // 既存のsize/weightはそのまま、色のみ置き換えている。
+                        .foregroundStyle(isLiked ? PictriHomeBrandAccent.accent : Color.white.opacity(0.92))
                     Text("\(likeCount)")
                         .font(PictriTypography.mono(11, weight: .bold))
                         .foregroundStyle(Color.white.opacity(0.88))
+                        .monospacedDigit()
                 }
+                .padding(.leading, 14)
+                .padding(.trailing, 12)
+                .frame(height: 38)
+                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .padding(.leading, 14)
-            .padding(.trailing, 11)
+            .buttonStyle(PictriSocialButtonStyle())
             .accessibilityLabel(isLiked ? "いいねを取り消す" : "いいねする")
             .accessibilityValue("\(likeCount)件")
 
             Rectangle()
-                .fill(Color.white.opacity(0.16))
+                .fill(Color.white.opacity(0.14))
                 .frame(width: 1, height: 16)
 
             Button(action: onOpenComments) {
@@ -52,22 +58,58 @@ struct PictriMemorySocialCapsule: View {
                     Text("\(commentCount)")
                         .font(PictriTypography.mono(11, weight: .bold))
                         .foregroundStyle(Color.white.opacity(0.88))
+                        .monospacedDigit()
                 }
+                .padding(.leading, 12)
+                .padding(.trailing, 14)
+                .frame(height: 38)
+                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .padding(.leading, 11)
-            .padding(.trailing, 14)
+            .buttonStyle(PictriSocialButtonStyle())
             .accessibilityLabel("コメントを開く")
             .accessibilityValue(commentCount == 0 ? "コメントなし" : "\(commentCount)件")
         }
         .frame(height: 38)
-        .background {
+        .background(capsuleSurface)
+        .clipShape(Capsule())
+        .overlay {
+            Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.75)
+        }
+        .shadow(color: Color.black.opacity(0.38), radius: 8, x: 0, y: 4)
+    }
+
+    /// v6 TASK5 SOCIAL CAPSULE: 旧`Capsule().fill(Color.black.opacity(0.36))`
+    /// (単色フラット) + white 1pt strokeは「generic dark pill」に見えていた。
+    /// iOS 26 Liquid Glass(`glassEffect`、Dockと同じAPI・Deployment Target
+    /// 26.4で利用可能)へ置き換え、写真を完全に隠さない薄い黒tintの光学的な
+    /// 素材にした。`interactive()`は採用しなかった(Glass自身の押下反応と、
+    /// 下記`PictriSocialButtonStyle`のscale/opacity反応が二重に効いて
+    /// 挙動が読みにくくなるリスクを避け、Dockの`PictriCameraButtonStyle`と
+    /// 同じ「自前ButtonStyleで統一する」方式に揃えた)。iOS 26未満では
+    /// 旧来のflat fillへfallbackする。
+    @ViewBuilder
+    private var capsuleSurface: some View {
+        if #available(iOS 26.0, *) {
+            Capsule()
+                .fill(.clear)
+                .glassEffect(.regular.tint(Color.black.opacity(0.30)), in: Capsule())
+        } else {
             Capsule().fill(Color.black.opacity(0.36))
         }
-        .overlay {
-            Capsule().strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
-        }
-        .shadow(color: Color.black.opacity(0.4), radius: 8, x: 0, y: 4)
+    }
+}
+
+/// v6 TASK6 INTERACTION STATES: Like/Comment個別に「press中はわずかに
+/// 縮んで沈む」フィードバックを追加(旧`.buttonStyle(.plain)`はpress
+/// フィードバックが無く、静止画のままだった)。Dockの`PictriCameraButtonStyle`
+/// と同じ語彙(scale + opacity、spring)に揃え、「同じMaterial universe」に
+/// 属する操作感にする。強いlavender発光等は使わない。
+private struct PictriSocialButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.93 : 1.0)
+            .opacity(configuration.isPressed ? 0.72 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 

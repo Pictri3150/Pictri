@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 
 // MARK: - Navigation Routes
 //
@@ -19,8 +20,27 @@ struct AreaExploreRoute: Hashable {
 struct QuestMapView: View {
     @Binding var selectedTab: AppTab
     @Binding var activeCameraSpotId: String
+    /// CAMERA ROUND 1「CRITICAL FIX — MAP SELECTED SPOT」。「ここで撮る」を
+    /// 明示的にタップした瞬間だけtrueにする(2箇所: onCaptureSpot / 旧
+    /// QuestSpotDetailView.actionButton)。CameraView側はこれをGPS範囲内チェックと
+    /// 組み合わせて初めてselected Spotを保存対象として優先する。
+    @Binding var activeCameraSpotIsExplicit: Bool
+    /// Round「MAP/ALBUM REFERENCE MIGRATION」: Home同様、右上notification/account
+    /// pillのtapをContentViewの既存JQAccountSheetViewへそのまま橋渡しする
+    /// (新しいAccount画面・新しいstateは作らない)。
+    var onAccountTap: () -> Void = {}
+    /// Round「WORLD INTERACTIVE MAP / DIRECT HOME NAVIGATION」: Adaptive
+    /// 3-slot Dockの「ホームへ戻る」slot用。ContentView側のselectedTab
+    /// 切り替えへそのまま橋渡しする(新しいnavigation stackは作らない)。
+    var onHomeTap: () -> Void = {}
+    /// Round「WORLD INTERACTIVE MAP」: World Mapのcamera位置をタブ切り替え
+    /// 間でも保持するため、Source of TruthをContentView側へ上げた
+    /// (このView自体はタブが切り替わるたびに作り直されるため、@State実装だと
+    /// Map→Home→Mapのたびにcameraが初期位置へ戻ってしまう)。
+    @Binding var worldMapCameraPosition: MapCameraPosition
 
     @EnvironmentObject var memoryStore: QuestMemoryStore
+    @EnvironmentObject var friendStore: QuestFriendStore
 
     @State private var path = NavigationPath()
 
@@ -41,10 +61,23 @@ struct QuestMapView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            QuestJapanOverviewScreen(
-                visitedPrefectureIds: visitedPrefectureIds,
-                onSelectPrefecture: { prefecture in
-                    path.append(PrefectureDetailRoute(prefecture: prefecture))
+            PictriWorldMapScreen(
+                notificationBadgeCount: friendStore.incomingRequests.count,
+                onAccountTap: onAccountTap,
+                onHomeTap: onHomeTap,
+                onCameraTap: { selectedTab = .camera },
+                onAlbumTap: { selectedTab = .memories },
+                cameraPosition: $worldMapCameraPosition,
+                // MAP ROUND 4「CAMERA CONTEXT」: Spot DetailのCTAから既存の
+                // activeCameraSpotId(CameraViewの`selectedSpotId`と同じbinding、
+                // Round 8以来の既存導線)へそのまま橋渡しする。これは表示上の
+                // 「選択」でしかなく、実際の達成判定(curatedSpot capture target)は
+                // CameraView側の`nearestUnlockedCuratedSpot`(GPS半径判定)が
+                // 従来通り決める——ここで新しい達成ロジックは一切実装しない。
+                onCaptureSpot: { spot in
+                    activeCameraSpotId = spot.id
+                    activeCameraSpotIsExplicit = true
+                    selectedTab = .camera
                 }
             )
             .onAppear {
@@ -67,7 +100,8 @@ struct QuestMapView: View {
                 QuestSpotDetailView(
                     spot: spot,
                     selectedTab: $selectedTab,
-                    activeCameraSpotId: $activeCameraSpotId
+                    activeCameraSpotId: $activeCameraSpotId,
+                    activeCameraSpotIsExplicit: $activeCameraSpotIsExplicit
                 )
             }
         }
@@ -147,155 +181,6 @@ private struct QuestScaledShapePath: Shape {
         }
         path.closeSubpath()
         return path
-    }
-}
-
-// MARK: - Japan Overview Screen (日本全体Map)
-
-private struct QuestJapanOverviewScreen: View {
-    let visitedPrefectureIds: Set<String>
-    let onSelectPrefecture: (QuestPrefecture) -> Void
-
-    @State private var showRegionList = false
-
-    private var visitedCount: Int { visitedPrefectureIds.count }
-
-    var body: some View {
-        ZStack {
-            PictriLightTheme.background.ignoresSafeArea()
-
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 16) {
-                    header
-
-                    PictriLightProgressCard(
-                        icon: "mappin.circle.fill",
-                        label: "訪れた都道府県",
-                        current: visitedCount,
-                        total: 47
-                    )
-
-                    japanMapPanel
-
-                    Spacer(minLength: JQUI.bottomBarReserve)
-                }
-                .padding(.horizontal, JQUI.sidePadding)
-                .padding(.top, 14)
-            }
-        }
-        .sheet(isPresented: $showRegionList) {
-            QuestRegionListSheet(
-                visitedPrefectureIds: visitedPrefectureIds,
-                onSelect: { prefecture in
-                    showRegionList = false
-                    onSelectPrefecture(prefecture)
-                }
-            )
-        }
-    }
-
-    /// Home(topBar)・Memories(memoriesHeader)と同じ「30pt太字タイトル + 13pt subtitle」の
-    /// 型に揃える。以前はここだけ21pt・subtitleなしの軽い見出しで、Mapだけ他の画面より
-    /// 情報量の少ない/違うヘッダーに見えていた。
-    private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("PicTri")
-                    .font(.system(size: 30, weight: .bold))
-                    .foregroundStyle(PictriLightTheme.textPrimary)
-
-                Text("行けた場所が、地図に残る")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(PictriLightTheme.textSecondary)
-            }
-
-            Spacer()
-        }
-    }
-
-    /// Claude Design Final Handoff(PICTRI_DO_NOT_DEGRADE.md #4 / PICTRI_SWIFTUI_HANDOFF.md
-    /// 「Map: ...Never MapKit.」)をVisual Source of Truthとして、実MapKit版の
-    /// QuestJapanOverviewMapViewから、questPrefectureShapesを直接描画する
-    /// PictriJapanCollectionMapへ置き換えた。ピンチズームchromeは仕様上持たない
-    /// (「no zoom/pan chrome」)。タップで従来通り県詳細へ遷移する導線(onSelectPrefecture)
-    /// は完全に維持している。マップ自体は白カードで囲わない
-    /// (PICTRI_DO_NOT_DEGRADE.md #1「No generic white rounded cards」)。
-    private var japanMapPanel: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ZStack(alignment: .bottomTrailing) {
-                PictriJapanCollectionMap(
-                    visitedPrefectureIds: visitedPrefectureIds,
-                    onSelect: onSelectPrefecture
-                )
-                .frame(height: 420)
-                .clipShape(RoundedRectangle(cornerRadius: PictriLightTheme.heroCornerRadius, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: PictriLightTheme.heroCornerRadius, style: .continuous)
-                        .stroke(PictriLightTheme.surfaceBorder, lineWidth: 1)
-                }
-
-                Button {
-                    showRegionList = true
-                } label: {
-                    PictriLightFloatingPill(text: "地域一覧", systemImage: "list.bullet")
-                }
-                .padding(16)
-            }
-
-            Text("タップで都道府県へ")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(PictriLightTheme.textFaint)
-                .padding(.horizontal, 4)
-        }
-    }
-}
-
-/// 「地域一覧」から一括で都道府県を見て選べる、日本地図の代替となるリスト表示。
-private struct QuestRegionListSheet: View {
-    let visitedPrefectureIds: Set<String>
-    let onSelect: (QuestPrefecture) -> Void
-
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            List(questPrefectureShapes) { shape in
-                let isVisited = visitedPrefectureIds.contains(shape.id)
-
-                Button {
-                    let prefecture = mockQuestPrefectures.first(where: { $0.id == shape.id })
-                        ?? QuestPrefecture(id: shape.id, name: shape.name, englishName: shape.id, totalSpotCount: 0)
-                    onSelect(prefecture)
-                } label: {
-                    HStack(spacing: 10) {
-                        Circle()
-                            .fill(isVisited ? PictriLightTheme.visitedPrefectureColor(id: shape.id) : PictriLightTheme.unvisitedFill)
-                            .frame(width: 10, height: 10)
-
-                        Text(shape.name)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(PictriLightTheme.textPrimary)
-
-                        Spacer()
-
-                        if isVisited {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(PictriLightTheme.teal)
-                        }
-                    }
-                }
-            }
-            .listStyle(.plain)
-            .navigationTitle("地域一覧")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("閉じる") { dismiss() }
-                        .foregroundStyle(PictriLightTheme.accent)
-                }
-            }
-        }
     }
 }
 
@@ -886,6 +771,7 @@ struct QuestSpotDetailView: View {
     let spot: QuestSpot
     @Binding var selectedTab: AppTab
     @Binding var activeCameraSpotId: String
+    @Binding var activeCameraSpotIsExplicit: Bool
 
     @EnvironmentObject var memoryStore: QuestMemoryStore
     @EnvironmentObject var locationManager: QuestLocationManager
@@ -1036,6 +922,7 @@ struct QuestSpotDetailView: View {
             // このSpotとしての記録・unlockが成立するかは、Camera側が保存時点の
             // 現在地で改めて判定する(CameraView.currentCaptureTarget参照)。
             activeCameraSpotId = spot.id
+            activeCameraSpotIsExplicit = true
             selectedTab = .camera
         } label: {
             Text(actionTitle)

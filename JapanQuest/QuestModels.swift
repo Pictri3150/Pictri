@@ -110,6 +110,27 @@ extension QuestFeedPost {
     var proofStatus: QuestVerificationStatus {
         QuestVerificationStatus(rawValue: verificationStatus ?? "") ?? .unknown
     }
+
+    /// QuestMemoryPhoto.isCuratedSpotMemoryと同じ導出(spotIdがmockQuestSpotsに
+    /// 実在するか)。QuestFeedPostは別の永続store配列だが同じspotId/prefectureIdを
+    /// 持つため、新しいSource of Truthを増やさず同じ導出ロジックだけを揃える。
+    var isCuratedSpotMemory: Bool {
+        mockQuestSpots.contains { $0.id == spotId }
+    }
+
+    var captureKind: QuestCaptureKind {
+        isCuratedSpotMemory ? .recommendedSpot : .anywhere
+    }
+}
+
+/// Round 8「Prefecture Progress System」。curated QuestSpot(おすすめSpot)で
+/// 撮ったMemoryか、それ以外(Anywhere)かの2分類。別Boolを新規に保存せず、
+/// 既存のisCuratedSpotMemory(spotIdがmockQuestSpotsに実在するかの導出)を
+/// そのままvocabulary化しただけで、QuestMemoryPhoto/QuestFeedPostのstored
+/// propertyは一切増やしていない(旧データも常にこの導出で安全に解釈できる)。
+enum QuestCaptureKind {
+    case anywhere
+    case recommendedSpot
 }
 
 struct QuestMemoryPhoto: Identifiable, Codable, Hashable {
@@ -154,6 +175,10 @@ extension QuestMemoryPhoto {
     /// (Spot Unlock Source of Truthを単一化する方針、詳細は最終報告)。
     var isCuratedSpotMemory: Bool {
         mockQuestSpots.contains { $0.id == spotId }
+    }
+
+    var captureKind: QuestCaptureKind {
+        isCuratedSpotMemory ? .recommendedSpot : .anywhere
     }
 }
 
